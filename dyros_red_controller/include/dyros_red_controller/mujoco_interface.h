@@ -1,0 +1,66 @@
+#ifndef MUJOCO_INTERFACE_H
+#define MUJOCO_INTERFACE_H
+
+#include "control_base.h"
+#include "math_type_define.h"
+
+#include <std_msgs/String.h>
+#include <mujoco_ros_msgs/JointState.h>
+#include <mujoco_ros_msgs/JointSet.h>
+#include <mujoco_ros_msgs/SensorState.h>
+
+namespace dyros_red_controller {
+
+class mujoco_interface : public ControlBase{
+public:
+  mujoco_interface(ros::NodeHandle &nh, double Hz);
+  virtual ~mujoco_interface() {}// mujocoStop(); }
+
+  virtual void update() override; // update controller based on readdevice
+  virtual void compute() override; // compute algorithm and update all class object
+  virtual void writeDevice() override; // publish to actuate devices
+  virtual void wait() override;
+
+private:  // CALLBACK
+
+  void jointStateCallback(const mujoco_ros_msgs::JointStateConstPtr& msg);
+  void sensorStateCallback(const mujoco_ros_msgs::SensorStateConstPtr& msg);
+  void simCommandCallback(const std_msgs::StringConstPtr& msg);
+
+
+  //void your_Callback(const sensor_msgs::ImuConstPtr& msg);
+
+private:
+  //void mujocoStart();
+ // void mujocoStop();
+
+
+private:
+  ros::Publisher mujoco_joint_set_pub_;
+  ros::Publisher mujoco_sim_command_pub_;
+
+
+  ros::Subscriber mujoco_joint_state_sub_;
+  ros::Subscriber mujoco_sensor_state_sub_;
+  ros::Subscriber mujoco_sim_command_sub_;
+
+  mujoco_ros_msgs::JointSet mujoco_joint_set_msg_;
+
+
+public:
+  bool sim_runnung;
+  float mujoco_sim_time;
+  float mujoco_sim_last_time;
+
+  std::string joint_name_mj[DyrosRedModel::MODEL_DOF];
+  ros::Rate rate_;
+  int dyn_hz;
+
+
+};
+
+}
+
+
+
+#endif // MUJOCO_INTERFACE_H
