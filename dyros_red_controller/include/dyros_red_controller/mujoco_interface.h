@@ -5,8 +5,8 @@
 #include "math_type_define.h"
 
 #include <std_msgs/String.h>
-#include <mujoco_ros_msgs/JointState.h>
-#include <mujoco_ros_msgs/JointSet.h>
+#include <std_msgs/Float32.h>
+#include <sensor_msgs/JointState.h>
 #include <mujoco_ros_msgs/SensorState.h>
 
 namespace dyros_red_controller {
@@ -23,9 +23,10 @@ public:
 
 private:  // CALLBACK
 
-  void jointStateCallback(const mujoco_ros_msgs::JointStateConstPtr& msg);
+  void jointStateCallback(const sensor_msgs::JointStateConstPtr& msg);
   void sensorStateCallback(const mujoco_ros_msgs::SensorStateConstPtr& msg);
   void simCommandCallback(const std_msgs::StringConstPtr& msg);
+  void simTimeCallback(const std_msgs::Float32ConstPtr &msg);
 
 
   //void your_Callback(const sensor_msgs::ImuConstPtr& msg);
@@ -43,8 +44,9 @@ private:
   ros::Subscriber mujoco_joint_state_sub_;
   ros::Subscriber mujoco_sensor_state_sub_;
   ros::Subscriber mujoco_sim_command_sub_;
+  ros::Subscriber mujoco_sim_time_sub_;
 
-  mujoco_ros_msgs::JointSet mujoco_joint_set_msg_;
+  sensor_msgs::JointState mujoco_joint_set_msg_;
 
 
 public:

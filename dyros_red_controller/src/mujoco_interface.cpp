@@ -5,14 +5,17 @@ namespace dyros_red_controller {
 mujoco_interface::mujoco_interface(ros::NodeHandle &nh, double Hz):
     ControlBase(nh,Hz), rate_(Hz), dyn_hz(Hz)
 {
-    mujoco_joint_set_pub_=nh.advertise<mujoco_ros_msgs::JointSet>("/mujoco_ros_interface/joint_set",1);
+    mujoco_joint_set_pub_=nh.advertise<sensor_msgs::JointState>("/mujoco_ros_interface/joint_set",1);
     mujoco_sim_command_pub_=nh.advertise<std_msgs::String>("/mujoco_ros_interface/sim_command_con2sim",100);
     mujoco_sim_command_sub_=nh.subscribe("/mujoco_ros_interface/sim_command_sim2con",100,&mujoco_interface::simCommandCallback,this);
+
+
     mujoco_joint_state_sub_ = nh.subscribe("/mujoco_ros_interface/joint_states",1,&mujoco_interface::jointStateCallback,this,ros::TransportHints().tcpNoDelay(true));
+    mujoco_sim_time_sub_ = nh.subscribe("/mujoco_ros_interface/sim_time",1,&mujoco_interface::simTimeCallback,this,ros::TransportHints().tcpNoDelay(true));
     mujoco_sensor_state_sub_=nh.subscribe("/mujoco_ros_interface/sensor_states",1,&mujoco_interface::sensorStateCallback,this,ros::TransportHints().tcpNoDelay(true));
 
     mujoco_joint_set_msg_.position.resize(total_dof_);
-    mujoco_joint_set_msg_.torque.resize(total_dof_);
+    mujoco_joint_set_msg_.effort.resize(total_dof_);
 
     ros::Rate poll_rate(100);
 
@@ -26,8 +29,21 @@ mujoco_interface::mujoco_interface(ros::NodeHandle &nh, double Hz):
     mujoco_sim_time =0.0;
 
 }
+void mujoco_interface::simTimeCallback(const std_msgs::Float32ConstPtr &msg)
+{
+  mujoco_sim_time = msg->data;
 
-void mujoco_interface::jointStateCallback(const mujoco_ros_msgs::JointStateConstPtr &msg)
+
+  if(mujoco_sim_time < 0.00001){
+
+    mujoco_sim_last_time = 0.0;
+
+  }
+
+
+}
+
+void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr &msg)
 {
     ROS_INFO_ONCE("jointCB");
     static bool once = true;
@@ -46,7 +62,7 @@ void mujoco_interface::jointStateCallback(const mujoco_ros_msgs::JointStateConst
                 q_dot_(i) = msg->velocity[j];
                 q_dot_virtual_(i+6) = msg->velocity[j];
 
-                torque_(i) = msg->torque[j];
+                torque_(i) = msg->effort[j];
 
             }
         }
@@ -62,16 +78,7 @@ void mujoco_interface::jointStateCallback(const mujoco_ros_msgs::JointStateConst
       q_dot_virtual_(i) = msg->velocity[i];
     }
 
-
-    mujoco_sim_time = msg->time;
-
-
-    if(mujoco_sim_time== 0.0){
-
-      mujoco_sim_last_time = 0.0;
-    }
     once=false;
-    ROS_INFO_ONCE("joint :   %f   %f   %f   %f   %f",q_(0),q_(10),q_(15),q_dot_(0),q_dot_(16));
 }
 
 
@@ -114,7 +121,7 @@ void mujoco_interface::writeDevice()
         for(int j=0; j<total_dof_;j++){
             if(DyrosRedModel::JOINT_NAME[i] ==joint_name_mj[j])
             {
-       mujoco_joint_set_msg_.torque[j] = torque_desired[i];
+       mujoco_joint_set_msg_.effort[j] = torque_desired[i];
 
             }
         }
