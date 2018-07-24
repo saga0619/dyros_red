@@ -65,6 +65,7 @@ public:
   void stateChangeEvent();
 
 
+  double control_time_;
 
   const double getHz() { return Hz_; }
 protected:
@@ -106,6 +107,10 @@ protected:
   VectorQd torque_damping;
   VectorQd position_desired;
 
+
+  bool torque_control_mode = true;
+  int compute_init = true;
+
   int total_dof_;
 
   DyrosRedModel model_;
@@ -118,7 +123,6 @@ protected:
 private:
   double Hz_; ///< control
   unsigned long tick_;
-  double control_time_;
 
   string previous_state_;
 

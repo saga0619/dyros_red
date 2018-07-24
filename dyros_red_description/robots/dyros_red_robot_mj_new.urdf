@@ -1,16 +1,8 @@
 <robot name="dyros_red_description">
 
-
-  <link name="base_link"/>
-
-
-  <joint name="virtual" type="floating">
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <child link="Pelvis_Link"/>
-    <parent link ="base_link"/>
-    <limit effort="30" velocity="1.0" lower="-3.14" upper="3.14"/>
-  </joint>
-  
+  <mujoco>
+    <compiler meshdir="../meshes/" balanceinertia="true"/>
+  </mujoco>
 
   <link
     name="Pelvis_Link">

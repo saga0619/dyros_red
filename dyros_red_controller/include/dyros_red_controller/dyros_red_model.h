@@ -180,14 +180,13 @@ private:
 
   Eigen::Isometry3d currnet_transform_[4];
 
-
+public:
   Eigen::MatrixXd A_;
   Eigen::MatrixXd A_temp_;
   Eigen::MatrixXd R_temp_;
   Eigen::Matrix3d Eri;
   Eigen::MatrixXd E_T_;
   Eigen::Vector3d com_;
-
   Eigen::Vector3d Gravity_;
 
 

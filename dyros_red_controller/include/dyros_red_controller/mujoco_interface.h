@@ -27,6 +27,9 @@ private:  // CALLBACK
   void sensorStateCallback(const mujoco_ros_msgs::SensorStateConstPtr& msg);
   void simCommandCallback(const std_msgs::StringConstPtr& msg);
   void simTimeCallback(const std_msgs::Float32ConstPtr &msg);
+  void simready();
+  void torque_control();
+  void joint_control();
 
 
   //void your_Callback(const sensor_msgs::ImuConstPtr& msg);
@@ -51,6 +54,8 @@ private:
 
 public:
   bool sim_runnung;
+  bool mujoco_ready = false;
+  bool mujoco_init_receive = false;
   float mujoco_sim_time;
   float mujoco_sim_last_time;
 

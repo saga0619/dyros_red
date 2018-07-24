@@ -68,6 +68,7 @@ int main(int argc, char **argv)
 
         double simultation_real_Hz = 1/total_time;
 
+
         ROS_DEBUG( "\n:::::::::::::::::::: TIME INFO ::::::::::::::::::\n Current Simulation Frequency : %4.2f Hz \n Realtime Factor : %4.2f \n\n readDevice : %3.4f ms\n update : %3.4f ms\n compute : %3.4f ms\n reflect : %3.4f ms\n writeDevice : %3.4f ms\n wait : %3.4f ms\n",simultation_real_Hz,200/simultation_real_Hz,readDevice_time*1000,update_time*1000,compute_time*1000,reflect_time*1000,writeDevice_time*1000,wait_time*1000);
     }
 

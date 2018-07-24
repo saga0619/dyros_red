@@ -253,7 +253,7 @@ DyrosRedModel::DyrosRedModel()
     for (int i=0; i<MODEL_DOF+1; i++)
     {
       link_id_[i] = model_.GetBodyId(LINK_NAME[i]);
-      ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i], link_id_[i],model_.GetParentBodyId(link_id_[i]));
+      //ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i], link_id_[i],model_.GetParentBodyId(link_id_[i]));
 
       //ROS_INFO("%dth parent %d",link_id_[i],model_.GetParentBodyId(link_id_[i]));
       //std::cout << model_.mBodies[link_id_[i]].mCenterOfMass << std::endl;
@@ -276,7 +276,7 @@ DyrosRedModel::DyrosRedModel()
 
     for(int i=0;i<MODEL_DOF+6;i++){
 
-      ROS_INFO("Joint type %d : %d", i, model_.mJoints[i].mJointType);
+      //ROS_INFO("Joint type %d : %d", i, model_.mJoints[i].mJointType);
 
     }
 
@@ -297,17 +297,17 @@ void DyrosRedModel::test()
     for(int i=0;i<MODEL_DOF;i++){
 
 
-    std::cout <<model_.GetBodyName(link_[i].id) << "position is :::::  "<<std::endl<< RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_,link_[i].id,Eigen::Vector3d::Zero(),false) << std::endl;
+    //std::cout <<model_.GetBodyName(link_[i].id) << "position is :::::  "<<std::endl<< RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_,link_[i].id,Eigen::Vector3d::Zero(),false) << std::endl;
 
     }
 
-    std::cout << "link0 Jac ::" << std::endl;
+    //std::cout << "link0 Jac ::" << std::endl;
 
     //std::cout << link_[0].Jac<<std::endl;
 
     //std::cout << " link 0 COM POS :: " <<std::endl << link_[0].COM_position << std::endl;
 
-    std::cout << "link0 Jac COM ::" <<std::endl;
+    //std::cout << "link0 Jac COM ::" <<std::endl;
 
     //std::cout << link_[0].Jac_COM<<std::endl;
 
@@ -392,7 +392,7 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd& q_virtual)
   */
 
 
-  ROS_INFO("Update time - detail \n updatekinematicsCustum Time : % 3.4f ms\n compositeRigid time : %3.4f ms\n jac_update time : %3.4f ms",uk_time*1000,cr_time*1000,ju_time*1000);
+  ROS_DEBUG("Update time - detail \n updatekinematicsCustum Time : % 3.4f ms\n compositeRigid time : %3.4f ms\n jac_update time : %3.4f ms",uk_time*1000,cr_time*1000,ju_time*1000);
 
 
 }
@@ -464,63 +464,29 @@ Eigen::VectorXd DyrosRedModel::getGravityCompensation(){
 
   double middle_time = ros::Time::now().toSec() - time_temp.toSec();
 
-
-
-
-
-
-
-
   Eigen::VectorXd torque_grav(MODEL_DOF);
   Eigen::MatrixXd aa = J_g*A_matrix_inverse*N_C*J_g.transpose();
 
-
-
   time_temp = ros::Time::now();
-
-
 
   double epsilon = 1e-7;
   Eigen::JacobiSVD<Eigen::MatrixXd> svd(aa ,Eigen::ComputeThinU | Eigen::ComputeThinV);
   double tolerance = epsilon * std::max(aa.cols(), aa.rows()) *svd.singularValues().array().abs()(0);
   Eigen::MatrixXd ppinv = svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
 
-
-
  // Eigen::MatrixXd ppinv = aa.completeOrthogonalDecomposition().pseudoInverse();
-
   double pinv_time = ros::Time::now().toSec() - time_temp.toSec();
 
-
-
-
-
   time_temp = ros::Time::now();
-
-
-
-
-
   //torque_grav = (J_g*A_matrix.inverse()*N_C*J_g.transpose()).completeOrthogonalDecomposition().pseudoInverse()*J_g*A_matrix.inverse()*N_C*G;
-
-
-
-
 
   //torque_grav.setZero();
   Eigen::MatrixXd tg_temp;
   tg_temp = ppinv*J_g*A_matrix_inverse*N_C;
   torque_grav = tg_temp*G;
 
-
-
-
-
-
   double tg_time = ros::Time::now().toSec() - time_temp.toSec();
-
-
-  ROS_INFO("\n\n Gravity Compensation : Calc time :::::::  gcalctime : %4.2f mtime : %4.2f  pinv calc time : %4.2f   tg time : %4.2f",g_calc_time*1000,middle_time*1000,pinv_time*1000,tg_time*1000);
+  ROS_DEBUG("\n\n Gravity Compensation : Calc time :::::::  gcalctime : %4.2f mtime : %4.2f  pinv calc time : %4.2f   tg time : %4.2f",g_calc_time*1000,middle_time*1000,pinv_time*1000,tg_time*1000);
   return torque_grav;
 
 
@@ -542,17 +508,17 @@ void DyrosRedModel::setquat(Eigen::Quaterniond& quat,const Eigen::VectorXd& q)
   Eigen::VectorXd q_virtual;
   q_virtual.resize(MODEL_DOF+6);
   q_virtual = q;
-  std::cout<<"q is : "<<std::endl;
-  std::cout<<q<<std::endl;
-  ROS_INFO_ONCE("t1");
-  std::cout<<"quaterniond : " <<quat.x() <<"  "<< quat.y() <<"  "<<quat.z() <<"  "<< quat.w()<<std::endl;
+  //std::cout<<"q is : "<<std::endl;
+  //std::cout<<q<<std::endl;
+  //ROS_INFO_ONCE("t1");
+  //std::cout<<"quaterniond : " <<quat.x() <<"  "<< quat.y() <<"  "<<quat.z() <<"  "<< quat.w()<<std::endl;
   RigidBodyDynamics::Math::Quaternion quat_temp(quat.x(),quat.y(),quat.z(),quat.w());
-  std::cout<<"quaternionv : " <<quat_temp<<std::endl;
-  ROS_INFO_ONCE("t2");
+  //std::cout<<"quaternionv : " <<quat_temp<<std::endl;
+  //ROS_INFO_ONCE("t2");
   model_.SetQuaternion(link_[0].id, quat_temp, q_virtual);
-  ROS_INFO_ONCE("t4");
-  std::cout<<"after q is : "<<std::endl;
-  std::cout<<q<<std::endl;
+  //ROS_INFO_ONCE("t4");
+  //std::cout<<"after q is : "<<std::endl;
+  //std::cout<<q<<std::endl;
 
 
 }

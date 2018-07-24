@@ -17,45 +17,47 @@ mujoco_interface::mujoco_interface(ros::NodeHandle &nh, double Hz):
     mujoco_joint_set_msg_.position.resize(total_dof_);
     mujoco_joint_set_msg_.effort.resize(total_dof_);
 
-    ros::Rate poll_rate(100);
-
+    mujoco_sim_time =0.0;
     ROS_INFO("Waiting for connection with Mujoco Ros interface ");
-
-    while(mujoco_sim_command_pub_.getNumSubscribers() ==0 &&ros::ok())
-        poll_rate.sleep();
-
+    simready();
     ROS_INFO("Mujoco Ros interface Connected");
 
-    mujoco_sim_time =0.0;
+
+
 
 }
+
+void mujoco_interface::simready()
+{
+  ros::Rate poll_rate(100);
+  while(!mujoco_ready &&ros::ok()){
+    ros::spinOnce();
+    poll_rate.sleep();
+  }
+  mujoco_ready=false;
+
+
+/*
+  while(!mujoco_init_receive &&ros::ok()){
+    ros::spinOnce();
+    poll_rate.sleep();
+  }
+  mujoco_init_receive=false;*/
+}
+
 void mujoco_interface::simTimeCallback(const std_msgs::Float32ConstPtr &msg)
 {
   mujoco_sim_time = msg->data;
-
-
-  if(mujoco_sim_time < 0.00001){
-
-    mujoco_sim_last_time = 0.0;
-
-  }
-
-
+  control_time_ = mujoco_sim_time;
 }
 
 void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr &msg)
 {
-    ROS_INFO_ONCE("jointCB");
-    static bool once = true;
     for(int i=0;i<total_dof_;i++)
     {
         for(int j=0; j<msg->name.size();j++){
             if(DyrosRedModel::JOINT_NAME[i] == msg->name[j].data())
             {
-              if(once ==true){
-
-              std::cout<<i<<" :   "<<DyrosRedModel::JOINT_NAME[i]<<" = "<<j<<" : "<<msg->name[j].data()<<std::endl;
-              }
                 q_(i) = msg->position[j];
                 q_virtual_(i+6) = msg->position[j];
 
@@ -77,14 +79,11 @@ void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr 
       q_virtual_(i) = msg->position[i];
       q_dot_virtual_(i) = msg->velocity[i];
     }
-
-    once=false;
 }
 
 
 void mujoco_interface::sensorStateCallback(const mujoco_ros_msgs::SensorStateConstPtr &msg)
 {
-    ROS_INFO_ONCE("sensorCB");
     for(int i=0;i<msg->sensor.size();i++){
         if(msg->sensor[i].name=="Gyro_Pelvis_IMU"){
             for(int j=0;j<3;j++){
@@ -94,12 +93,44 @@ void mujoco_interface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCon
         }
 
     }
-    ROS_INFO_ONCE("sensor data   %f",q_dot_virtual_(0));
 }
 
 
 void mujoco_interface::simCommandCallback(const std_msgs::StringConstPtr &msg)
 {
+
+  std::string buf;
+  buf = msg->data;
+
+
+  ROS_INFO("CB from simulator : %s", buf.c_str());
+  if(buf == "RESET"){
+    parameterInitialize();
+    mujoco_sim_last_time = 0.0;
+
+    mujoco_ready=true;
+
+    std_msgs::String rst_msg_;
+    rst_msg_.data="RESET";
+    mujoco_sim_command_pub_.publish(rst_msg_);
+
+    ros::Rate poll_rate(100);
+    while(!mujoco_init_receive &&ros::ok()){
+      ros::spinOnce();
+      poll_rate.sleep();
+    }
+    mujoco_init_receive=false;
+  }
+
+
+  if(buf=="INIT"){
+    mujoco_init_receive =true;
+    std_msgs::String rst_msg_;
+    rst_msg_.data="INIT";
+    mujoco_sim_command_pub_.publish(rst_msg_);
+  }
+
+
 
 
 }
@@ -116,28 +147,58 @@ void mujoco_interface::compute()
 
 void mujoco_interface::writeDevice()
 {
+
+
+  if(torque_control_mode == true){
+
+      for(int i=0;i<total_dof_;i++)
+      {
+          for(int j=0; j<total_dof_;j++){
+              if(DyrosRedModel::JOINT_NAME[i] ==joint_name_mj[j])
+              {
+                mujoco_joint_set_msg_.effort[j] = torque_desired[i];
+              }
+          }
+      }
+  }
+  else {
+   //simple joint pd with gravity compensation
+
+    model_.A_;
+
+    model_.getGravityCompensation();
+
+    torque_desired = model_.A_.block(6,6,DyrosRedModel::MODEL_DOF,DyrosRedModel::MODEL_DOF)*(400.0*(desired_q_ - q_) +40.0*(-q_dot_)) +model_.getGravityCompensation();
+    //torque_desired = model_.getGravityCompensation();
     for(int i=0;i<total_dof_;i++)
     {
         for(int j=0; j<total_dof_;j++){
             if(DyrosRedModel::JOINT_NAME[i] ==joint_name_mj[j])
             {
-       mujoco_joint_set_msg_.effort[j] = torque_desired[i];
-
+              mujoco_joint_set_msg_.effort[j] = torque_desired[i];
             }
         }
     }
-
-
-
+  }
     mujoco_joint_set_msg_.header.stamp=ros::Time::now();
     mujoco_joint_set_pub_.publish(mujoco_joint_set_msg_);
-
     mujoco_sim_last_time = mujoco_sim_time;
+
+}
+
+void mujoco_interface::torque_control()
+{
+
+}
+void mujoco_interface::joint_control()
+{
+
+
 }
 
 void mujoco_interface::wait()
 {
-    ros::Rate poll_rate(1000);
+    ros::Rate poll_rate(2000);
 
     while((mujoco_sim_time<(mujoco_sim_last_time+1.0/dyn_hz))&&ros::ok()){
         //ROS_INFO("WAIT WHILE");

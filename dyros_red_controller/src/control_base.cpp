@@ -82,37 +82,29 @@ void ControlBase::stateChangeEvent()
 }
 void ControlBase::compute()
 {
+  if(control_time_<10.0)
+  {
+    torque_control_mode = false ;
 
-  //task_controller_.compute();
-  //task_controller_.updateControlMask(control_mask_);
-  //task_controller_.writeDesired(control_mask_, desired_q_);
-
-
-
+  }
 
 
 
-
+  if(control_time_>=5.0 )
+  {
+    torque_control_mode = true;
     torque_desired= model_.getGravityCompensation();
 
-
-
-
-
-
-
-
-
-
-
-  tick_ ++;
-  control_time_ = tick_ / Hz_;
-
-
-  if ((tick_ % 200) == 0 )
-  {
-    ROS_INFO ("1 sec, %lf sec", control_time_);
   }
+  torque_control_mode = true;
+  torque_desired= model_.getGravityCompensation();
+
+
+
+
+
+
+
 
 }
 
@@ -133,7 +125,7 @@ void ControlBase::reflect()
 
 void ControlBase::parameterInitialize()
 {
-  ROS_INFO_ONCE("parameter initialize");
+  ROS_INFO("parameter initialize");
   q_.setZero();
   q_dot_.setZero();
   q_virtual_.setZero();
@@ -144,6 +136,7 @@ void ControlBase::parameterInitialize()
   desired_q_.setZero();
   torque_desired.setZero();
   position_desired.setZero();
+  compute_init=0;
 }
 void ControlBase::readDevice()
 {
