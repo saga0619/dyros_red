@@ -23,6 +23,7 @@ sudo make install
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 ```
 ### Mujoco license file ###
-* for mujoco user, replace the license file in [dyros_red_mujoco_model] folder with your license
+* for mujoco user, replace the license file in [dyros_red_mujoco_model] folder with your license 
+* or you can edit the position of license in dyros_red_simulation/simulation.launch with your license
 
 ### 
