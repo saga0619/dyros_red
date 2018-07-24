@@ -18,3 +18,7 @@ sudo make install
 ```cpp
 #include <ros.h>
 ```
+* If controller can't find librbdl.so.2.6.0, add following line to .bashrc
+```sh
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+```
