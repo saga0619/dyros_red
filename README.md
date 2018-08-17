@@ -24,9 +24,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 ```
 ### How to start with mujoco ###
 clone mujoco_ros_sim, then build. 
-after
 * git clone https://github.com/saga702/mujoco_ros_sim
 
+after build, launch simulation.launch 
 ```sh
 roslaunch dyros_red_launch simulation.launch 
 ```
