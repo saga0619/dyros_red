@@ -22,6 +22,12 @@ sudo make install
 ```sh
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 ```
+
+
+### Mujoco license file ###
+* for mujoco user, replace the license file in [dyros_red_mujoco_model] folder with your license 
+* or you can edit the position of license in dyros_red_simulation/simulation.launch with your license
+
 ### How to start with mujoco ###
 clone mujoco_ros_sim, then build. 
 * git clone https://github.com/saga702/mujoco_ros_sim
@@ -31,10 +37,4 @@ after build, launch simulation.launch
 roslaunch dyros_red_launch simulation.launch 
 ```
 
-
-### Mujoco license file ###
-* for mujoco user, replace the license file in [dyros_red_mujoco_model] folder with your license 
-* or you can edit the position of license in dyros_red_simulation/simulation.launch with your license
-
-### 
 
