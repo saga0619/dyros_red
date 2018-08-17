@@ -18,3 +18,12 @@ sudo make install
 ```cpp
 #include <ros.h>
 ```
+* If controller can't find librbdl.so.2.6.0, add following line to .bashrc
+```sh
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+```
+### Mujoco license file ###
+* for mujoco user, replace the license file in [dyros_red_mujoco_model] folder with your license 
+* or you can edit the position of license in dyros_red_simulation/simulation.launch with your license
+
+### 
