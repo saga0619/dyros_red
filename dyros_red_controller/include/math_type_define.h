@@ -6,7 +6,8 @@
 // constexpr size_t MAX_DOF=50;
 
 #include <Eigen/Dense>
-//#include <eigen3/Eigen/Dense>
+//#include <Eigen/SVD>
+
 
 #define GRAVITY 9.80665
 #define MAX_DOF 50U
@@ -52,6 +53,7 @@ typedef Matrix<std::complex<double>,8,4> Matrix8x4cd;
 
 
 }
+
 
 namespace DyrosMath
 {
@@ -288,14 +290,72 @@ static Eigen::Vector3d rot2Euler(Eigen::Matrix3d Rot)
     return angle;
 }
 
-template <typename _Matrix_Type_>
-_Matrix_Type_ pinv(const _Matrix_Type_ &a, double epsilon =std::numeric_limits<double>::epsilon())
-{
-    Eigen::JacobiSVD< _Matrix_Type_ > svd(a ,Eigen::ComputeThinU | Eigen::ComputeThinV);
-    double tolerance = epsilon * std::max(a.cols(), a.rows()) *svd.singularValues().array().abs()(0);
 
-    return svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
+
+
+static Eigen::MatrixXd pinv_SVD(const Eigen::MatrixXd &A, double epsilon = std::numeric_limits<double>::epsilon())
+{
+  Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+  double tolerance = epsilon * std::max(A.cols(), A.rows()) * svd.singularValues().array().abs()(0);
+  return svd.matrixV() * (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(),0).matrix().asDiagonal() * svd.matrixU().adjoint();
 }
+
+static Eigen::MatrixXd pinv_QR(const Eigen::MatrixXd &A) //faster than pinv_SVD,
+{
+  //FullPivHouseholderQR<MatrixXd> qr(A);
+  //qr.compute(A);
+  //qr.setThreshold(10e-10);
+  //return qr.inverse();
+
+  Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(A);
+  qr.setThreshold(10e-10);
+  int rank = qr.rank();
+
+   if (rank == 0) {
+     std::cout << "WARN::Input Matrix seems to be zero matrix" << std::endl;
+     return A;
+   }
+   else {
+     if (A.rows() > A.cols()) {
+       //ColPivHouseholderQR<MatrixXd> qr(A);
+       qr.compute(A);
+       Eigen::MatrixXd R = qr.matrixQR().topLeftCorner(rank, rank).template triangularView<Eigen::Upper>();
+       Eigen::MatrixXd Rpsinv2(A.cols(), A.rows());
+
+       Rpsinv2.setZero();
+       Rpsinv2.topLeftCorner(rank, rank) = R.inverse();
+
+       return qr.colsPermutation() * Rpsinv2 * qr.householderQ().transpose();
+     }
+     else if (A.cols() > A.rows()) {
+       //ColPivHouseholderQR<MatrixXd> qr(A.transpose());
+       qr.compute(A.transpose());
+       Eigen::MatrixXd R = qr.matrixQR().topLeftCorner(rank, rank).template triangularView<Eigen::Upper>();
+       Eigen::MatrixXd Rpsinv2(A.rows(), A.cols());
+
+       Rpsinv2.setZero();
+       Rpsinv2.topLeftCorner(rank, rank) = R.inverse();
+       return (qr.colsPermutation() * Rpsinv2 * qr.householderQ().transpose()).transpose();
+     }
+     else if (A.cols() == A.rows()) {
+       if(rank == A.cols() && rank == A.cols()) //full rank suqre matrix
+       {
+         return A.inverse();
+       }
+       else //rank deficient matrix
+       {
+         #ifdef EIGEN_3_3
+           Eigen::CompleteOrthogonalDecomposition<MatrixXd> cod(A);
+           return cod.pseudoInverse();
+         #else
+           pinv_SVD(A,10e-8);
+         #endif
+       }
+     }
+   }
+}
+
+
 
 static void floatGyroframe(Eigen::Isometry3d trunk, Eigen::Isometry3d reference, Eigen::Isometry3d new_trunk)
 {
@@ -416,6 +476,69 @@ Eigen::Matrix<double, _State_Size_, _State_Size_> discreteRiccatiEquation(
   }
 
   return X_sol;
+}
+
+static Eigen::Vector3d QuinticSpline(
+                   double time,       ///< Current time
+                   double time_0,     ///< Start time
+                   double time_f,     ///< End time
+                   double x_0,        ///< Start state
+                   double x_dot_0,    ///< Start state dot
+                   double x_ddot_0,   ///< Start state ddot
+                   double x_f,        ///< End state
+                   double x_dot_f,    ///< End state
+                   double x_ddot_f )  ///< End state ddot
+{
+  double a1,a2,a3,a4,a5,a6;
+  double time_s;
+
+  Eigen::Vector3d result;
+
+  if(time < time_0)
+  {
+    result << x_0, x_dot_0, x_ddot_0;
+    return result;
+  }
+  else if (time > time_f)
+  {
+    result << x_f, x_dot_f, x_ddot_f;
+    return result;
+  }
+
+
+  time_s = time_f - time_0;
+  a1=x_0;
+  a2=x_dot_0;
+  a3=x_ddot_0/2.0;
+
+  Eigen::Matrix3d Temp;
+  Temp<<pow(time_s, 3), pow(time_s, 4), pow(time_s, 5),
+        3.0 * pow(time_s, 2), 4.0 * pow(time_s, 3), 5.0 * pow(time_s, 4),
+        6.0 * time_s, 12.0 * pow(time_s, 2), 20.0 * pow(time_s, 3);
+
+  Eigen::Vector3d R_temp;
+  R_temp<<x_f-x_0-x_dot_0*time_s-x_ddot_0*pow(time_s,2)/2.0,
+        x_dot_f-x_dot_0-x_ddot_0*time_s,
+        x_ddot_f-x_ddot_0;
+
+  Eigen::Vector3d RES;
+
+  RES = Temp.inverse()*R_temp;
+
+  a4=RES(0);
+  a5=RES(1);
+  a6=RES(2);
+
+  double time_fs = time - time_0;
+
+  double position = a1+a2*pow(time_fs,1)+a3*pow(time_fs,2)+a4*pow(time_fs,3)+a5*pow(time_fs,4)+a6*pow(time_fs,5);
+  double velocity = a2+2.0*a3*pow(time_fs,1)+3.0*a4*pow(time_fs,2)+4.0*a5*pow(time_fs,3)+5.0*a6*pow(time_fs,4);
+  double acceleration =2.0*a3+6.0*a4*pow(time_fs,1)+12.0*a5*pow(time_fs,2)+20.0*a6*pow(time_fs,3);
+
+
+  result<<position,velocity,acceleration;
+
+  return result;
 }
 
 

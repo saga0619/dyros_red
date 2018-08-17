@@ -1,11 +1,14 @@
 #include "dyros_red_controller/mujoco_interface.h"
 
+
+
 namespace dyros_red_controller {
+
 
 mujoco_interface::mujoco_interface(ros::NodeHandle &nh, double Hz):
     ControlBase(nh,Hz), rate_(Hz), dyn_hz(Hz)
 {
-    mujoco_joint_set_pub_=nh.advertise<sensor_msgs::JointState>("/mujoco_ros_interface/joint_set",1);
+    mujoco_joint_set_pub_=nh.advertise<mujoco_ros_msgs::JointSet>("/mujoco_ros_interface/joint_set",1);
     mujoco_sim_command_pub_=nh.advertise<std_msgs::String>("/mujoco_ros_interface/sim_command_con2sim",100);
     mujoco_sim_command_sub_=nh.subscribe("/mujoco_ros_interface/sim_command_sim2con",100,&mujoco_interface::simCommandCallback,this);
 
@@ -15,7 +18,7 @@ mujoco_interface::mujoco_interface(ros::NodeHandle &nh, double Hz):
     mujoco_sensor_state_sub_=nh.subscribe("/mujoco_ros_interface/sensor_states",1,&mujoco_interface::sensorStateCallback,this,ros::TransportHints().tcpNoDelay(true));
 
     mujoco_joint_set_msg_.position.resize(total_dof_);
-    mujoco_joint_set_msg_.effort.resize(total_dof_);
+    mujoco_joint_set_msg_.torque.resize(total_dof_);
 
     mujoco_sim_time =0.0;
     ROS_INFO("Waiting for connection with Mujoco Ros interface ");
@@ -147,39 +150,18 @@ void mujoco_interface::compute()
 
 void mujoco_interface::writeDevice()
 {
+    mujoco_joint_set_msg_.MODE = 1;
 
-
-  if(torque_control_mode == true){
-
-      for(int i=0;i<total_dof_;i++)
-      {
-          for(int j=0; j<total_dof_;j++){
-              if(DyrosRedModel::JOINT_NAME[i] ==joint_name_mj[j])
-              {
-                mujoco_joint_set_msg_.effort[j] = torque_desired[i];
-              }
-          }
-      }
-  }
-  else {
-   //simple joint pd with gravity compensation
-
-    model_.A_;
-
-    model_.getGravityCompensation();
-
-    torque_desired = model_.A_.block(6,6,DyrosRedModel::MODEL_DOF,DyrosRedModel::MODEL_DOF)*(400.0*(desired_q_ - q_) +40.0*(-q_dot_)) +model_.getGravityCompensation();
-    //torque_desired = model_.getGravityCompensation();
     for(int i=0;i<total_dof_;i++)
     {
         for(int j=0; j<total_dof_;j++){
             if(DyrosRedModel::JOINT_NAME[i] ==joint_name_mj[j])
             {
-              mujoco_joint_set_msg_.effort[j] = torque_desired[i];
+              mujoco_joint_set_msg_.torque[j] = torque_desired[i];
             }
         }
     }
-  }
+
     mujoco_joint_set_msg_.header.stamp=ros::Time::now();
     mujoco_joint_set_pub_.publish(mujoco_joint_set_msg_);
     mujoco_sim_last_time = mujoco_sim_time;

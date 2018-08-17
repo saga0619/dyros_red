@@ -6,6 +6,8 @@
 	
 		<joint damping="2" frictionloss="2"/>
 
+		<motor ctrllimited="true" ctrlrange="-300 300"/>
+
 		<default class="viz">
 			<geom contype="0" conaffinity="0" group="1" type="mesh" rgba=".6 .6 .7 1"/>
 		</default>
@@ -394,7 +396,7 @@
 
 	<keyframe>
 		<!--Initial Position Setting -->
-		<key time="0" qpos ="0 0 0.92 0 0 0 1 
+		<key time="0" qpos ="0 0 0.92 1 0 0 0 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 0 

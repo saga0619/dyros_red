@@ -22,12 +22,30 @@ public:
   struct Link{
     int id;
     double Mass;
+
+    //local COM position of body
     Eigen::Vector3d COM_position;
+
+
     Eigen::Matrix3d inertia;
 
+    //rotation matrix
     Eigen::Matrix3d Rotm;
+
+    //global position of body
     Eigen::Vector3d xpos;
+
+    //global COM position of body
+    Eigen::Vector3d xipos;
+
+    //local contact point
     Eigen::Vector3d contact_point;
+
+    //velocity of body
+    Eigen::Vector3d xpos_dot;
+
+    //rotation of body
+    Eigen::Vector3d w_dot;
 
     Eigen::MatrixXd Jac_point;
     Eigen::MatrixXd Jac;
@@ -59,44 +77,6 @@ public:
   void Link_Set_Jacobian(int i, Eigen::Vector3d Jacobian_position);
   void Link_Set_test(int i);
   int test_run;
-
-
-
-  /*
-  class part{
-    part(DyrosRedModel &RM);
-
-  public:
-    DyrosRedModel &RM_;
-    void initialize(int id_, double mass_, Eigen::Matrix3d inertia_, Eigen::Vector3d COMpos_);
-    void Update(Eigen::Vector3d xpos_, Eigen::MatrixXd fj1_, Eigen::MatrixXd fj2_, Eigen::Matrix3d pel_rot);
-    void SetContact(Eigen::Vector3d contact_point);
-    void SetContact(double x, double y, double z);
-    void SetPoint(Eigen::Vector3d point);
-    void SetPoint(double x, double y, double z);
-    void test();
-    Eigen::MatrixXd RBDLJac2GlobalJac(Eigen::MatrixXd rbdljac, Eigen::Matrix3d pel_rot);
-
-
-    int id;
-    double Mass;
-    Eigen::Matrix3d Rotm;
-    Eigen::MatrixXd Jac_point;
-    Eigen::MatrixXd Jac;
-    Eigen::MatrixXd Jac_COM;
-    Eigen::MatrixXd Jac_COM_p;
-    Eigen::MatrixXd Jac_COM_r;
-    Eigen::MatrixXd Jac_Contact;
-    Eigen::Matrix3d inertia;
-    Eigen::Vector3d xpos;
-    Eigen::Vector3d xipos;
-
-
-  };
-*/
-
-
-
 
   static constexpr size_t MODEL_DOF = 31;
   static constexpr size_t LINK_NUMBER = 32;
@@ -160,15 +140,15 @@ public:
   void updateKinematics(const Eigen::VectorXd &q);
 
 
-  void getCenterOfMassPosition(Eigen::Vector3d* position);
+  Eigen::Vector3d getCenterOfMassPosition();
 
   void setquat(Eigen::Quaterniond& quat, const Eigen::VectorXd& q);
 
   const Eigen::Vector3d getCurrentCom(){ return com_;}
 
 
-  Eigen::VectorXd getGravityCompensation();
-  Eigen::VectorXd GetDampingTorque(Eigen::VectorXd qdot, double damp_);
+  //Eigen::VectorXd getGravityCompensation();
+  //Eigen::VectorXd GetDampingTorque(Eigen::VectorXd qdot, double damp_);
 
 private:
 
@@ -188,6 +168,8 @@ public:
   Eigen::MatrixXd E_T_;
   Eigen::Vector3d com_;
   Eigen::Vector3d Gravity_;
+  double total_mass;
+
 
 
 };

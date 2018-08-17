@@ -9,10 +9,10 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     roslib
     sensor_msgs
+    mujoco_ros_msgs
     std_msgs
     realtime_tools
-    eigen_conversions
-    mujoco_ros_msgs
+    eigen_conversions    
     )
 find_package(Eigen3 REQUIRED)
 catkin_package(
@@ -41,6 +41,7 @@ file(GLOB BRIDGE_SRC
 file(GLOB CONTROLLER_SRC
     "src/dyros_red_model.cpp"
     "src/task_controller.cpp"
+    "src/wholebody_controller.cpp"
     )
 
 
@@ -58,6 +59,8 @@ target_link_libraries(dyros_red_controller_lib
     -L/usr/local/lib
     -lrbdl
     -lrbdl_urdfreader
+
+    -lqpOASES
     )
 target_link_libraries(dyros_red_controller
     dyros_red_controller_lib

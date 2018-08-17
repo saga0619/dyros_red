@@ -36,6 +36,7 @@
 // User Library
 #include "math_type_define.h"
 #include "dyros_red_controller/dyros_red_model.h"
+#include "dyros_red_controller/wholebody_controller.h"
 // #include "Upperbody_Controller.h"
 
 
@@ -60,14 +61,11 @@ public:
   virtual void writeDevice()=0; // publish to actuate devices
   virtual void wait()=0;  // wait
 
-  bool checkStateChanged();
-
-  void stateChangeEvent();
-
-
+  //bool checkStateChanged();
+  //void stateChangeEvent();
+  const double getHz() { return Hz_; }  
   double control_time_;
 
-  const double getHz() { return Hz_; }
 protected:
 
   //unsigned int joint_id_[DyrosRedModel::MODEL_DOF];
@@ -115,10 +113,11 @@ protected:
 
   DyrosRedModel model_;
   //TaskController task_controller_;
+  Wholebody_controller wholebody_controller_;
 
 protected:
   string current_state_;
-  realtime_tools::RealtimePublisher<dyros_red_msgs::JointState> joint_state_pub_;
+  //realtime_tools::RealtimePublisher<dyros_red_msgs::JointState> joint_state_pub_;
 
 private:
   double Hz_; ///< control
@@ -136,14 +135,17 @@ private:
   //ros::Subscriber recog_point_sub_;
   // ros::Subscriber recog_cmd_sub_;
 
+  ros::Publisher data_pub_;
+  sensor_msgs::JointState data_pub_msg_;
+
   // State Machine (SMACH)
-  realtime_tools::RealtimePublisher<std_msgs::String> smach_pub_;
-  ros::Subscriber smach_sub_;
+  //realtime_tools::RealtimePublisher<std_msgs::String> smach_pub_;
+  //ros::Subscriber smach_sub_;
 
 
 
 
-  void smachCallback(const smach_msgs::SmachContainerStatusConstPtr& msg);
+  //void smachCallback(const smach_msgs::SmachContainerStatusConstPtr& msg);
   //void taskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr& msg);
 private:
 

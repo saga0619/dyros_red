@@ -1,8 +1,12 @@
 <launch>
+  <arg name="controller" default="true" />
   <node name="mujoco_ros" pkg="mujoco_ros" type="mujoco_ros" required="true" respawn="false" output="screen">
 	<param name="license" type="string" value="$(find dyros_red_mujoco_model)/mjkey.txt" />
 	<param name="model_file" type="string" value="$(find dyros_red_mujoco_model)/mujoco_model/dyros_red_robot.xml"/>
   </node>
-  <node name="dyros_red_controller" pkg="dyros_red_controller" type="dyros_red_controller" output="screen" launch-prefix="gnome-terminal --command" />
+
+  <group if="$(arg controller)">
+    <node name="dyros_red_controller" pkg="dyros_red_controller" type="dyros_red_controller" output="screen" launch-prefix="gnome-terminal --command" />
+  </group>
 </launch>
 

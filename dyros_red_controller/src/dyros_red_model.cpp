@@ -20,8 +20,8 @@ const std::string DyrosRedModel::JOINT_NAME[DyrosRedModel::MODEL_DOF] = {
       "Waist1_Joint","Waist2_Joint","Upperbody_Joint",
       "L_Shoulder1_Joint","L_Shoulder2_Joint","L_Shoulder3_Joint","L_Armlink_Joint","L_Elbow_Joint","L_Forearm_Joint","L_Wrist1_Joint","L_Wrist2_Joint",
       "R_Shoulder1_Joint","R_Shoulder2_Joint","R_Shoulder3_Joint","R_Armlink_Joint","R_Elbow_Joint","R_Forearm_Joint","R_Wrist1_Joint","R_Wrist2_Joint"};
-*/
 
+*/
 
 const std::string DyrosRedModel::JOINT_NAME[DyrosRedModel::MODEL_DOF] = {
       "L_HipRoll_Motor", "L_HipCenter_Motor", "L_Thigh_Motor", "L_Knee_Motor", "L_AnkleCenter_Motor", "L_AnkleRoll_Motor",
@@ -29,6 +29,9 @@ const std::string DyrosRedModel::JOINT_NAME[DyrosRedModel::MODEL_DOF] = {
       "Waist1_Motor","Waist2_Motor","Upperbody_Motor",
       "L_Shoulder1_Motor","L_Shoulder2_Motor","L_Shoulder3_Motor","L_Armlink_Motor","L_Elbow_Motor","L_Forearm_Motor","L_Wrist1_Motor","L_Wrist2_Motor",
       "R_Shoulder1_Motor","R_Shoulder2_Motor","R_Shoulder3_Motor","R_Armlink_Motor","R_Elbow_Motor","R_Forearm_Motor","R_Wrist1_Motor","R_Wrist2_Motor"};
+
+
+
 
 
 // 0~6 Left leg
@@ -101,6 +104,8 @@ void DyrosRedModel::Link_pos_Update(int i){
 
 
   link_[i].xpos =RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,link_[i].id,Eigen::Vector3d::Zero(),false);
+  link_[i].xipos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,link_[i].id,link_[i].COM_position,false);
+  //link_[i].COM_position = RigidBodyDynamics::CalcBaseToBodyCoordinates(model_,q_virtual_,link_[i])
 
 
 
@@ -158,6 +163,10 @@ void DyrosRedModel::Link_Jac_Update(int i){
 
   j_.block<3,MODEL_DOF+6>(0,0) = link_[i].Jac_COM_p;
   j_.block<3,MODEL_DOF+6>(3,0) = link_[i].Jac_COM_r;
+
+
+
+
 
 
   link_[i].Jac_COM = j_;
@@ -263,6 +272,12 @@ DyrosRedModel::DyrosRedModel()
     {
       Link_initialize(i,link_id_[i],model_.mBodies[link_id_[i]].mMass,model_.mBodies[link_id_[i]].mCenterOfMass);
     }
+    total_mass = 0;
+    for(int i=0;i<MODEL_DOF+1;i++)
+    {
+      total_mass = total_mass + link_[i].Mass;
+
+    }
 
 
 
@@ -362,7 +377,7 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd& q_virtual)
 
   A_ = A_temp_;
 
-  getCenterOfMassPosition(&com_);
+  com_ = getCenterOfMassPosition();
 
   //R_temp_.block<3,3>(0,0) = -base_rotation_;
   //R_temp_.block<3,3>(3,3) = -base_rotation_;
@@ -397,112 +412,6 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd& q_virtual)
 
 }
 
-
-Eigen::VectorXd DyrosRedModel::getGravityCompensation(){
-
-
-  ros::Time time_temp = ros::Time::now();
-
-  Eigen::Vector3d left_leg_contact, right_leg_contact;
-
-  left_leg_contact<<0,0,-0.1368;
-  right_leg_contact<<0,0,-0.1368;
-
-  Link_Set_Contact(Left_Leg+5,left_leg_contact);
-  Link_Set_Contact(Right_Leg+5,right_leg_contact);
-
-
-  Eigen::Vector3d Grav_ref;
-
-  Grav_ref.setZero(3);
-  Grav_ref(2) = -9.81;
-
-
-  Eigen::VectorXd G,Gtemp;
-  G.setZero(MODEL_DOF+6);
-  Gtemp.setZero(MODEL_DOF+6);
-
-  for(int i=0;i<MODEL_DOF+1;i++){
-    Gtemp = G - link_[i].Jac_COM_p.transpose()*link_[i].Mass*Grav_ref;
-    G=Gtemp;
-  }
-
-
-  double g_calc_time = ros::Time::now().toSec() - time_temp.toSec();
-
-  time_temp = ros::Time::now();
-
-  //std::cout<<"G Vector"<<std::endl<<G<<std::endl;
-
-  Eigen::MatrixXd A_matrix(MODEL_DOF+6,MODEL_DOF+6);
-  Eigen::MatrixXd A_matrix_inverse(MODEL_DOF+6,MODEL_DOF+6);
-
-  A_matrix.setZero();
-
-  A_matrix = A_;
-  A_matrix_inverse = A_matrix.inverse();
-
-  Eigen::MatrixXd J_g;
-  J_g.setZero(MODEL_DOF, MODEL_DOF+6);
-  J_g.block(0, 6, MODEL_DOF, MODEL_DOF).setIdentity();
-
-  Eigen::MatrixXd J_C, J_C_INV_T;
-  J_C.setZero(12, MODEL_DOF+6);
-  J_C.block(0, 0, 6, MODEL_DOF+6) = link_[Left_Leg+5].Jac_Contact;
-  J_C.block(6, 0, 6, MODEL_DOF+6) = link_[Right_Leg+5].Jac_Contact;
-
-  Eigen::MatrixXd Lambda_c;
-  Lambda_c=(J_C*A_matrix_inverse*(J_C.transpose())).inverse();
-  J_C_INV_T = Lambda_c*J_C*A_matrix_inverse;
-
-  Eigen::MatrixXd N_C;
-  N_C.setZero(MODEL_DOF+6, MODEL_DOF+6);
-  Eigen::MatrixXd I37;
-  I37.setIdentity(MODEL_DOF+6, MODEL_DOF+6);
-  N_C =I37-J_C.transpose()*J_C_INV_T;
-
-
-  double middle_time = ros::Time::now().toSec() - time_temp.toSec();
-
-  Eigen::VectorXd torque_grav(MODEL_DOF);
-  Eigen::MatrixXd aa = J_g*A_matrix_inverse*N_C*J_g.transpose();
-
-  time_temp = ros::Time::now();
-
-  double epsilon = 1e-7;
-  Eigen::JacobiSVD<Eigen::MatrixXd> svd(aa ,Eigen::ComputeThinU | Eigen::ComputeThinV);
-  double tolerance = epsilon * std::max(aa.cols(), aa.rows()) *svd.singularValues().array().abs()(0);
-  Eigen::MatrixXd ppinv = svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
-
- // Eigen::MatrixXd ppinv = aa.completeOrthogonalDecomposition().pseudoInverse();
-  double pinv_time = ros::Time::now().toSec() - time_temp.toSec();
-
-  time_temp = ros::Time::now();
-  //torque_grav = (J_g*A_matrix.inverse()*N_C*J_g.transpose()).completeOrthogonalDecomposition().pseudoInverse()*J_g*A_matrix.inverse()*N_C*G;
-
-  //torque_grav.setZero();
-  Eigen::MatrixXd tg_temp;
-  tg_temp = ppinv*J_g*A_matrix_inverse*N_C;
-  torque_grav = tg_temp*G;
-
-  double tg_time = ros::Time::now().toSec() - time_temp.toSec();
-  ROS_DEBUG("\n\n Gravity Compensation : Calc time :::::::  gcalctime : %4.2f mtime : %4.2f  pinv calc time : %4.2f   tg time : %4.2f",g_calc_time*1000,middle_time*1000,pinv_time*1000,tg_time*1000);
-  return torque_grav;
-
-
-}
-
-
-Eigen::VectorXd DyrosRedModel::GetDampingTorque(Eigen::VectorXd qdot, double damp_){
-
-  Eigen::VectorXd T_damping;
-  T_damping = -qdot*damp_;
-
-  return T_damping;
-}
-
-
-
 void DyrosRedModel::setquat(Eigen::Quaterniond& quat,const Eigen::VectorXd& q)
 {
   Eigen::VectorXd q_virtual;
@@ -523,20 +432,19 @@ void DyrosRedModel::setquat(Eigen::Quaterniond& quat,const Eigen::VectorXd& q)
 
 }
 
-void DyrosRedModel::getCenterOfMassPosition(Eigen::Vector3d* position)
+Eigen::Vector3d DyrosRedModel::getCenterOfMassPosition()
 {
   RigidBodyDynamics::Math::Vector3d position_temp;
   position_temp.setZero();
-  Eigen::VectorXd qdot(31);
-  qdot.setZero();
-  Eigen::Vector3d com_vel;
-  Eigen::Vector3d angular_momentum;
-  double mass;
 
-  //RigidBodyDynamics::Utils::CalcCenterOfMass(model_, q_, qdot, mass, position_temp, NULL, NULL, false);
-  //RigidBodyDynamics::Utils::CalcCenterOfMass(model_, q_, qdot, mass, position_temp);
+  for(int i=0;i<MODEL_DOF+1;i++){
+   position_temp = position_temp +link_[i].Mass*link_[i].xipos;
+  }
+   position_temp = position_temp / total_mass;
 
-  *position = position_temp;
+
+  return position_temp;
+
 }
 
 
