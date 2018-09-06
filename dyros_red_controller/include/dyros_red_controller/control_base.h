@@ -115,6 +115,10 @@ protected:
   //TaskController task_controller_;
   Wholebody_controller wholebody_controller_;
 
+  ros::Publisher data_pub_;
+  sensor_msgs::JointState data_pub_msg_;
+
+
 protected:
   string current_state_;
   //realtime_tools::RealtimePublisher<dyros_red_msgs::JointState> joint_state_pub_;
@@ -135,8 +139,6 @@ private:
   //ros::Subscriber recog_point_sub_;
   // ros::Subscriber recog_cmd_sub_;
 
-  ros::Publisher data_pub_;
-  sensor_msgs::JointState data_pub_msg_;
 
   // State Machine (SMACH)
   //realtime_tools::RealtimePublisher<std_msgs::String> smach_pub_;

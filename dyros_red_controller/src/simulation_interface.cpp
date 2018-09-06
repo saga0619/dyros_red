@@ -96,8 +96,6 @@ void SimulationInterface::writeDevice()
     //std::cout<<"done : "<<i<<" ::: effort : " <<torque_desired(i)<<std::endl;
     joint_set_msg_.position[i] = position_desired(i);
     joint_set_msg_.effort[i] = torque_desired(i);
-
-
   }
   vrep_joint_set_pub_.publish(joint_set_msg_);
   vrepStepTrigger();

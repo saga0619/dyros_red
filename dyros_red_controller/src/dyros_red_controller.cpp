@@ -21,7 +21,7 @@ int main(int argc, char **argv)
     ControlBase *ctr_obj;
 
     double Hz;
-    nh.param<double>("control_frequency", Hz, 200.0);
+    nh.param<double>("control_frequency", Hz, 400.0);
 
     /*
     // FOR DEBUG ATTACHMENT

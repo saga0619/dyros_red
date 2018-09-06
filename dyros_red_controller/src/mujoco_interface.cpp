@@ -163,6 +163,7 @@ void mujoco_interface::writeDevice()
     }
 
     mujoco_joint_set_msg_.header.stamp=ros::Time::now();
+    mujoco_joint_set_msg_.time = control_time_;
     mujoco_joint_set_pub_.publish(mujoco_joint_set_msg_);
     mujoco_sim_last_time = mujoco_sim_time;
 

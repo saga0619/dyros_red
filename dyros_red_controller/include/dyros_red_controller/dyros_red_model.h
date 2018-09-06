@@ -22,6 +22,7 @@ public:
   struct Link{
     int id;
     double Mass;
+    std::string name;
 
     //local COM position of body
     Eigen::Vector3d COM_position;
@@ -70,7 +71,7 @@ public:
 
   };
 
-  void Link_initialize(int i, int id, double mass, Eigen::Vector3d xipos);
+  void Link_initialize(int i, int id, std::string name, double mass, Eigen::Vector3d xipos);
   void Link_Jac_Update(int i);
   void Link_pos_Update(int i);
   void Link_Set_Contact(int i, Eigen::Vector3d Contact_position);
@@ -86,11 +87,15 @@ public:
   static constexpr size_t WAIST_DOF = 3;
 
 
-
+  static constexpr size_t Upper_Body = 3;
   static constexpr size_t Left_Leg = 4;
+  static constexpr size_t Left_Foot = 9;
   static constexpr size_t Right_Leg = 10;
+  static constexpr size_t Right_Foot = 15;
   static constexpr size_t Left_Arm = 16;
+  static constexpr size_t Left_Hand = 23;
   static constexpr size_t Right_Arm = 24;
+  static constexpr size_t Right_Hand = 29;
 
   static constexpr size_t joint_left_leg = 0;
   static constexpr size_t joint_right_leg = 6;

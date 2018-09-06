@@ -34,10 +34,10 @@ public:
 
 
   VectorQd gravity_compensation_torque();
-  VectorQd contact_force_redistribution_torque();
+  VectorQd contact_force_redistribution_torque(VectorQd command_torque, Eigen::Vector12d& ForceRedistribution);
   VectorQd task_control_torque(Eigen::MatrixXd J_task, Eigen::Vector6d f_star_);
   void ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d& ResultantForce,  Eigen::Vector12d& ForceRedistribution);
-
+  void ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d& ResultantForce,  Eigen::Vector12d& ForceRedistribution, double& eta);
   void update_dynamics_mode(int mode);
 
 
@@ -50,21 +50,33 @@ public:
   const int SINGLE_SUPPORT_LEFT = 1;
   const int SINGLE_SUPPORT_RIGHT = 2;
 
-  Eigen::MatrixXd A_matrix;
-  Eigen::MatrixXd A_matrix_inverse;
-  Eigen::MatrixXd J_C, J_C_INV_T;
-  Eigen::MatrixXd J_COM;
+  MatrixXd A_matrix;
+  MatrixXd A_matrix_inverse;
+  MatrixXd J_C, J_C_INV_T;
+  MatrixXd J_COM;
 
-  Eigen::MatrixXd J_task;
-  Eigen::VectorXd f_star;
+  MatrixXd J_task;
+  VectorXd f_star;
 
 
-  Eigen::MatrixXd Lambda_c;
-  Eigen::MatrixXd N_C;
-  Eigen::MatrixXd I37;
+  MatrixXd Lambda_c;
+  MatrixXd N_C;
+  MatrixXd I37;
 
-  Eigen::Vector3d Grav_ref;
+  Vector3d Grav_ref;
 
+  MatrixXd J_task_T, J_task_inv,J_task_inv_T;
+  MatrixXd lambda_inv, lambda;
+  MatrixXd W, W_inv;
+  MatrixXd Q, Q_T_, Q_temp, Q_temp_inv, Jtemp, Jtemp_2;
+  MatrixXd _F;
+
+  VectorXd G;
+
+  MatrixXd Slc_k,Slc_k_T;
+  MatrixXd svd_U;
+
+  int task_dof;
 
 };
 

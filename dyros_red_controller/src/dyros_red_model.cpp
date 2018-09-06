@@ -78,10 +78,11 @@ void DyrosRedModel::part::Update(Eigen::Vector3d xpos_, Eigen::MatrixXd fj1_, Ei
 }
 */
 
-void DyrosRedModel::Link_initialize(int i, int id, double mass, Eigen::Vector3d xipos){
+void DyrosRedModel::Link_initialize(int i, int id, std::string name, double mass, Eigen::Vector3d xipos){
   link_[i].id = id;
   link_[i].Mass = mass;
   link_[i].COM_position = xipos;
+  link_[i].name = name;
 
   link_[i].Rotm.setZero();
   link_[i].inertia.setZero();
@@ -262,7 +263,7 @@ DyrosRedModel::DyrosRedModel()
     for (int i=0; i<MODEL_DOF+1; i++)
     {
       link_id_[i] = model_.GetBodyId(LINK_NAME[i]);
-      //ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i], link_id_[i],model_.GetParentBodyId(link_id_[i]));
+      ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i], link_id_[i],model_.GetParentBodyId(link_id_[i]));
 
       //ROS_INFO("%dth parent %d",link_id_[i],model_.GetParentBodyId(link_id_[i]));
       //std::cout << model_.mBodies[link_id_[i]].mCenterOfMass << std::endl;
@@ -270,7 +271,7 @@ DyrosRedModel::DyrosRedModel()
     }
     for(int i=0; i<MODEL_DOF+1;i++)
     {
-      Link_initialize(i,link_id_[i],model_.mBodies[link_id_[i]].mMass,model_.mBodies[link_id_[i]].mCenterOfMass);
+      Link_initialize(i,link_id_[i],LINK_NAME[i],model_.mBodies[link_id_[i]].mMass,model_.mBodies[link_id_[i]].mCenterOfMass);
     }
     total_mass = 0;
     for(int i=0;i<MODEL_DOF+1;i++)

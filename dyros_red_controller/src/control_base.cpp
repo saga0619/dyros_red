@@ -32,6 +32,7 @@ ControlBase::ControlBase(ros::NodeHandle &nh, double Hz) :
 
   data_pub_ = nh.advertise<sensor_msgs::JointState>("/dyros_red/data",3);
   data_pub_msg_.position.resize(6);
+  data_pub_msg_.velocity.resize(12);
   data_pub_msg_.effort.resize(total_dof_);
 
   parameterInitialize();
@@ -46,13 +47,15 @@ void ControlBase::update()
 
 void ControlBase::compute()
 {
+  //ROS_DEBUG("compute enter ");
   wholebody_controller_.update_dynamics_mode(wholebody_controller_.DOUBLE_SUPPORT);
   VectorQd torque_gravity_ = wholebody_controller_.gravity_compensation_torque();
 
   MatrixXd J_task;
   J_task.setZero(6,total_dof_+6);
   J_task.block(0,0,3,total_dof_+6) = wholebody_controller_.J_COM;
-  J_task.block(3,0,3,total_dof_+6) = model_.link_[0].Jac_COM_r;
+  J_task.block(3,0,3,total_dof_+6) = model_.link_[model_.Upper_Body].Jac_COM_r;
+      //model_.link_[model_.Upper_Body].Jac.block(3,0,3,total_dof_+6);
 
 
 
@@ -63,11 +66,12 @@ void ControlBase::compute()
 
   if(control_time_ < 1){
     com_init = model_.com_;
-    rot_init = model_.link_[0].Rotm;
+    rot_init = model_.link_[17].Rotm;
   }
 
 
-  com_desired =( model_.link_[model_.Left_Leg].xpos+ model_.link_[model_.Right_Leg].xpos)/2.0;
+  com_desired =( model_.link_[model_.Left_Foot].xpos+ model_.link_[model_.Right_Foot].xpos)/2.0;
+  com_desired(1) = 0.08;
   com_desired(2) = com_init(2);
   rot_desired = Matrix3d::Identity(3,3);
 
@@ -78,11 +82,13 @@ void ControlBase::compute()
   for(int i=0;i<3;i++){
     kp_(i) = 400;
     kd_(i) = 40;
-    kpa_(i) = 400;
-    kda_(i) = 40;
+    kpa_(i) = 1600;
+    kda_(i) = 80;
 
   }
 
+  std::cout<<" left leg? "<<model_.link_[model_.Left_Foot].id<<"  pos x : "<<model_.link_[model_.Left_Foot].xpos<< std::endl;
+  std::cout<<" com  x : "<<model_.com_(0)<<"  y : "<<model_.com_(1)<<"  z : "<<model_.com_(2)<<"   desired com : x : " <<com_desired(0)<<"  y: "<<com_desired(1)<<"  z: "<<com_desired(2)<<std::endl;
 
   Vector3d com_velocity;
 
@@ -93,10 +99,15 @@ void ControlBase::compute()
   Vector3d task_dot_desired;
 
   Vector6d f_star;
-
   VectorQd torque_task_;
+  VectorQd torque_contact_;
   torque_task_.setZero();
-  if(control_time_>=1){
+  torque_contact_.setZero();
+
+
+
+
+  if(control_time_>=1.0){
     for(int i=0;i<3;i++){
       Vector3d quintic = DyrosMath::QuinticSpline(control_time_,1.0,5.0,com_init(i),0,0, com_desired(i),0,0);
       task_pos_desired(i) = quintic(0);
@@ -104,8 +115,8 @@ void ControlBase::compute()
     }
 
     f_star.segment(0,3) = wholebody_controller_.getfstar(kp_,kd_,task_pos_desired,model_.com_,task_dot_desired,com_velocity);
-    Vector3d w = model_.link_[0].Jac_COM_r*q_dot_virtual_;
-    f_star.segment(3,3) = wholebody_controller_.getfstar(kpa_,kda_,Matrix3d::Identity(3,3),model_.link_[0].Rotm,w,w);
+    Vector3d w = model_.link_[model_.Upper_Body].Jac_COM_r*q_dot_virtual_;
+    f_star.segment(3,3) = wholebody_controller_.getfstar(kpa_,kda_,Matrix3d::Identity(3,3),model_.link_[model_.Upper_Body].Rotm,w,w);
     torque_task_ = wholebody_controller_.task_control_torque(J_task,f_star);
 
 
@@ -113,10 +124,25 @@ void ControlBase::compute()
     data_pub_msg_.header.stamp = ros::Time::now();
     for(int i=0;i<total_dof_;i++)data_pub_msg_.effort[i] = torque_task_(i);
     for(int i=0;i<6;i++)data_pub_msg_.position[i] = f_star(i);
+
+
+    Vector12d fc_redis;
+    torque_desired = torque_gravity_ + torque_task_;
+    torque_contact_ = wholebody_controller_.contact_force_redistribution_torque(torque_desired,fc_redis);
+
+    for(int i=0;i<12;i++){
+
+      data_pub_msg_.velocity[i] = fc_redis(i);
     }
+  }
+
+
+  torque_desired = torque_gravity_ + torque_task_ + torque_contact_;
+
+
 
   data_pub_.publish(data_pub_msg_);
-  torque_desired = torque_gravity_ + torque_task_;
+  //torque_desired = torque_gravity_ + torque_task_;
 
 }
 
