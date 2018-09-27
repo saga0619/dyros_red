@@ -47,9 +47,9 @@ class DyrosRedGuiPlugin(Plugin):
         self.sub = rospy.Subscriber('/dyros_red/point',geometry_msgs.msg.PolygonStamped, self.sub_cb)
 
     def sub_cb(self, msg):
-        self._widget.label.setText(' x : ' +str(msg.polygon.points[0].x) )
-        self._widget.label_2.setText(' y : ' +str(msg.polygon.points[0].y) )
-        self._widget.label_3.setText(' z : ' +str(msg.polygon.points[0].z) )
+        self._widget.label.setText(str(round(msg.polygon.points[0].x,6)) )
+        self._widget.label_2.setText(str(round(msg.polygon.points[0].y,6)) )
+        self._widget.label_3.setText(str(round(msg.polygon.points[0].z,6)) )
 
 
     def com_command_sender(self):

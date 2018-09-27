@@ -8,9 +8,11 @@
   </node>
 
   <group if="$(arg controller)">
-    <node name="dyros_red_controller" pkg="dyros_red_controller" type="dyros_red_controller" output="screen">
+    <node name="dyros_red_controller" pkg="dyros_red_controller" type="dyros_red_controller" output="screen" launch-prefix="gnome-terminal --command" >
       <param name="debug" value="$(arg debug)" />
     </node>
   </group>
+
+  <node name="dyros_red_gui" pkg="dyros_red_gui" type="dyros_red_gui" output="screen" />
 </launch>
 

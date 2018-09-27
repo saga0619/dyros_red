@@ -1,8 +1,0 @@
-import sys
-
-from dyros_red_gui.dyros_red_gui import DyrosRedGuiPlugin
-from rqt_gui.main import Main
-
-plugin = 'dyros_red_gui'
-main = Main(filename=plugin)
-sys.exit(main.main(standalone=plugin))
