@@ -4,7 +4,7 @@
 
 	<default>
 	
-		<joint damping="2" frictionloss="2"/>
+		<joint damping="1" frictionloss="10"/>
 
 		<motor ctrllimited="true" ctrlrange="-300 300"/>
 
@@ -33,7 +33,7 @@
 
 	<visual>
 		<quality shadowsize="4096" offsamples="8"/>
-		<map znear="0.05"/>
+		<map stiffness="10" znear="0.05"/>
 	</visual>
 
     <asset>
@@ -104,7 +104,7 @@
                     <geom class="viz" rgba="0.20313 0.20313 0.20313 1" mesh="HipCenter_R_Link" />
 					<geom size="0.05225 0.03 0.0475" pos="-0.0045 0 0" type="box" class="cls" />
                     <body name="R_Thigh_Link" pos="0 0 0">
-                         <inertial pos="-0.0010688 0.00026335 -0.21805" quat="0.713377 -0.00113717 -0.0109412 0.700694" mass="1.0564" diaginertia="0.0159716 0.0157968 0.00260278" />
+                        <inertial pos="-0.0010688 0.00026335 -0.21805" quat="0.713377 -0.00113717 -0.0109412 0.700694" mass="1.0564" diaginertia="0.0159716 0.0157968 0.00260278" />
                         <joint name="R_Thigh_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14 3.14" />
 						<geom size="0.049 0.038815" pos="0 0 -0.35" quat="0.707107 0.707107 0 0" type="cylinder" class="cls" />
                         <geom size="0.06 0.10375" pos="0 0 -0.2023" type="cylinder" class="cls" />
@@ -396,11 +396,32 @@
 
 	<keyframe>
 		<!--Initial Position Setting -->
-		<key time="0" qpos ="0 0 0.92 1 0 0 0 
+		<key time="0" qpos ="0 0 0.92611 1 0 0 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 0 
+								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
+								0.3 0 1.5 1.87 0.7 0 1 0"/>	
+		<key time="0" qpos ="0 0 0.92611 0 0 0 1 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 0 
+								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
+								0.3 0 1.5 1.87 0.7 0 1 0"/>	
+
+		<key time="0" qpos ="0 0 0.92611 0.9659 0 0 -0.2588 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 0 
+								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
+								0.3 0 1.5 1.87 0.7 0 1 0"/>	
+
+		<key time="0" qpos ="0 1 0.92611 1 0 0 0 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 0 
 								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
 								0.3 0 1.5 1.87 0.7 0 1 0"/>
+
 	</keyframe>
 </mujoco>

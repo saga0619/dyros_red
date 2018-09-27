@@ -23,12 +23,15 @@
 #include <geometry_msgs/WrenchStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/PolygonStamped.h>
 #include <smach_msgs/SmachContainerStatus.h>
 
 #include "dyros_red_msgs/JointSet.h"
 #include "dyros_red_msgs/JointState.h"
 #include <dyros_red_msgs/TaskCommand.h>
 #include <dyros_red_msgs/JointCommand.h>
+#include <dyros_red_msgs/ComCommand.h>
 #include <dyros_red_msgs/WalkingCommand.h>
 //#include "dyros_red_msgs/RecogCmd.h"
 //#include "dyros_red_msgs/TaskCmdboth.h"
@@ -38,6 +41,7 @@
 #include "dyros_red_controller/dyros_red_model.h"
 #include "dyros_red_controller/wholebody_controller.h"
 // #include "Upperbody_Controller.h"
+#include <tf/transform_broadcaster.h>
 
 
 namespace dyros_red_controller
@@ -65,6 +69,9 @@ public:
   //void stateChangeEvent();
   const double getHz() { return Hz_; }  
   double control_time_;
+  double last_sim_time_;
+
+  bool debug;
 
 protected:
 
@@ -83,6 +90,8 @@ protected:
   VectorVQd q_virtual_;
   VectorVQd q_dot_virtual_;
 
+  Eigen::VectorXd q_virtual_quaternion;
+
   Vector6d left_foot_ft_; // current left ft sensor values
   Vector6d right_foot_ft_; // current right ft sensor values
 
@@ -98,7 +107,10 @@ protected:
   Quaterniond Pelvis_quaternion;
 
 
-
+  Vector12d fc_redis;
+  Vector6d f_star;
+  VectorQd torque_contact_;
+  VectorQd torque_task_;
 
   VectorQd desired_q_; // current desired joint values
   VectorQd torque_desired;
@@ -116,6 +128,7 @@ protected:
   Wholebody_controller wholebody_controller_;
 
   ros::Publisher data_pub_;
+
   sensor_msgs::JointState data_pub_msg_;
 
 
@@ -136,6 +149,35 @@ private:
   //ros::Subscriber task_comamnd_sub_;
   ros::Subscriber joint_command_sub_;
   ros::Subscriber walking_command_sub_;
+  ros::Subscriber com_command_sub;
+  ros::Publisher com_pos_pub;
+  ros::Subscriber command_sub;
+  ros::Publisher joint_state_publisher_for_rviz;
+  sensor_msgs::JointState joint_states_rviz;
+
+  geometry_msgs::PolygonStamped com_pos_pub_msgs;
+
+  void command_cb(const std_msgs::StringConstPtr& msg);
+  void com_command_cb(const dyros_red_msgs::ComCommandConstPtr& msg);
+
+
+  float com_command_time;
+  float com_command_position;
+  float com_command_traj_time;
+
+  bool gravity_switch =false;
+  bool task_switch = false;
+  bool contact_switch = false;
+  bool data_switch = false;
+
+  Vector3d com_init;
+  Matrix3d rot_init;
+
+  Vector3d com_desired;
+  Matrix3d rot_desired;
+
+
+
   //ros::Subscriber recog_point_sub_;
   // ros::Subscriber recog_cmd_sub_;
 

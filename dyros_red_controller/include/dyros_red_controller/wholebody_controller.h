@@ -28,18 +28,19 @@ public:
   double start_time_[4];
   double end_time_[4];
   bool target_arrived_[4];
+  bool debug;
 
   const VectorQd &current_q_;  // updated by control_base
 
 
 
   VectorQd gravity_compensation_torque();
-  VectorQd contact_force_redistribution_torque(VectorQd command_torque, Eigen::Vector12d& ForceRedistribution);
+  VectorQd contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d& ForceRedistribution);
   VectorQd task_control_torque(Eigen::MatrixXd J_task, Eigen::Vector6d f_star_);
   void ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d& ResultantForce,  Eigen::Vector12d& ForceRedistribution);
   void ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d& ResultantForce,  Eigen::Vector12d& ForceRedistribution, double& eta);
   void update_dynamics_mode(int mode);
-
+  Vector3d GetZMPpos(Vector3d P_right, Vector3d P_left, Vector12d ContactForce);
 
   //Eigen::Vector6d Getfstar( );
   Vector3d getfstar(Vector3d kp, Vector3d kd, Vector3d p_desired, Vector3d p_now, Vector3d d_desired, Vector3d d_now);

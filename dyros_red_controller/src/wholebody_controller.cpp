@@ -13,9 +13,7 @@ Wholebody_controller::Wholebody_controller(DyrosRedModel& model, const VectorQd&
 }
 
 void Wholebody_controller::update_dynamics_mode(int mode){
-
   ROS_DEBUG_ONCE("dynamics update start ");
-
   A_matrix.setZero(total_dof_+6,total_dof_+6);
   A_matrix = model_.A_;
   A_matrix_inverse = A_matrix.inverse();
@@ -26,7 +24,7 @@ void Wholebody_controller::update_dynamics_mode(int mode){
   J_COM.setZero(3,total_dof_+6);
 
   for(int i=0;i<total_dof_+1;i++){
-    J_COM = J_COM + model_.link_[i].Jac_COM_p*model_.link_[i].Mass;
+    J_COM += model_.link_[i].Jac_COM_p*model_.link_[i].Mass;
   }
   J_COM = J_COM / model_.total_mass;
 
@@ -34,8 +32,8 @@ void Wholebody_controller::update_dynamics_mode(int mode){
   if(mode == DOUBLE_SUPPORT){
     Eigen::Vector3d left_leg_contact, right_leg_contact;
 
-    left_leg_contact<<0,0,-0.1368;
-    right_leg_contact<<0,0,-0.1368;
+    left_leg_contact<<0.0317,0,-0.1368;
+    right_leg_contact<<0.0317,0,-0.1368;
 
     model_.Link_Set_Contact(model_.Left_Foot,left_leg_contact);
     model_.Link_Set_Contact(model_.Right_Foot,right_leg_contact);
@@ -52,10 +50,6 @@ void Wholebody_controller::update_dynamics_mode(int mode){
     I37.setIdentity(total_dof_+6, total_dof_+6);
     N_C =I37-J_C.transpose()*J_C_INV_T;
 
-
-
-    //Control only COM for now.
-    J_task = J_COM;
   }
 
 
@@ -67,13 +61,10 @@ void Wholebody_controller::update_dynamics_mode(int mode){
 VectorQd Wholebody_controller::gravity_compensation_torque()
 {
   ROS_DEBUG_ONCE("gravity torque calc start ");
-  Eigen::VectorXd Gtemp;
   G.setZero(total_dof_+6);
-  Gtemp.setZero(total_dof_+6);
 
   for(int i=0;i<total_dof_+1;i++){
-    Gtemp = G - model_.link_[i].Jac_COM_p.transpose()*model_.link_[i].Mass*Grav_ref;
-    G=Gtemp;
+    G -= model_.link_[i].Jac_COM_p.transpose()*model_.link_[i].Mass*Grav_ref;
   }
 
   Eigen::MatrixXd J_g;
@@ -85,7 +76,6 @@ VectorQd Wholebody_controller::gravity_compensation_torque()
   Eigen::MatrixXd aa = J_g*A_matrix_inverse*N_C*J_g.transpose();
 
   //std::cout << " aa size " << aa.rows() << "    " <<aa.cols() << std::endl;
-
 /*
   double epsilon = 1e-7;
   Eigen::JacobiSVD<Eigen::MatrixXd> svd(aa ,Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -235,21 +225,27 @@ Vector3d Wholebody_controller::getfstar(Vector3d kp, Vector3d kd, Matrix3d r_des
   s2(0)=r_now(0,1);s2(1)=r_now(1,1);s2(2)=r_now(2,1);
   s3(0)=r_now(0,2);s3(1)=r_now(1,2);s3(2)=r_now(2,2);
 
+
   s1d.setZero(); s2d.setZero(); s3d.setZero();
   s1d(0)=r_desired(0,0);s1d(1)=r_desired(1,0);s1d(2)=r_desired(2,0);
   s2d(0)=r_desired(0,1);s2d(1)=r_desired(1,1);s2d(2)=r_desired(2,1);
   s3d(0)=r_desired(0,2);s3d(1)=r_desired(1,2);s3d(2)=r_desired(2,2);
   angle_d=-(DyrosMath::skm(s1)*s1d+DyrosMath::skm(s2)*s2d+DyrosMath::skm(s3)*s3d)/2;
 
+
+  Matrix3d Rotyaw = DyrosMath::rotateWithZ(model_.yaw_radian);
+  Vector3d angle_d_global = Rotyaw*angle_d;
+
   for(int i=0;i<3;i++){
-    fstar_(i)=(-kp(i)*angle_d(i)-kd(i)*w_now(i));
+    fstar_(i)=(kp(i)*angle_d_global(i)-kd(i)*w_now(i));
   }
 
   return fstar_;
 }
 
-VectorQd Wholebody_controller::contact_force_redistribution_torque(VectorQd command_torque,Eigen::Vector12d& ForceRedistribution)
+VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque,Eigen::Vector12d& ForceRedistribution)
 {
+  //Contact Force needs to be rightfoot to leftfoot
 
   ROS_DEBUG_ONCE("contact redistribution start");
 
@@ -259,8 +255,22 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(VectorQd comm
 
   Vector3d P1_, P2_;
 
-  P1_= model_.link_[model_.Right_Foot].xpos - model_.com_;
-  P2_= model_.link_[model_.Left_Foot].xpos - model_.com_;
+  P1_= model_.link_[model_.Right_Foot].xpos;
+  P2_= model_.link_[model_.Left_Foot].xpos;
+
+  Matrix3d Rotyaw = DyrosMath::rotateWithZ(-model_.yaw_radian);
+
+  Vector3d P1_local, P2_local;
+  P1_local= Rotyaw*P1_;
+  P2_local= Rotyaw*P2_;
+
+  Matrix12d force_rot_yaw;
+  force_rot_yaw.setZero();
+  for(int i=0;i<4;i++){
+    force_rot_yaw.block(i*3,i*3,3,3)=Rotyaw;
+
+  }
+
 
   Vector6d ResultantForce_;
   ResultantForce_.setZero();
@@ -275,12 +285,23 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(VectorQd comm
   double foot_length = 0.26;
   double foot_width = 0.1;
   double eta;
-  ForceRedistributionTwoContactMod2(0.95,foot_length,foot_width,1.0,0.8,0.8,P1_,P2_, ContactForce_ , ResultantForce_, ResultRedistribution_);
 
-  ForceRedistribution = ResultRedistribution_;
+
+  Vector12d ContactForce_Local_yaw;
+  ContactForce_Local_yaw = force_rot_yaw * ContactForce_;
+
+  Vector3d zmp_pos = GetZMPpos(P1_local,P2_local,ContactForce_Local_yaw);
+
+  ForceRedistributionTwoContactMod2(0.95,foot_length,foot_width,1.0,0.8,0.8,P1_local,P2_local, ContactForce_Local_yaw , ResultantForce_, ResultRedistribution_);
+
+  ForceRedistribution = force_rot_yaw.transpose()*ResultRedistribution_;
 
   //std::cout << "Result redistribution " << std::endl;
   //std::cout << ResultRedistribution_ << std::endl <<std::endl;
+
+
+  std::cout <<"left_y : "<<P2_local(1)<<"\t right_y : "<<P1_local(1)<<"\t zmp_y : "<<zmp_pos(1)<<std::endl;
+
 
   ROS_DEBUG_ONCE("contact redistribution end");
 
@@ -297,7 +318,7 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(VectorQd comm
   Scf_.block(0,6,6,6).setIdentity();
 
   for(int i=0;i<6;i++){
-    desired_force(i+6) = -ContactForce_(i+6) + ResultRedistribution_(i+6);
+    desired_force(i+6) = -ContactForce_(i+6) + ForceRedistribution(i+6);
   }
 
   Vector6d reduced_desired_force = Scf_*desired_force;
@@ -309,7 +330,7 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(VectorQd comm
   torque_contact_ = V2*temp_inv*reduced_desired_force;
 
 
-  ContactForce_=J_C_INV_T * Slc_k_T *(command_torque+torque_contact_) - Lambda_c*J_C*A_matrix_inverse*G;
+  //ContactForce_=J_C_INV_T * Slc_k_T *(command_torque+torque_contact_) - Lambda_c*J_C*A_matrix_inverse*G;
 
 
 
@@ -324,7 +345,21 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(VectorQd comm
   //torque_contact_
 
 }
+Vector3d Wholebody_controller::GetZMPpos(Vector3d P_right, Vector3d P_left, Vector12d ContactForce){
 
+  Vector3d zmp_pos;
+  Vector3d P_;
+  zmp_pos.setZero();
+  P_.setZero();
+
+  //zmp_pos(0) = (-ContactForce(4) - P_right(2) * ContactForce(0) + P_right(0) * ContactForce(2) - ContactForce(10) - P_left(2) * ContactForce(6) + P_left(0) * ContactForce(8)) / (ContactForce(2)+ContactForce(8));
+  //zmp_pos(1) = (ContactForce(3) - P_right(2) * ContactForce(1) + P_right(1) * ContactForce(2) + ContactForce(9) - P_left(2) * ContactForce(7) + P_left(1) * ContactForce(8)) / (ContactForce(2)+ContactForce(8));
+  zmp_pos(0) = (-ContactForce(4) - (P_right(2)-P_(2)) * ContactForce(0) + P_right(0) * ContactForce(2) - ContactForce(10) - (P_left(2)-P_(2)) * ContactForce(6) + P_left(0) * ContactForce(8)) / (ContactForce(2)+ContactForce(8));
+  zmp_pos(1) = (ContactForce(3) - (P_right(2)-P_(2)) * ContactForce(1) + P_right(1) * ContactForce(2) + ContactForce(9) - (P_left(2)-P_(2)) * ContactForce(7) + P_left(1) * ContactForce(8)) / (ContactForce(2)+ContactForce(8));
+
+
+  return(zmp_pos);
+}
 
 void Wholebody_controller::ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d& ResultantForce,  Eigen::Vector12d& ForceRedistribution)
 {
@@ -484,7 +519,7 @@ void Wholebody_controller::ForceRedistributionTwoContactMod2(double eta_cust, do
 
 
 
-  std::cout<<"ETA :: "<<eta<<std::endl;
+  //std::cout<<"ETA :: "<<eta<<std::endl;
 
 
   //	printf("lb %f ub %f eta %f etas %f\n",eta_lb,eta_ub, eta, eta_s);
@@ -513,9 +548,6 @@ void Wholebody_controller::ForceRedistributionTwoContactMod2(double eta_cust, do
   //ForceRedistribution(11) = (1.0-eta)/eta*ForceRedistribution(5);
 
 
-
-
-  ROS_DEBUG("force redistribution end");
 }
 
 

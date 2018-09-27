@@ -12,16 +12,16 @@ constexpr const char* DyrosRedModel::LINK_NAME[32];
 
 constexpr const size_t DyrosRedModel::MODEL_DOF;
 
-/*
+
 // These should be replaced by YAML or URDF or something
-const std::string DyrosRedModel::JOINT_NAME[DyrosRedModel::MODEL_DOF] = {
+const std::string DyrosRedModel::JOINT_NAME_2[DyrosRedModel::MODEL_DOF] = {
       "L_HipRoll_Joint", "L_HipCenter_Joint", "L_Thigh_Joint", "L_Knee_Joint", "L_AnkleCenter_Joint", "L_AnkleRoll_Joint",
       "R_HipRoll_Joint", "R_HipCenter_Joint", "R_Thigh_Joint", "R_Knee_Joint", "R_AnkleCenter_Joint", "R_AnkleRoll_Joint",
       "Waist1_Joint","Waist2_Joint","Upperbody_Joint",
       "L_Shoulder1_Joint","L_Shoulder2_Joint","L_Shoulder3_Joint","L_Armlink_Joint","L_Elbow_Joint","L_Forearm_Joint","L_Wrist1_Joint","L_Wrist2_Joint",
       "R_Shoulder1_Joint","R_Shoulder2_Joint","R_Shoulder3_Joint","R_Armlink_Joint","R_Elbow_Joint","R_Forearm_Joint","R_Wrist1_Joint","R_Wrist2_Joint"};
 
-*/
+
 
 const std::string DyrosRedModel::JOINT_NAME[DyrosRedModel::MODEL_DOF] = {
       "L_HipRoll_Motor", "L_HipCenter_Motor", "L_Thigh_Motor", "L_Knee_Motor", "L_AnkleCenter_Motor", "L_AnkleRoll_Motor",
@@ -102,14 +102,10 @@ void DyrosRedModel::Link_initialize(int i, int id, std::string name, double mass
 }
 
 void DyrosRedModel::Link_pos_Update(int i){
-
-
   link_[i].xpos =RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,link_[i].id,Eigen::Vector3d::Zero(),false);
   link_[i].xipos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,link_[i].id,link_[i].COM_position,false);
+  link_[i].Rotm = RigidBodyDynamics::CalcBodyWorldOrientation(model_,q_virtual_,link_[i].id,false);
   //link_[i].COM_position = RigidBodyDynamics::CalcBaseToBodyCoordinates(model_,q_virtual_,link_[i])
-
-
-
 }
 
 void DyrosRedModel::Link_Jac_Update(int i){
@@ -119,48 +115,27 @@ void DyrosRedModel::Link_Jac_Update(int i){
   Eigen::MatrixXd fj_(6,MODEL_DOF+6);
   fj_.setZero();
 
-
-
-
-  //RigidBodyDynamics::Calc
-
-
   ros::Time t_temp = ros::Time::now();
   RigidBodyDynamics::CalcPointJacobian6D(model_, q_virtual_, link_[i].id, link_[i].COM_position, fj_, false);
-
-  double j_calc_time = ros::Time::now().toSec() - t_temp.toSec();
-
-
-
   j_p_=fj_.block<3,MODEL_DOF+6>(3,0);
   j_r_=fj_.block<3,MODEL_DOF+6>(0,0);
 
-
   //Eigen::MatrixXd jcp, jcr;
-
-
-
-
   //t_temp = ros::Time::now();
-
   //jcp = j_p_;
-
-
   //jcp.block<3,3>(0,3)=j_p_.block<3,3>(0,3)*Eri;
-
   //jcr = j_r_;
-
   //jcr.block<3,3>(0,3)=j_r_.block<3,3>(0,3)*Eri;
-
-
  // double ar_time0 = ros::Time::now().toSec() - t_temp.toSec();
-
 
   t_temp = ros::Time::now();
 
 
-  link_[i].Jac_COM_p = j_p_;
-  link_[i].Jac_COM_r = j_r_;
+  link_[i].Jac_COM_p = j_p_;//*E_T_;
+  link_[i].Jac_COM_r = j_r_;//*E_T_;
+
+
+  //link_[i].Jac_COM_p.block<3,3>(0,3)=- DyrosMath::skm(link_[i].xipos - link_[0].xpos);
 
   j_.block<3,MODEL_DOF+6>(0,0) = link_[i].Jac_COM_p;
   j_.block<3,MODEL_DOF+6>(3,0) = link_[i].Jac_COM_r;
@@ -171,6 +146,8 @@ void DyrosRedModel::Link_Jac_Update(int i){
 
 
   link_[i].Jac_COM = j_;
+
+
 
   double ar_time = ros::Time::now().toSec() - t_temp.toSec();
   //ROS_INFO(" ::: %d Link calc time : %8.4f,%8.4f", i, j_calc_time*1000, ar_time*1000);
@@ -184,12 +161,16 @@ void DyrosRedModel::Link_Set_Jacobian(int i, Eigen::Vector3d Jacobian_position){
 
   RigidBodyDynamics::CalcPointJacobian6D(model_,q_virtual_,link_[i].id,Jacobian_position,fj_,false);
 
+
+  //RigidBodyDynamics::CalcBodySpatialJacobian(model_,q_virtual_,link_[i].id,fj_,false);
+
   //link_[i].Jac.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0)*E_T_;
   //link_[i].Jac.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0)*E_T_;
   link_[i].Jac.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0);
   link_[i].Jac.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0);
 
 
+  //link_[i].Jac.block<3,3>(0,3)= - DyrosMath::skm(link_[i].xpos - link_[0].xpos);
 
 }
 
@@ -203,12 +184,14 @@ void DyrosRedModel::Link_Set_Contact(int i, Eigen::Vector3d Contact_position){
   RigidBodyDynamics::CalcPointJacobian6D(model_,q_virtual_,link_[i].id,Contact_position,fj_,false);
 
 
+
   //link_[i].Jac_Contact.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0)*E_T_;
   //link_[i].Jac_Contact.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0)*E_T_;
   link_[i].Jac_Contact.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0);
   link_[i].Jac_Contact.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0);
 
 
+  //link_[i].Jac_Contact.block<3,3>(0,3)= - DyrosMath::skm(RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,link_[i].id,Contact_position,false) - link_[0].xpos);
 }
 
 
@@ -222,6 +205,8 @@ DyrosRedModel::DyrosRedModel()
 
   q_virtual_.resize(MODEL_DOF+6);
   q_virtual_.setZero();
+  q_virtual_quaternion_.resize(MODEL_DOF+7);
+  q_virtual_quaternion_.setZero();
   A_temp_.resize(MODEL_DOF+6, MODEL_DOF+6);
   A_temp_.setZero();
 
@@ -237,6 +222,7 @@ DyrosRedModel::DyrosRedModel()
 
 
 
+
   E_T_.resize(MODEL_DOF+6,MODEL_DOF+6);
   E_T_.setZero();
 
@@ -245,6 +231,7 @@ DyrosRedModel::DyrosRedModel()
   std::string urdf_path = desc_package_path + "/robots/dyros_red_robot.urdf";
 
   ROS_INFO("Loading DYROS JET description from = %s",urdf_path.c_str());
+
   RigidBodyDynamics::Addons::URDFReadFromFile(urdf_path.c_str(), &model_, true, true);
 
   ROS_INFO("Successfully loaded.");
@@ -252,6 +239,8 @@ DyrosRedModel::DyrosRedModel()
 
   ROS_INFO("MODEL DOF COUNT = %d", model_.dof_count);
   ROS_INFO("MODEL Q SIZE = %d", model_.q_size);
+
+
   //model_.mJoints[0].)
   if(model_.dof_count != MODEL_DOF+6)
   {
@@ -263,7 +252,7 @@ DyrosRedModel::DyrosRedModel()
     for (int i=0; i<MODEL_DOF+1; i++)
     {
       link_id_[i] = model_.GetBodyId(LINK_NAME[i]);
-      ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i], link_id_[i],model_.GetParentBodyId(link_id_[i]));
+      //ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i], link_id_[i],model_.GetParentBodyId(link_id_[i]));
 
       //ROS_INFO("%dth parent %d",link_id_[i],model_.GetParentBodyId(link_id_[i]));
       //std::cout << model_.mBodies[link_id_[i]].mCenterOfMass << std::endl;
@@ -276,7 +265,7 @@ DyrosRedModel::DyrosRedModel()
     total_mass = 0;
     for(int i=0;i<MODEL_DOF+1;i++)
     {
-      total_mass = total_mass + link_[i].Mass;
+      total_mass += link_[i].Mass;
 
     }
 
@@ -298,7 +287,7 @@ DyrosRedModel::DyrosRedModel()
 
   }
 
-
+ROS_INFO("MODEL initialize END");
 }
 
 
@@ -309,14 +298,35 @@ void DyrosRedModel::test()
 
 
   if(test_run == 0 ){
-
+/*
     for(int i=0;i<MODEL_DOF;i++){
+      VectorQd q_virtual;<<0,0,0.92611,0,0, 0,
+      0, 0, -0.24, 0.6, -0.36, 0,
+      0, 0, -0.24, 0.6, -0.36, 0,
+      0, 0, 0,
+      -0.3, 0, -1.5, -1.87, -0.7, 0, -1, 0,
+      0.3, 0, 1.5, 1.87, 0.7, 0, 1, 0;
+
+
+      RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, NULL, NULL);
+      RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual, A_temp_, true);
+
+      for(int i=0;i<MODEL_DOF+1;i++){
+        Link_pos_Update(i);
+      }
+
+      for(int i=0;i<MODEL_DOF+1;i++){
+        Link_Set_Jacobian(i,zero);
+        Link_Jac_Update(i);
+      }
+
+
 
 
     //std::cout <<model_.GetBodyName(link_[i].id) << "position is :::::  "<<std::endl<< RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_,link_[i].id,Eigen::Vector3d::Zero(),false) << std::endl;
 
     }
-
+*/
     //std::cout << "link0 Jac ::" << std::endl;
 
     //std::cout << link_[0].Jac<<std::endl;
@@ -339,12 +349,13 @@ void DyrosRedModel::test()
 
 }
 
+
 void DyrosRedModel::updateKinematics(const Eigen::VectorXd& q_virtual)
 {
   //orientation representation of virtual joint is derivatives of euler angle XYZ
 
   q_virtual_ = q_virtual;
-
+ /*
   Eigen::Matrix3d Er1,Er2,Er3,Er;
   Er.setZero();
   Er1 = Eigen::AngleAxisd(q_virtual_(3), Eigen::Vector3d::UnitX());
@@ -358,12 +369,8 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd& q_virtual)
   Eri=Er.inverse();
   E_T_ = Eigen::MatrixXd::Identity(MODEL_DOF+6,MODEL_DOF+6);
   Eri = Eigen::MatrixXd::Identity(3,3);
-  //E_T_.block<3,3>(3,3)=Eri;
-
-
-
-
-
+  E_T_.block<3,3>(3,3)=Eri;
+*/
   ros::Time t_temp = ros::Time::now();
   RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, NULL, NULL);
   double uk_time = ros::Time::now().toSec() - t_temp.toSec();
@@ -372,43 +379,51 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd& q_virtual)
   RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_, true);
   double cr_time = ros::Time::now().toSec() - t_temp.toSec();
 
+  tf::Quaternion q(q_virtual_(3),q_virtual_(4),q_virtual_(5),q_virtual_(MODEL_DOF+6));
 
+  tf::Matrix3x3 m(q);
+  double roll, pitch,yaw;
+  m.getRPY(roll,pitch,yaw);
+
+  yaw_radian = yaw;
+
+/*
+  Eigen::Matrix3d temp = link_[0].Rotm.transpose()*link_[Right_Foot].Rotm;
+  tf::Matrix3x3 m_(temp(0,0),temp(1,0),temp(2,0),temp(0,1),temp(1,1),temp(2,1),temp(0,2),temp(1,2),temp(2,2));
+
+  Eigen::Vector3d euler;
+  m_.getRPY(euler(0),euler(1),euler(2));
+
+  std::cout <<" Pelvis euler from foot "<<std::endl;
+  std::cout <<euler <<std::endl;
+
+  for(int i=0;i<3;i++)q_virtual_(3+i)=euler(i);
+
+  RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_, true);
+*/
 
   //A_=E_T_.transpose()*A_temp_*E_T_;
-
   A_ = A_temp_;
 
   com_ = getCenterOfMassPosition();
 
-  //R_temp_.block<3,3>(0,0) = -base_rotation_;
-  //R_temp_.block<3,3>(3,3) = -base_rotation_;
-  //R_temp_.block<MODEL_DOF,MODEL_DOF>(6,6) = Eigen::MatrixXd::Identity(MODEL_DOF,MODEL_DOF);
-  //A_= R_temp_.transpose()*A_temp_*R_temp_;
 
   for(int i=0;i<MODEL_DOF+1;i++){
     Link_pos_Update(i);
   }
 
-
-
+  Eigen::Vector3d zero;
+  zero.setZero();
   t_temp = ros::Time::now();
   for(int i=0;i<MODEL_DOF+1;i++){
+    Link_Set_Jacobian(i,zero);
     Link_Jac_Update(i);
   }
   double ju_time = ros::Time::now().toSec() - t_temp.toSec();
 
 
-  /*
-  std::cout<<"LINK xpos :::::::::: x : "<<std::endl<<link_[Left_Arm+7].xpos(0)<<" y : "<<link_[Left_Arm+7].xpos(1) <<" z : "<<link_[Left_Arm+7].xpos(2)<<std::endl<<std::endl;
-  std::cout<<"euler:::::::::: x : "<<std::endl<<q_virtual_(3)<<" y : "<<q_virtual_(4) <<" z : "<<q_virtual_(5)<<std::endl<<std::endl;
-  std::cout<<"Er : " <<std::endl<<Er<<std::endl<<std::endl;
-  std::cout<<"Eri : " <<std::endl<<Eri<<std::endl<<std::endl;
-  std::cout<<"Jacobian ::: " <<std::endl <<link_[Left_Arm+7].Jac<<std::endl;
-  std::cout<<"Jacobian*E_T_ ::: " <<std::endl <<link_[Left_Arm+7].Jac_COM<<std::endl;
-  */
-
-
   ROS_DEBUG("Update time - detail \n updatekinematicsCustum Time : % 3.4f ms\n compositeRigid time : %3.4f ms\n jac_update time : %3.4f ms",uk_time*1000,cr_time*1000,ju_time*1000);
+
 
 
 }

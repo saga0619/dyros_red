@@ -75,13 +75,26 @@ void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr 
         joint_name_mj[i] = msg->name[i+6].data();
     }
 
-
     //virtual joint
 
     for(int i=0;i<6;i++){
       q_virtual_(i) = msg->position[i];
+
       q_dot_virtual_(i) = msg->velocity[i];
     }
+
+    q_virtual_quaternion.segment(0,total_dof_+6) = q_virtual_;
+
+    tf::Quaternion q = tf::createQuaternionFromRPY(q_virtual_(3),q_virtual_(4),q_virtual_(5));
+    q.normalize();
+
+    q_virtual_quaternion(3) = q.x();
+    q_virtual_quaternion(4) = q.y();
+    q_virtual_quaternion(5) = q.z();
+
+    q_virtual_quaternion(total_dof_+6) = q.w();
+
+
 }
 
 
@@ -90,7 +103,43 @@ void mujoco_interface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCon
     for(int i=0;i<msg->sensor.size();i++){
         if(msg->sensor[i].name=="Gyro_Pelvis_IMU"){
             for(int j=0;j<3;j++){
-                q_dot_virtual_(j+3)=msg->sensor[i].data[j];
+                //q_dot_virtual_(j+3)=msg->sensor[i].data[j];
+            }
+
+        }
+
+    }
+    for(int i=0;i<msg->sensor.size();i++){
+        if(msg->sensor[i].name=="RF_Force_sensor"){
+            for(int j=0;j<3;j++){
+                right_foot_ft_(j)=msg->sensor[i].data[j];
+            }
+
+        }
+
+    }
+    for(int i=0;i<msg->sensor.size();i++){
+        if(msg->sensor[i].name=="RF_Torque_sensor"){
+            for(int j=0;j<3;j++){
+                right_foot_ft_(j+3)=msg->sensor[i].data[j];
+            }
+
+        }
+
+    }
+    for(int i=0;i<msg->sensor.size();i++){
+        if(msg->sensor[i].name=="LF_Force_sensor"){
+            for(int j=0;j<3;j++){
+                left_foot_ft_(j)=msg->sensor[i].data[j];
+            }
+
+        }
+
+    }
+    for(int i=0;i<msg->sensor.size();i++){
+        if(msg->sensor[i].name=="LF_Torque_sensor"){
+            for(int j=0;j<3;j++){
+                left_foot_ft_(j+3)=msg->sensor[i].data[j];
             }
 
         }
@@ -190,6 +239,7 @@ void mujoco_interface::wait()
 
     }
 
+    mujoco_sim_last_time = mujoco_sim_time;
 
 }
 

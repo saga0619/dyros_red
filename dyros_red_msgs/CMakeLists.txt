@@ -16,6 +16,7 @@ add_message_files(
   JointCommand.msg
   TaskCommand.msg
   WalkingCommand.msg
+  ComCommand.msg
 )
 
 

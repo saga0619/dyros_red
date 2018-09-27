@@ -9,6 +9,7 @@
 #include <rbdl/rbdl.h>
 #include <rbdl/addons/urdfreader/urdfreader.h>
 #include "math_type_define.h"
+#include <tf/transform_datatypes.h>
 
 
 namespace dyros_red_controller
@@ -109,6 +110,7 @@ public:
   Link link_[40];
 
   static const std::string JOINT_NAME[MODEL_DOF];
+  static const std::string JOINT_NAME_2[MODEL_DOF];
   static constexpr const char* EE_NAME[4] =
       {"L_AnkleRoll_Link", "R_AnkleRoll_Link",
        "L_HandYaw_Link", "R_HandYaw_Link" };
@@ -161,6 +163,7 @@ private:
   RigidBodyDynamics::Model model_;
   Eigen::VectorXd q_;
   Eigen::VectorXd q_virtual_;
+  Eigen::VectorXd q_virtual_quaternion_;
   Eigen::Vector3d base_position_;
 
   Eigen::Isometry3d currnet_transform_[4];
@@ -174,7 +177,9 @@ public:
   Eigen::Vector3d com_;
   Eigen::Vector3d Gravity_;
   double total_mass;
+  double yaw_radian;
 
+  bool debug_mode_;
 
 
 };
