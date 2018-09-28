@@ -1,14 +1,6 @@
 <robot name="dyros_red_description">
 
-  <link name="base_link"/>
 
-
-  <joint name="virtual" type="floating">
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <child link="Pelvis_Link"/>
-    <parent link ="base_link"/>
-  </joint>
-  
 
   <link
     name="Pelvis_Link">
