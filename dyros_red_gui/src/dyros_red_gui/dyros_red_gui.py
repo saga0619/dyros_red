@@ -19,6 +19,7 @@ class DyrosRedGuiPlugin(Plugin):
         self.setObjectName('DyrosRedGUI')
         self._publisher = rospy.Publisher('/dyros_red/command', String, queue_size=10)
         self._publisher2 = rospy.Publisher('/dyros_red/com_command', dyros_red_msgs.msg.ComCommand, queue_size=10)
+        self._publisher3 = rospy.Publisher('/mujoco_ros_interface/sim_command_con2sim', String, queue_size=10)
 
 
         # Create QWidget
@@ -43,6 +44,10 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.contact_button.pressed.connect(self.contact_button)
         self._widget.data_button.pressed.connect(self.data_button)
         self._widget.com_send_button.pressed.connect(self.com_command_sender)
+        self._widget.pause_button.pressed.connect(self.pause_button)
+        self._widget.slowmotion_button.pressed.connect(self.slowmotion_button)
+        self._widget.reset_button.pressed.connect(self.reset_button)
+
 
         self.sub = rospy.Subscriber('/dyros_red/point',geometry_msgs.msg.PolygonStamped, self.sub_cb)
 
@@ -50,6 +55,15 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.label.setText(str(round(msg.polygon.points[0].x,6)) )
         self._widget.label_2.setText(str(round(msg.polygon.points[0].y,6)) )
         self._widget.label_3.setText(str(round(msg.polygon.points[0].z,6)) )
+
+    def pause_button(self):
+        self.send_msg2("pause")
+
+    def slowmotion_button(self):
+        self.send_msg2("mjslowmotion")
+
+    def reset_button(self):
+        self.send_msg2("mjreset")
 
 
     def com_command_sender(self):
@@ -85,6 +99,9 @@ class DyrosRedGuiPlugin(Plugin):
 
     def send_msg(self, msg):
         self._publisher.publish(msg)
+
+    def send_msg2(self, msg):
+        self._publisher3.publish(msg)
 
     def _unregister_publisher(self):
         if self._publisher is not None:
