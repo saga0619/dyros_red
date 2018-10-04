@@ -48,13 +48,15 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.slowmotion_button.pressed.connect(self.slowmotion_button)
         self._widget.reset_button.pressed.connect(self.reset_button)
 
-
         self.sub = rospy.Subscriber('/dyros_red/point',geometry_msgs.msg.PolygonStamped, self.sub_cb)
 
     def sub_cb(self, msg):
         self._widget.label.setText(str(round(msg.polygon.points[0].x,6)) )
         self._widget.label_2.setText(str(round(msg.polygon.points[0].y,6)) )
         self._widget.label_3.setText(str(round(msg.polygon.points[0].z,6)) )
+        self._widget.label_14.setText(str(round(msg.polygon.points[3].x,6)) )
+        self._widget.label_15.setText(str(round(msg.polygon.points[3].y,6)) )
+        self._widget.label_16.setText(str(round(msg.polygon.points[3].z,6)) )
 
     def pause_button(self):
         self.send_msg2("pause")
@@ -81,7 +83,12 @@ class DyrosRedGuiPlugin(Plugin):
                 print("traj time is negative. changing it to positive")
                 t_time = - t_time
             com_command_msg.time = t_time
+            c_height = float(self._widget.text_height.text())
+            com_command_msg.height = c_height
+            idx = self._widget.comboBox.currentIndex()
+            com_command_msg.mode = idx;
             self._publisher2.publish(com_command_msg)
+
         else:
             print("Commands need to be float and positive ! ")
 

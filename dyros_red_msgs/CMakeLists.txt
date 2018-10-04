@@ -17,6 +17,7 @@ add_message_files(
   TaskCommand.msg
   WalkingCommand.msg
   ComCommand.msg
+  Dynamicsinfo.msg
 )
 
 
