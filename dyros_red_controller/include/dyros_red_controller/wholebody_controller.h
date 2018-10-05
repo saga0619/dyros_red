@@ -40,6 +40,8 @@ public:
   //Eigen::Vector6d Getfstar( );
   Vector3d getfstar(Vector3d kp, Vector3d kd, Vector3d p_desired, Vector3d p_now, Vector3d d_desired, Vector3d d_now);
   Vector3d getfstar(Vector3d kp, Vector3d kd, Matrix3d r_desired, Matrix3d r_now, Vector3d w_desired, Vector3d w_now);
+  Vector3d getfstar_tra(int link_id, Vector3d kpt, Vector3d kdt);
+  Vector3d getfstar_rot(int link_id, Vector3d kpa, Vector3d kda);
   Vector6d getfstar6d(int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda);
 
   //Contact Mode

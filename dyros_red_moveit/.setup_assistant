@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: dyros_red_description
+    relative_path: robots/dyros_red_robot.urdf
+    xacro_args: "--inorder "
+  SRDF:
+    relative_path: config/dyros_red_description.srdf
+  CONFIG:
+    author_name: jhahn
+    author_email: june992@snu.ac.kr
+    generated_timestamp: 1538730296

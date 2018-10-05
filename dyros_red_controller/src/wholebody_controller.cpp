@@ -152,34 +152,8 @@ Vector3d Wholebody_controller::getfstar(Vector3d kp, Vector3d kd, Matrix3d r_des
   ROS_DEBUG_ONCE("fstar calc");
   Vector3d fstar_;
 
-  Vector3d s1, s2, s3, s1d, s2d, s3d, angle_d;
-
-  s1(0) = r_now(0, 0);
-  s1(1) = r_now(1, 0);
-  s1(2) = r_now(2, 0);
-  s2(0) = r_now(0, 1);
-  s2(1) = r_now(1, 1);
-  s2(2) = r_now(2, 1);
-  s3(0) = r_now(0, 2);
-  s3(1) = r_now(1, 2);
-  s3(2) = r_now(2, 2);
-
-  s1d.setZero();
-  s2d.setZero();
-  s3d.setZero();
-  s1d(0) = r_desired(0, 0);
-  s1d(1) = r_desired(1, 0);
-  s1d(2) = r_desired(2, 0);
-  s2d(0) = r_desired(0, 1);
-  s2d(1) = r_desired(1, 1);
-  s2d(2) = r_desired(2, 1);
-  s3d(0) = r_desired(0, 2);
-  s3d(1) = r_desired(1, 2);
-  s3d(2) = r_desired(2, 2);
-  angle_d = -(DyrosMath::skm(s1) * s1d + DyrosMath::skm(s2) * s2d + DyrosMath::skm(s3) * s3d) / 2;
-
   Matrix3d Rotyaw = DyrosMath::rotateWithZ(model_.yaw_radian);
-  Vector3d angle_d_global = Rotyaw * angle_d;
+  Vector3d angle_d_global = Rotyaw * DyrosMath::getPhi(r_now, r_desired);
 
   for (int i = 0; i < 3; i++)
   {
@@ -189,11 +163,60 @@ Vector3d Wholebody_controller::getfstar(Vector3d kp, Vector3d kd, Matrix3d r_des
   return fstar_;
 }
 
+Vector3d Wholebody_controller::getfstar_tra(int link_id, Vector3d kpt, Vector3d kdt)
+{
+  ROS_DEBUG_ONCE("fstar calc");
+  Vector3d fstar_;
+
+  for (int i = 0; i < 3; i++)
+  {
+    fstar_(i) = kpt(i) * (model_.link_[link_id].x_traj(i) - model_.link_[link_id].xpos(i)) + kdt(i) * (model_.link_[link_id].v_traj(i) - model_.link_[link_id].v(i));
+  }
+
+  return fstar_;
+}
+
+Vector3d Wholebody_controller::getfstar_rot(int link_id, Vector3d kpa, Vector3d kda)
+{
+  ROS_DEBUG_ONCE("fstar calc");
+  Vector3d fstar_;
+
+  Matrix3d Rotyaw = DyrosMath::rotateWithZ(model_.yaw_radian);
+
+  Vector3d angle_d_global = -Rotyaw * DyrosMath::getPhi(model_.link_[link_id].Rotm, model_.link_[link_id].r_traj);
+
+  //Matrix3d Rotyaw = DyrosMath::rotateWithZ(model_.yaw_radian);
+
+  //Vector3d angle_d_global = Rotyaw * DyrosMath::getPhi(model_.link_[link_id].Rotm, model_.link_[link_id].r_traj);
+
+  for (int i = 0; i < 3; i++)
+  {
+    fstar_(i) = (kpa(i) * angle_d_global(i) - kda(i) * model_.link_[link_id].w(i));
+  }
+  /*
+  std::cout << "fstar check " << std::endl
+            << model_.link_[link_id].name << std::endl
+            << " rotation now " << std::endl
+            << model_.link_[link_id].Rotm << std::endl
+            << "desired rotation " << std::endl
+            << model_.link_[link_id].r_traj << std::endl
+            << "angle d " << std::endl
+            << angle_d << std::endl
+            << "global angle d " << std::endl
+            << angle_d_global << std::endl
+            << "fstar " << std::endl
+            << fstar_ << std::endl
+            << " ////////////////////////////////////////////////////////////////" << std::endl;
+  */
+
+  return fstar_;
+}
+
 Vector6d Wholebody_controller::getfstar6d(int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda)
 {
   Vector6d f_star;
-  f_star.segment(0, 3) = getfstar(kpt, kdt, model_.link_[link_id].x_traj, model_.link_[link_id].xpos, model_.link_[link_id].v_traj, model_.link_[link_id].v);
-  f_star.segment(3, 3) = getfstar(kpa, kda, model_.link_[link_id].r_traj, model_.link_[link_id].Rotm, model_.link_[link_id].w_traj, model_.link_[link_id].w);
+  f_star.segment(0, 3) = getfstar_tra(link_id, kpt, kdt);
+  f_star.segment(3, 3) = getfstar_rot(link_id, kpa, kda);
   return f_star;
 }
 

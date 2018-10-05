@@ -30,6 +30,7 @@ public:
     double f_ratio;
     double height;
     double traj_time;
+    double angle;
   };
 
   task_command taskcommand_;

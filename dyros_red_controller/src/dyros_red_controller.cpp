@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     nh.param<bool>("rviz_pub", rviz_publisher, false);
 
     ROS_WARN_COND(debug_mode, "//////////////////////////////////////////\n   DEBUG MODE IS ON \n//////////////////////////////////////////");
-
+    ROS_WARN_COND(rviz_publisher, "//////////////////////////////////////////\n   rviz_publisher MODE IS ON \n//////////////////////////////////////////");
     double Hz;
     nh.param<double>("control_frequency", Hz, 400.0);
 

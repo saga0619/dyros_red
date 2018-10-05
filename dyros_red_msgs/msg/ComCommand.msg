@@ -2,5 +2,6 @@
 float64 ratio
 float64 height
 float64 time
+float64 angle
 int32 mode
 

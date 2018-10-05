@@ -14,12 +14,10 @@ const std::string DyrosRedModel::JOINT_NAME[DyrosRedModel::MODEL_DOF] = {
     "R_HipRoll_Joint", "R_HipCenter_Joint", "R_Thigh_Joint",
     "R_Knee_Joint", "R_AnkleCenter_Joint", "R_AnkleRoll_Joint",
     "Waist1_Joint", "Waist2_Joint", "Upperbody_Joint",
-    "L_Shoulder1_Joint", "L_Shoulder2_Joint", "L_Shoulder3_Joint",
-    "L_Armlink_Joint", "L_Elbow_Joint", "L_Forearm_Joint",
-    "L_Wrist1_Joint", "L_Wrist2_Joint", "R_Shoulder1_Joint",
-    "R_Shoulder2_Joint", "R_Shoulder3_Joint", "R_Armlink_Joint",
-    "R_Elbow_Joint", "R_Forearm_Joint", "R_Wrist1_Joint",
-    "R_Wrist2_Joint"};
+    "L_Shoulder1_Joint", "L_Shoulder2_Joint", "L_Shoulder3_Joint", "L_Armlink_Joint",
+    "L_Elbow_Joint", "L_Forearm_Joint", "L_Wrist1_Joint", "L_Wrist2_Joint",
+    "R_Shoulder1_Joint", "R_Shoulder2_Joint", "R_Shoulder3_Joint", "R_Armlink_Joint",
+    "R_Elbow_Joint", "R_Forearm_Joint", "R_Wrist1_Joint", "R_Wrist2_Joint"};
 
 const std::string DyrosRedModel::ACTUATOR_NAME[DyrosRedModel::MODEL_DOF] = {
     "L_HipRoll_Motor", "L_HipCenter_Motor", "L_Thigh_Motor",
@@ -27,12 +25,10 @@ const std::string DyrosRedModel::ACTUATOR_NAME[DyrosRedModel::MODEL_DOF] = {
     "R_HipRoll_Motor", "R_HipCenter_Motor", "R_Thigh_Motor",
     "R_Knee_Motor", "R_AnkleCenter_Motor", "R_AnkleRoll_Motor",
     "Waist1_Motor", "Waist2_Motor", "Upperbody_Motor",
-    "L_Shoulder1_Motor", "L_Shoulder2_Motor", "L_Shoulder3_Motor",
-    "L_Armlink_Motor", "L_Elbow_Motor", "L_Forearm_Motor",
-    "L_Wrist1_Motor", "L_Wrist2_Motor", "R_Shoulder1_Motor",
-    "R_Shoulder2_Motor", "R_Shoulder3_Motor", "R_Armlink_Motor",
-    "R_Elbow_Motor", "R_Forearm_Motor", "R_Wrist1_Motor",
-    "R_Wrist2_Motor"};
+    "L_Shoulder1_Motor", "L_Shoulder2_Motor", "L_Shoulder3_Motor", "L_Armlink_Motor",
+    "L_Elbow_Motor", "L_Forearm_Motor", "L_Wrist1_Motor", "L_Wrist2_Motor",
+    "R_Shoulder1_Motor", "R_Shoulder2_Motor", "R_Shoulder3_Motor", "R_Armlink_Motor",
+    "R_Elbow_Motor", "R_Forearm_Motor", "R_Wrist1_Motor", "R_Wrist2_Motor"};
 
 // 0~6 Left leg
 // 7~11 Right leg
@@ -62,7 +58,7 @@ void DyrosRedModel::Link_pos_Update(int i)
 {
   link_[i].xpos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, link_[i].id, Eigen::Vector3d::Zero(), false);
   link_[i].xipos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, link_[i].id, link_[i].COM_position, false);
-  link_[i].Rotm = RigidBodyDynamics::CalcBodyWorldOrientation(model_, q_virtual_, link_[i].id, false);
+  link_[i].Rotm = (RigidBodyDynamics::CalcBodyWorldOrientation(model_, q_virtual_, link_[i].id, false)).transpose();
   // link_[i].COM_position =
   // RigidBodyDynamics::CalcBaseToBodyCoordinates(model_,q_virtual_,link_[i])
 }
@@ -153,6 +149,33 @@ void DyrosRedModel::Link_Set_Trajectory_from_quintic(int i, double current_time,
   link_[i].w_traj = Eigen::Vector3d::Zero();
 }
 
+void DyrosRedModel::Link_Set_Trajectory_rotation(int i, double current_time, double start_time, double end_time, Eigen::Matrix3d rot_desired, bool local_)
+{
+  Eigen::Vector3d axis;
+  double angle;
+  if (local_)
+  {
+    Eigen::AngleAxisd aa(rot_desired);
+    axis = aa.axis();
+    angle = aa.angle();
+  }
+  else
+  {
+    Eigen::AngleAxisd aa(link_[i].rot_init.transpose() * rot_desired);
+    axis = aa.axis();
+    angle = aa.angle();
+  }
+
+  double c_a = DyrosMath::cubic(current_time, start_time, end_time, 0.0, angle, 0.0, 0.0);
+
+  Eigen::Matrix3d rmat;
+  rmat = Eigen::AngleAxisd(c_a, axis);
+
+  link_[i].r_traj = link_[i].rot_init * rmat;
+
+  link_[i].w_traj << 0, 0, 0;
+}
+
 void DyrosRedModel::Link_Set_initpos(int i)
 {
   link_[i].x_init = link_[i].xpos;
@@ -201,7 +224,6 @@ DyrosRedModel::DyrosRedModel()
       link_id_[i] = model_.GetBodyId(LINK_NAME[i]);
       // ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i],
       // link_id_[i],model_.GetParentBodyId(link_id_[i]));
-
       // ROS_INFO("%dth parent
       // %d",link_id_[i],model_.GetParentBodyId(link_id_[i]));
       // std::cout << model_.mBodies[link_id_[i]].mCenterOfMass << std::endl;
@@ -234,66 +256,13 @@ DyrosRedModel::DyrosRedModel()
 
 void DyrosRedModel::test()
 {
-  // updateKinematics(Eigen::Vector28d::Zero());
-  // std::cout << "test" << std::endl;
-
   if (test_run == 0)
   {
-    /*
-        for(int i=0;i<MODEL_DOF;i++){
-          VectorQd q_virtual;<<0,0,0.92611,0,0, 0,
-          0, 0, -0.24, 0.6, -0.36, 0,
-          0, 0, -0.24, 0.6, -0.36, 0,
-          0, 0, 0,
-          -0.3, 0, -1.5, -1.87, -0.7, 0, -1, 0,
-          0.3, 0, 1.5, 1.87, 0.7, 0, 1, 0;
-
-
-          RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, NULL,
-       NULL);
-          RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual,
-       A_temp_, true);
-
-          for(int i=0;i<MODEL_DOF+1;i++){
-            Link_pos_Update(i);
-          }
-
-          for(int i=0;i<MODEL_DOF+1;i++){
-            Link_Set_Jacobian(i,zero);
-            Link_Jac_Update(i);
-          }
-
-
-
-
-        //std::cout <<model_.GetBodyName(link_[i].id) << "position is :::::
-       "<<std::endl<<
-       RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_,link_[i].id,Eigen::Vector3d::Zero(),false)
-       << std::endl;
-
-        }
-    */
-    // std::cout << "link0 Jac ::" << std::endl;
-
-    // std::cout << link_[0].Jac<<std::endl;
-
-    // std::cout << " link 0 COM POS :: " <<std::endl << link_[0].COM_position
-    // << std::endl;
-
-    // std::cout << "link0 Jac COM ::" <<std::endl;
-
-    // std::cout << link_[0].Jac_COM<<std::endl;
-
     test_run++;
   }
-
-  // std::cout << "Left_Arm Wrist2 Body to Base position ::::: "<<std::endl<<
-  // RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_,link_[Left_Arm+7].id,Eigen::Vector3d::Zero(),false)<<std::endl;
-  // std::cout << "Left_Arm Wrist2 Base to Body position ::::: "<<std::endl<<
-  // RigidBodyDynamics::CalcBaseToBodyCoordinates(model_,q_,link_[Left_Arm+7].id,Eigen::Vector3d::Zero(),false)<<std::endl;
 }
 
-void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual)
+void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eigen::VectorXd &q_dot)
 {
   ROS_INFO_ONCE("CONTROLLER : MODEL : updatekinematics enter ");
   /* q_virtual description
@@ -303,28 +272,8 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual)
    * model dof + 6 ( last component of q_virtual) : w of Quaternion
    * */
 
-  /*
-   Eigen::Matrix3d Er1,Er2,Er3,Er;
-   Er.setZero();
-   Er1 = Eigen::AngleAxisd(q_virtual_(3), Eigen::Vector3d::UnitX());
-   Er2 = Eigen::AngleAxisd(q_virtual_(3),
-   Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(q_virtual_(4),
-   Eigen::Vector3d::UnitY());
-   Er3 = Eigen::AngleAxisd(q_virtual_(3),
-   Eigen::Vector3d::UnitX())*Eigen::AngleAxisd(q_virtual_(4),
-   Eigen::Vector3d::UnitY())*Eigen::AngleAxisd(q_virtual_(5),
-   Eigen::Vector3d::UnitZ());
-
-   Er.block<3,1>(0,0) = Er1.block<3,1>(0,0);
-   Er.block<3,1>(0,1) = Er2.block<3,1>(0,1);
-   Er.block<3,1>(0,2) = Er3.block<3,1>(0,2);
-
-   Eri=Er.inverse();
-   E_T_ = Eigen::MatrixXd::Identity(MODEL_DOF+6,MODEL_DOF+6);
-   Eri = Eigen::MatrixXd::Identity(3,3);
-   E_T_.block<3,3>(3,3)=Eri;
- */
   q_virtual_ = q_virtual;
+  q_dot_virtual_ = q_dot;
   ros::Time t_temp = ros::Time::now();
   RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, NULL, NULL);
   double uk_time = ros::Time::now().toSec() - t_temp.toSec();
@@ -341,24 +290,6 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual)
 
   yaw_radian = yaw;
 
-  /*
-    Eigen::Matrix3d temp = link_[0].Rotm.transpose()*link_[Right_Foot].Rotm;
-    tf::Matrix3x3
-    m_(temp(0,0),temp(1,0),temp(2,0),temp(0,1),temp(1,1),temp(2,1),temp(0,2),temp(1,2),temp(2,2));
-
-    Eigen::Vector3d euler;
-    m_.getRPY(euler(0),euler(1),euler(2));
-
-    std::cout <<" Pelvis euler from foot "<<std::endl;
-    std::cout <<euler <<std::endl;
-
-    for(int i=0;i<3;i++)q_virtual_(3+i)=euler(i);
-
-    RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_,
-    true);
-  */
-
-  // A_=E_T_.transpose()*A_temp_*E_T_;
   A_ = A_temp_;
 
   com_ = getCenterOfMassPosition();
@@ -395,6 +326,11 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual)
   link_[COM_id].xpos = com_;
   link_[COM_id].Rotm = link_[Pelvis].Rotm;
 
+  for (int i = 0; i < MODEL_DOF + 2; i++)
+  {
+    Link_vw_Update(i, q_dot_virtual_);
+  }
+
   double ju_time = ros::Time::now().toSec() - t_temp.toSec();
 
   ROS_DEBUG("Update time - detail \n updatekinematicsCustum Time : % 3.4f ms\n compositeRigid time : %3.4f ms\n jac_update time : %3.4f ms", uk_time * 1000, cr_time * 1000, ju_time * 1000);
@@ -415,45 +351,4 @@ Eigen::Vector3d DyrosRedModel::getCenterOfMassPosition()
   return position_temp;
 }
 
-/*
-void DyrosRedModel::getTransformEndEffector // must call updateKinematics before
-    calling this function(EndEffector ee, Eigen::Isometry3d *transform_matrix)
-{
-  Eigen::Vector3d gghg = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_, end_effector_id_[ee], base_position_, false);
-  transform_matrix->translation() = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_, end_effector_id_[ee], base_position_, false);
-  transform_matrix->linear() = RigidBodyDynamics::CalcBodyWorldOrientation(model_, q_, end_effector_id_[ee], false).transpose();
-}
-
-void DyrosRedModel::getTransformEndEffector // must call updateKinematics before
-    calling this function(EndEffector ee, Eigen::Vector3d *position, Eigen::Matrix3d *rotation)
-{
-  *position = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_, end_effector_id_[ee], base_position_, false);
-  *rotation = RigidBodyDynamics::CalcBodyWorldOrientation(model_, q_, end_effector_id_[ee], false).transpose();
-}
-
-void DyrosRedModel::getTransformEndEffector(EndEffector ee, const Eigen::VectorXd &q, bool update_kinematics, Eigen::Vector3d *position, Eigen::Matrix3d *rotation)
-{
-  Eigen::Vector28d q_new;
-  q_new = q_;
-  switch (ee)
-  {
-  case EE_LEFT_FOOT:
-  case EE_RIGHT_FOOT:
-    q_new.segment<6>(joint_start_index_[ee]) = q;
-    break;
-  case EE_LEFT_HAND:
-  case EE_RIGHT_HAND:
-    q_new.segment<8>(joint_start_index_[ee]) = q;
-    break;
-  }
-  if (update_kinematics)
-  {
-    q_ = q_new;
-  }
-  *position = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_new, end_effector_id_[ee], base_position_, update_kinematics);
-  *rotation = RigidBodyDynamics::CalcBodyWorldOrientation(model_, q_new, end_effector_id_[ee], update_kinematics).transpose();
-  // RigidBodyDynamics::Calcpo
-  // model_.mBodies[0].mCenterOfMass
-}
-*/
 } // namespace dyros_red_controller

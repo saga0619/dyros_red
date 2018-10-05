@@ -7,7 +7,7 @@
                 <x>0</x>
                 <y>0</y>
                 <width>606</width>
-                <height>440</height>
+                <height>495</height>
             </rect>
         </property>
         <property name="windowTitle">
@@ -19,7 +19,7 @@
                     <x>20</x>
                     <y>230</y>
                     <width>321</width>
-                    <height>181</height>
+                    <height>221</height>
                 </rect>
             </property>
             <property name="frameShape">
@@ -32,9 +32,9 @@
                 <property name="geometry">
                     <rect>
                         <x>10</x>
-                        <y>40</y>
+                        <y>32</y>
                         <width>221</width>
-                        <height>131</height>
+                        <height>161</height>
                     </rect>
                 </property>
                 <layout class="QHBoxLayout" name="horizontalLayout">
@@ -51,6 +51,13 @@
                                 <widget class="QLabel" name="label_12">
                                     <property name="text">
                                         <string>Height</string>
+                                    </property>
+                                </widget>
+                            </item>
+                            <item>
+                                <widget class="QLabel" name="label_21">
+                                    <property name="text">
+                                        <string>angle</string>
                                     </property>
                                 </widget>
                             </item>
@@ -90,6 +97,9 @@
                                 </widget>
                             </item>
                             <item>
+                                <widget class="QLineEdit" name="text_angle"/>
+                            </item>
+                            <item>
                                 <widget class="QLineEdit" name="text_time">
                                     <property name="toolTip">
                                         <string>Processing time of COM command</string>
@@ -119,6 +129,36 @@
                                     <item>
                                         <property name="text">
                                             <string>Pelvis COM combined</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>Pelvis COM combined + Upperbody rotate 90</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>Pelvis COM combined + Upperbody rotation hold</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>right hand rotation hold with z axis test</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>pelv_COM control + arms joint control</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>pelv_COM control + arms task control</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>pelv_COM control + Upperbody rotation + arms hold control</string>
                                         </property>
                                     </item>
                                 </widget>

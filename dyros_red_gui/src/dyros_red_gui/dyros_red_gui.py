@@ -48,6 +48,7 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.slowmotion_button.pressed.connect(self.slowmotion_button)
         self._widget.reset_button.pressed.connect(self.reset_button)
 
+
         self.sub = rospy.Subscriber('/dyros_red/point',geometry_msgs.msg.PolygonStamped, self.sub_cb)
 
     def sub_cb(self, msg):
@@ -85,6 +86,7 @@ class DyrosRedGuiPlugin(Plugin):
             com_command_msg.time = t_time
             c_height = float(self._widget.text_height.text())
             com_command_msg.height = c_height
+            com_command_msg.angle = float(self._widget.text_angle.text())
             idx = self._widget.comboBox.currentIndex()
             com_command_msg.mode = idx;
             self._publisher2.publish(com_command_msg)

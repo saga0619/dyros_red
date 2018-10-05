@@ -97,6 +97,9 @@ public:
   // set realtime trajectory of link from quintic spline.
   void Link_Set_Trajectory_from_quintic(int i, double current_time, double start_time, double end_time, Eigen::Vector3d pos_desired);
 
+  // set realtime trajectory of rotation of link
+  void Link_Set_Trajectory_rotation(int i, double current_time, double start_time, double end_time, Eigen::Matrix3d rot_desired, bool local_);
+
   // set link initial position and rotation. initial position for task control.
   void Link_Set_initpos(int i);
 
@@ -160,7 +163,7 @@ public:
     return joint_name_map_[joint_name];
   }
   // Calc Jacobian, Transformation
-  void updateKinematics(const Eigen::VectorXd &q);
+  void updateKinematics(const Eigen::VectorXd &q, const Eigen::VectorXd &q_dot);
 
   Eigen::Vector3d getCenterOfMassPosition();
 
@@ -175,7 +178,7 @@ private:
   Eigen::VectorXd q_virtual_;
   Eigen::VectorXd q_virtual_quaternion_;
   Eigen::Vector3d base_position_;
-
+  Eigen::VectorXd q_dot_virtual_;
   Eigen::Isometry3d currnet_transform_[4];
 
 public:

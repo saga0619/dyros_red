@@ -120,6 +120,7 @@ protected:
   VectorQd torque_gravity_;
 
   VectorQd desired_q_; // current desired joint values
+  VectorQd init_q_;
   VectorQd torque_desired;
   VectorQd torque_damping;
   VectorQd position_desired;
@@ -146,8 +147,8 @@ protected:
   ros::Subscriber command_sub;
 
   // Publisher
-  ros::Publisher com_pos_pub;
-  geometry_msgs::PolygonStamped com_pos_pub_msgs;
+  ros::Publisher point_pub;
+  geometry_msgs::PolygonStamped point_pub_msgs;
 
   ros::Publisher dynamics_pub;
   dyros_red_msgs::Dynamicsinfo dynamics_pub_msgs;
