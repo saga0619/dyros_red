@@ -165,15 +165,20 @@ void DyrosRedModel::Link_Set_Trajectory_rotation(int i, double current_time, dou
     axis = aa.axis();
     angle = aa.angle();
   }
-
   double c_a = DyrosMath::cubic(current_time, start_time, end_time, 0.0, angle, 0.0, 0.0);
-
   Eigen::Matrix3d rmat;
   rmat = Eigen::AngleAxisd(c_a, axis);
 
   link_[i].r_traj = link_[i].rot_init * rmat;
 
-  link_[i].w_traj << 0, 0, 0;
+  double dtime = 0.0001;
+  double c_a_dtime = DyrosMath::cubic(current_time + dtime, start_time, end_time, 0.0, angle, 0.0, 0.0);
+
+  Eigen::Vector3d ea = link_[i].r_traj.eulerAngles(0, 1, 2);
+
+  Eigen::Vector3d ea_dtime = (link_[i].rot_init * Eigen::AngleAxisd(c_a_dtime, axis)).eulerAngles(0, 1, 2);
+
+  link_[i].w_traj = (ea_dtime - ea) / dtime;
 }
 
 void DyrosRedModel::Link_Set_initpos(int i)
@@ -190,8 +195,6 @@ DyrosRedModel::DyrosRedModel()
   q_.setZero();
   q_virtual_.resize(MODEL_DOF + 6);
   q_virtual_.setZero();
-  q_virtual_quaternion_.resize(MODEL_DOF + 7);
-  q_virtual_quaternion_.setZero();
   A_temp_.resize(MODEL_DOF + 6, MODEL_DOF + 6);
   A_temp_.setZero();
   R_temp_.resize(MODEL_DOF + 6, MODEL_DOF + 6);
@@ -229,6 +232,7 @@ DyrosRedModel::DyrosRedModel()
       // std::cout << model_.mBodies[link_id_[i]].mCenterOfMass << std::endl;
       // joint_name_map_[JOINT_NAME[i]] = i;
     }
+
     for (int i = 0; i < MODEL_DOF + 1; i++)
     {
       Link_initialize(i, link_id_[i], LINK_NAME[i], model_.mBodies[link_id_[i]].mMass, model_.mBodies[link_id_[i]].mCenterOfMass);
@@ -329,6 +333,13 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eig
   for (int i = 0; i < MODEL_DOF + 2; i++)
   {
     Link_vw_Update(i, q_dot_virtual_);
+  }
+
+  R_ARM_A_.setZero(8, 8);
+  R_ARM_A_.setZero(8, 8);
+
+  for (int i = 0; i < 8; i++)
+  {
   }
 
   double ju_time = ros::Time::now().toSec() - t_temp.toSec();

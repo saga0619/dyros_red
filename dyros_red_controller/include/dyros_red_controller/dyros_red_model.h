@@ -176,7 +176,6 @@ private:
   RigidBodyDynamics::Model model_;
   Eigen::VectorXd q_;
   Eigen::VectorXd q_virtual_;
-  Eigen::VectorXd q_virtual_quaternion_;
   Eigen::Vector3d base_position_;
   Eigen::VectorXd q_dot_virtual_;
   Eigen::Isometry3d currnet_transform_[4];
@@ -185,6 +184,8 @@ public:
   Eigen::MatrixXd A_;
   Eigen::MatrixXd A_temp_;
   Eigen::MatrixXd R_temp_;
+  Eigen::MatrixXd R_ARM_A_;
+  Eigen::MatrixXd L_ARM_A_;
   Eigen::Matrix3d Eri;
   Eigen::MatrixXd E_T_;
   Eigen::Vector3d com_;

@@ -56,7 +56,6 @@ void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr 
             {
                 q_(i) = msg->position[j];
                 q_virtual_(i + 6) = msg->position[j];
-                q_virtual_quaternion(i + 6) = msg->position[j];
                 q_dot_(i) = msg->velocity[j];
                 q_dot_virtual_(i + 6) = msg->velocity[j];
 
@@ -72,14 +71,12 @@ void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr 
     for (int i = 0; i < 6; i++)
     {
         q_virtual_(i) = msg->position[i];
-        q_virtual_quaternion(i) = msg->position[i];
         q_dot_virtual_(i) = msg->velocity[i];
     }
-    q_virtual_quaternion(total_dof_ + 6) = msg->position[total_dof_ + 6];
 
     q_virtual_(total_dof_ + 6) = msg->position[total_dof_ + 6];
 
-    tf::Quaternion q(q_virtual_quaternion(3), q_virtual_quaternion(4), q_virtual_quaternion(5), q_virtual_quaternion(total_dof_ + 6));
+    tf::Quaternion q(q_virtual_(3), q_virtual_(4), q_virtual_(5), q_virtual_(total_dof_ + 6));
     q.normalize();
 }
 

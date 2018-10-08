@@ -95,8 +95,6 @@ protected:
   VectorVquatQd q_virtual_;
   VectorVQd q_dot_virtual_;
 
-  VectorVquatQd q_virtual_quaternion;
-
   Vector6d left_foot_ft_;  // current left ft sensor values
   Vector6d right_foot_ft_; // current right ft sensor values
 

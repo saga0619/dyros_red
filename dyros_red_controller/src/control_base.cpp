@@ -25,8 +25,6 @@ ControlBase::ControlBase(ros::NodeHandle &nh, double Hz) : ui_update_count_(0), 
   dynamics_pub_msgs.task_desired.resize(3);
   dynamics_pub_msgs.task_current.resize(3);
 
-  q_virtual_quaternion.setZero(total_dof_ + 7);
-
   if (rviz_pub)
   {
     joint_state_publisher_for_rviz = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
@@ -150,10 +148,10 @@ void ControlBase::compute()
   Vector3d kp_, kd_, kpa_, kda_;
   for (int i = 0; i < 3; i++)
   {
-    kp_(i) = 400;
-    kd_(i) = 40;
-    kpa_(i) = 400;
-    kda_(i) = 40;
+    kp_(i) = 900;
+    kd_(i) = 60;
+    kpa_(i) = 1600;
+    kda_(i) = 80;
   }
   MatrixXd J_task;
 
@@ -313,26 +311,47 @@ void ControlBase::compute()
       f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
       f_star.segment(6, 3) = wholebody_controller_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
 
-      //r_arm_desired : 0.5512798123847757, 2.164994013118243, -0.31764867041525985, -0.3103130262398612, 1.8743844462393051, -1.3159605294206944, 0.2769620816042189, 0.40181840209960534
-      //l_arm_desired : -0.5512798123847757, -2.164994013118243, 0.31764867041525985, 0.3103130262398612, -1.8743844462393051, 1.3159605294206944, -0.2769620816042189, -0.40181840209960534
+      VectorXd ls, rs;
+      ls.setZero(8);
+      rs.setZero(8);
 
-      VectorXd desired_q_ub;
+      rs << 0.6679347644640007, 2.3066997216988754, -0.3786424777329119, -0.2596871465720641, 1.496633838360999, -1.2804412127743907, 0.47155860285827594, 0.5577709399612447;
+      ls << -0.6679347553824808, -2.306699727386902, 0.37864248471482626, 0.25968714853102454, -1.4966338400186168, 1.2804412110532044, -0.47155861293173135, -0.557770929404626;
+
+      VectorXd desired_q_ub, cubic_q_ub;
       desired_q_ub.setZero(16);
-      desired_q_ub << -0.5512798123847757, -2.164994013118243, 0.31764867041525985, 0.3103130262398612, -1.8743844462393051, 1.3159605294206944, -0.2769620816042189, -0.40181840209960534, 0.5512798123847757, 2.164994013118243, -0.31764867041525985, -0.3103130262398612, 1.8743844462393051, -1.3159605294206944, 0.2769620816042189, 0.40181840209960534;
+      cubic_q_ub.setZero(16);
 
+      desired_q_ub.segment(0, 8) = ls;
+      desired_q_ub.segment(8, 8) = rs;
       VectorVQd q_trac;
       q_trac.setZero();
 
-      q_trac.segment(6, 15) = init_q_.segment(6, 15);
+      q_trac.segment(6, 15) = init_q_.segment(0, 15);
 
       for (int i = 0; i < 16; i++)
       {
-        q_trac(21 + i) = DyrosMath::cubic(control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, init_q_(15 + i), desired_q_ub(i), 0.0, 0.0);
+        q_trac(21 + i) = DyrosMath::cubic(control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time * 0.8, init_q_(15 + i), desired_q_ub(i), 0.0, 0.0);
+        cubic_q_ub(i) = DyrosMath::cubic(control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time * 0.8, init_q_(15 + i), desired_q_ub(i), 0, 0);
       }
 
-      torque_joint_control_ = (20 * (q_trac - q_virtual_.segment(0, total_dof_ + 6)) + 4 * (-q_dot_virtual_)).segment(6, total_dof_);
+      //torque_joint_control_ = ((100 * (q_trac - q_virtual_.segment(0, total_dof_ + 6)) + 20 * (-q_dot_virtual_))).segment(6, total_dof_);
+      //torque_joint_control_.segment(0, 15).setZero();
 
-      torque_joint_control_.segment(0, 15).setZero();
+      VectorXd q_star_ub, q_upper_body_, q_upper_dot_;
+      q_star_ub.setZero(16);
+      q_upper_body_.setZero(16);
+      q_upper_dot_.setZero(16);
+      q_upper_body_ = q_virtual_.segment(21, 16);
+      q_upper_dot_ = q_dot_virtual_.segment(21, 16);
+      VectorVQd q_star;
+      q_star.setZero();
+      q_star_ub = 400 * (cubic_q_ub - q_upper_body_) + 40 * (-q_upper_dot_);
+
+      q_star.segment(21, 16) = q_star_ub;
+
+      torque_joint_control_ = (model_.A_ * q_star).segment(6, total_dof_);
+      //torque_joint_control_.segment(15, 16) = torque_upper_body;
     }
     else if (task_controller_.taskcommand_.mode_ == 8)
     {
@@ -356,8 +375,8 @@ void ControlBase::compute()
       //wholebody_controller_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
 
       Vector3d rdes, ldes;
-      rdes << 0.23, -0.09, 0.1684;
-      ldes << 0.23, 0.09, 0.1684;
+      rdes << 0.26, -0.17, 0.13;
+      ldes << 0.26, 0.17, 0.13;
 
       Matrix3d r_rot_des;
       r_rot_des << 0, 0, 1, 0, -1, 0, 1, 0, 0;
@@ -392,21 +411,34 @@ void ControlBase::compute()
       //wholebody_controller_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
 
       Vector3d rdes, ldes;
-      rdes << 0.23, -0.08, 0.1684;
-      ldes << 0.23, 0.08, 0.1684;
+      rdes << 0.26, -0.17, 0.13;
+      ldes << 0.26, 0.17, 0.13;
+
+      model_.link_[model_.Right_Hand].x_init = rdes;
+      model_.link_[model_.Left_Hand].x_init = ldes;
+
+      rdes << 0.375, -0.15, task_controller_.taskcommand_.height + 0.4;
+      ldes << 0.375, 0.15, task_controller_.taskcommand_.height + 0.4;
 
       Matrix3d r_rot_des;
-      r_rot_des << -1, 0, 0, 0, -1, 0, 0, 0, 1;
-      rdes = model_.link_[model_.Upper_Body].rot_init.transpose() * (rdes - model_.link_[model_.Upper_Body].x_init);
-      ldes = model_.link_[model_.Upper_Body].rot_init.transpose() * (ldes - model_.link_[model_.Upper_Body].x_init);
+      //r_rot_des << -1, 0, 0, 0, -1, 0, 0, 0, 1;
 
-      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * rdes + model_.link_[model_.Upper_Body].xpos);
+      r_rot_des << 0, 0, 1, 0, -1, 0, 1, 0, 0;
+
+      //rdes = model_.link_[model_.Upper_Body].rot_init.transpose() * (rdes - model_.link_[model_.Upper_Body].x_init);
+      //ldes = model_.link_[model_.Upper_Body].rot_init.transpose() * (ldes - model_.link_[model_.Upper_Body].x_init);
+
+      //model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * rdes + model_.link_[model_.Upper_Body].xpos);
+      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, rdes);
       model_.Link_Set_Trajectory_rotation(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, r_rot_des, false);
-      f_star.segment(9, 6) = wholebody_controller_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_ * 4, kda_ * 2);
+      model_.link_[model_.Right_Hand].v_traj += model_.link_[model_.Pelvis].v_traj + model_.link_[model_.Upper_Body].w_traj.cross(model_.link_[model_.Right_Hand].xpos - model_.link_[model_.Upper_Body].xpos);
+      f_star.segment(9, 6) = wholebody_controller_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
 
-      model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * ldes + model_.link_[model_.Upper_Body].xpos);
+      //model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * ldes + model_.link_[model_.Upper_Body].xpos);
+      model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, ldes);
       model_.Link_Set_Trajectory_rotation(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, r_rot_des, false);
-      f_star.segment(15, 6) = wholebody_controller_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_ * 4, kda_ * 2);
+      model_.link_[model_.Left_Hand].v_traj += model_.link_[model_.Pelvis].v_traj + model_.link_[model_.Upper_Body].w_traj.cross(model_.link_[model_.Left_Hand].xpos - model_.link_[model_.Upper_Body].xpos);
+      f_star.segment(15, 6) = wholebody_controller_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
     }
 
     torque_task_ = wholebody_controller_.task_control_torque(J_task, f_star);
