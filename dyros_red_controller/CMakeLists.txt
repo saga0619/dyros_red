@@ -61,7 +61,7 @@ target_link_libraries(dyros_red_controller_lib
     -lrbdl
     -lrbdl_urdfreader
 
-    -lqpOASES
+    #-lqpOASES
     )
 target_link_libraries(dyros_red_controller
     dyros_red_controller_lib
@@ -73,5 +73,5 @@ add_dependencies(dyros_red_controller_lib ${catkin_EXPORTED_TARGETS})
 add_dependencies(dyros_red_controller ${catkin_EXPORTED_TARGETS})
 
 
-#SET(CMAKE_BUILD_TYPE Release)
+SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)

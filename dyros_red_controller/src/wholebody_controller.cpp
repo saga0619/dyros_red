@@ -3,9 +3,9 @@
 namespace dyros_red_controller
 {
 
-Wholebody_controller::Wholebody_controller(DyrosRedModel &model, const VectorQd &current_q, const double hz, const double &control_time) : total_dof_(DyrosRedModel::MODEL_DOF), model_(model),
-                                                                                                                                           current_q_(current_q), hz_(hz), control_time_(control_time),
-                                                                                                                                           start_time_{}, end_time_{}, target_arrived_{true, true, true, true}
+Wholebody_controller::Wholebody_controller(DyrosRedModel &model, const VectorQd &current_q, const double hz, const double &control_time, const double &d_time) : total_dof_(DyrosRedModel::MODEL_DOF), model_(model),
+                                                                                                                                                                 current_q_(current_q), hz_(hz), control_time_(control_time), d_time_(d_time),
+                                                                                                                                                                 start_time_{}, end_time_{}, target_arrived_{true, true, true, true}
 {
   //debug_.open("/home/suhan/jet_test.txt");
 }
@@ -47,6 +47,8 @@ void Wholebody_controller::update_dynamics_mode(int mode)
 
     W = Slc_k * A_matrix_inverse * N_C * Slc_k_T;
     W_inv = DyrosMath::pinv_SVD(W);
+
+    contact_force_predict.setZero();
   }
 
   ROS_DEBUG_ONCE("dynamics update end ");
@@ -122,6 +124,143 @@ VectorQd Wholebody_controller::task_control_torque(MatrixXd J_task, VectorXd f_s
 
   VectorQd torque_task;
   torque_task = W_inv * Q_T_ * Q_temp_inv * (lambda * (f_star_));
+
+  //W.svd(s,u,v);
+  //V2.resize(28,6);
+  //V2.zero();
+
+  ROS_DEBUG_ONCE("task torque calc end ");
+
+  return torque_task;
+}
+
+VectorQd Wholebody_controller::task_control_torque_custom_force(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force)
+{
+
+  ROS_DEBUG_ONCE("task torque calc start ");
+  task_dof = J_task.rows();
+
+  //Task Control Torque;
+  J_task_T.resize(total_dof_ + 6, task_dof);
+  J_task_T.setZero();
+  lambda_inv.resize(task_dof, task_dof);
+  lambda_inv.setZero();
+  lambda.resize(task_dof, task_dof);
+  lambda.setZero();
+
+  J_task_T = J_task.transpose();
+
+  lambda_inv = J_task * A_matrix_inverse * N_C * J_task_T;
+
+  lambda = lambda_inv.inverse();
+  J_task_inv_T = lambda * J_task * A_matrix_inverse * N_C;
+
+  Q = J_task_inv_T * Slc_k_T;
+  Q_T_ = Q.transpose();
+
+  Q_temp = Q * W_inv * Q_T_;
+
+  Q_temp_inv = DyrosMath::pinv_SVD(Q_temp);
+
+  //_F=lambda*(f_star);
+  //Jtemp=J_task_inv_T*Slc_k_T;
+  //Jtemp_2 = DyrosMath::pinv_SVD(Jtemp);
+  //Q.svd(s2,u2,v2);
+
+  VectorXd F_;
+  F_.resize(task_dof);
+
+  F_ = lambda * selection_matrix * f_star_;
+
+  VectorXd F_2;
+
+  F_2 = F_ + desired_force;
+
+  VectorQd torque_task;
+  torque_task = W_inv * Q_T_ * Q_temp_inv * F_2;
+
+  //W.svd(s,u,v);
+  //V2.resize(28,6);
+  //V2.zero();
+
+  ROS_DEBUG_ONCE("task torque calc end ");
+
+  return torque_task;
+}
+
+VectorQd Wholebody_controller::task_control_torque_custom_force_feedback(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand)
+{
+
+  ROS_DEBUG_ONCE("task torque calc start ");
+  task_dof = J_task.rows();
+
+  //Task Control Torque;
+  J_task_T.resize(total_dof_ + 6, task_dof);
+  J_task_T.setZero();
+  lambda_inv.resize(task_dof, task_dof);
+  lambda_inv.setZero();
+  lambda.resize(task_dof, task_dof);
+  lambda.setZero();
+
+  J_task_T = J_task.transpose();
+
+  lambda_inv = J_task * A_matrix_inverse * N_C * J_task_T;
+
+  lambda = lambda_inv.inverse();
+  J_task_inv_T = lambda * J_task * A_matrix_inverse * N_C;
+
+  Q = J_task_inv_T * Slc_k_T;
+  Q_T_ = Q.transpose();
+
+  Q_temp = Q * W_inv * Q_T_;
+
+  Q_temp_inv = DyrosMath::pinv_SVD(Q_temp);
+
+  //_F=lambda*(f_star);
+  //Jtemp=J_task_inv_T*Slc_k_T;
+  //Jtemp_2 = DyrosMath::pinv_SVD(Jtemp);
+  //Q.svd(s2,u2,v2);
+
+  VectorXd F_;
+  F_.resize(task_dof);
+
+  static double right_i, left_i;
+
+  double pd = 0.1;
+  double pi = 4.0;
+
+  double left_des = -50.0;
+  double right_des = 50.0;
+
+  double right_err = desired_force(10) + ft_hand(1);
+  double left_err = desired_force(16) + ft_hand(7);
+
+  right_i += right_err * d_time_;
+  left_i += left_err * d_time_;
+
+  VectorXd fc_fs; // = desired_force;
+  fc_fs = desired_force;
+  fc_fs.setZero();
+
+  fc_fs(10) = pd * right_err + pi * right_i;
+  fc_fs(16) = pd * left_err + pi * left_i;
+
+  //std::cout << "right : " << fc_fs(10) << std::endl;
+  //std::cout << "left : " << fc_fs(16) << std::endl;
+
+  F_ = lambda * (selection_matrix * f_star_ + fc_fs);
+
+  //F_ = selection_matrix * lambda * f_star_;
+
+  VectorXd F_2;
+
+  //desired_force(10) = desired_force(10) + right_des;
+  //desired_force(16) = desired_force(16) + left_des;
+
+  F_2 = F_ + desired_force;
+
+  VectorQd torque_task;
+  torque_task = W_inv * Q_T_ * Q_temp_inv * F_2;
 
   //W.svd(s,u,v);
   //V2.resize(28,6);
@@ -285,12 +424,29 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
 
   desired_force.setZero();
   MatrixXd Scf_;
-  Scf_.setZero(6, 12);
-  Scf_.block(0, 6, 6, 6).setIdentity();
 
-  for (int i = 0; i < 6; i++)
+  bool right_master = false;
+
+  if (right_master)
   {
-    desired_force(i + 6) = -ContactForce_(i + 6) + ForceRedistribution(i + 6);
+    Scf_.setZero(6, 12);
+    Scf_.block(0, 0, 6, 6).setIdentity();
+
+    for (int i = 0; i < 6; i++)
+    {
+      desired_force(i) = -ContactForce_(i) + ForceRedistribution(i);
+    }
+  }
+  else
+  {
+
+    Scf_.setZero(6, 12);
+    Scf_.block(0, 6, 6, 6).setIdentity();
+
+    for (int i = 0; i < 6; i++)
+    {
+      desired_force(i + 6) = -ContactForce_(i + 6) + ForceRedistribution(i + 6);
+    }
   }
 
   Vector6d reduced_desired_force = Scf_ * desired_force;

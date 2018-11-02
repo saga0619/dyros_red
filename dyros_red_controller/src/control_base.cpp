@@ -6,7 +6,7 @@ namespace dyros_red_controller
 
 // Constructor
 ControlBase::ControlBase(ros::NodeHandle &nh, double Hz) : ui_update_count_(0), is_first_boot_(true), Hz_(Hz), control_mask_{}, total_dof_(DyrosRedModel::MODEL_DOF),
-                                                           wholebody_controller_(model_, q_, Hz, control_time_), task_controller_(model_, q_, Hz, control_time_)
+                                                           wc_(model_, q_, Hz, control_time_, d_time_), tc_(model_, q_, Hz, control_time_)
 {
   ROS_INFO_ONCE("BASE : control base initialize");
 
@@ -17,6 +17,7 @@ ControlBase::ControlBase(ros::NodeHandle &nh, double Hz) : ui_update_count_(0), 
   com_command_sub = nh.subscribe("/dyros_red/com_command", 10, &ControlBase::com_command_cb, this);
 
   dynamics_pub_msgs.force_redistribution.resize(12);
+  dynamics_pub_msgs.contact_force_predict.resize(12);
   dynamics_pub_msgs.torque_contact.resize(total_dof_);
   dynamics_pub_msgs.torque_control.resize(total_dof_);
   dynamics_pub_msgs.torque_gravity.resize(total_dof_);
@@ -37,7 +38,7 @@ ControlBase::ControlBase(ros::NodeHandle &nh, double Hz) : ui_update_count_(0), 
   }
 
   model_.debug_mode_ = debug;
-  wholebody_controller_.debug = debug;
+  wc_.debug = debug;
 
   point_pub_msgs.polygon.points.resize(4);
 
@@ -93,7 +94,7 @@ void ControlBase::command_cb(const std_msgs::StringConstPtr &msg)
     std::cout << "A matrix" << std::endl;
     std::cout << model_.A_ << std::endl;
     std::cout << "G matrix" << std::endl
-              << wholebody_controller_.G << std::endl;
+              << wc_.G << std::endl;
     std::cout << model_.link_[0].Rotm << std::endl
               << "Rhand rot" << std::endl
               << model_.link_[model_.Right_Hand].Rotm << std::endl
@@ -106,14 +107,14 @@ void ControlBase::com_command_cb(const dyros_red_msgs::ComCommandConstPtr &msg)
 {
 
   //rot_init = model_.link_[model_.Upper_Body].Rotm;
-  task_controller_.taskcommand_.command_time = control_time_;
-  task_controller_.taskcommand_.traj_time = msg->time;
-  task_controller_.taskcommand_.f_ratio = msg->ratio;
-  task_controller_.taskcommand_.height = msg->height;
-  task_controller_.taskcommand_.mode_ = msg->mode;
-  task_controller_.taskcommand_.angle = msg->angle;
+  tc_.taskcommand_.command_time = control_time_;
+  tc_.taskcommand_.traj_time = msg->time;
+  tc_.taskcommand_.f_ratio = msg->ratio;
+  tc_.taskcommand_.height = msg->height;
+  tc_.taskcommand_.mode_ = msg->mode;
+  tc_.taskcommand_.angle = msg->angle;
 
-  ROS_INFO("COM TRAJ MSG received at, %f \t to %f in %f seconds.", task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.f_ratio, task_controller_.taskcommand_.traj_time);
+  ROS_INFO("COM TRAJ MSG received at, %f \t to %f in %f seconds.", tc_.taskcommand_.command_time, tc_.taskcommand_.f_ratio, tc_.taskcommand_.traj_time);
 
   model_.Link_Set_initpos(model_.COM_id);
   model_.Link_Set_initpos(model_.Right_Hand);
@@ -133,32 +134,37 @@ void ControlBase::update()
 
 void ControlBase::compute()
 {
+
   int ci = 0;
   ROS_INFO_ONCE("BASE : update dynamics");
-  wholebody_controller_.update_dynamics_mode(wholebody_controller_.DOUBLE_SUPPORT);
+  wc_.update_dynamics_mode(wc_.DOUBLE_SUPPORT);
 
   ROS_INFO_ONCE("BASE : gravity torque calc");
-  torque_gravity_ = wholebody_controller_.gravity_compensation_torque();
+  torque_gravity_ = wc_.gravity_compensation_torque();
   torque_task_.setZero();
   ROS_INFO_ONCE("BASE : compute 0");
+
+  d_time_ = control_time_ - last_sim_time_;
 
   VectorQd torque_joint_control_;
   torque_joint_control_.setZero();
 
+  bool force_mode_ = false;
+
   Vector3d kp_, kd_, kpa_, kda_;
   for (int i = 0; i < 3; i++)
   {
-    kp_(i) = 900;
-    kd_(i) = 60;
-    kpa_(i) = 1600;
-    kda_(i) = 80;
+    kp_(i) = 400;
+    kd_(i) = 40;
+    kpa_(i) = 400;
+    kda_(i) = 40;
   }
   MatrixXd J_task;
 
   ROS_INFO_ONCE("BASE : compute 1");
   if (task_switch)
   {
-    if (task_controller_.taskcommand_.mode_ == 0)
+    if (tc_.taskcommand_.mode_ == 0)
     {
       // COM jacobian control
       task_number = 6;
@@ -166,12 +172,12 @@ void ControlBase::compute()
       f_star.setZero(task_number);
       J_task = model_.link_[model_.COM_id].Jac;
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos);
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.COM_id, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      f_star = wholebody_controller_.getfstar6d(model_.COM_id, kp_, kd_, kpa_, kda_);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos);
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.COM_id, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      f_star = wc_.getfstar6d(model_.COM_id, kp_, kd_, kpa_, kda_);
     }
-    else if (task_controller_.taskcommand_.mode_ == 1)
+    else if (tc_.taskcommand_.mode_ == 1)
     {
       // Pelvis control with holding hand position
       task_number = 18;
@@ -183,18 +189,18 @@ void ControlBase::compute()
       J_task.block(6, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Hand].Jac_COM;
       J_task.block(12, 0, 6, total_dof_ + 6) = model_.link_[model_.Left_Hand].Jac_COM;
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos);
-      task_desired(2) = task_controller_.taskcommand_.height;
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos);
+      task_desired(2) = tc_.taskcommand_.height;
 
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
       model_.Link_Set_Trajectory(model_.Right_Hand, model_.link_[model_.Pelvis].xpos + model_.link_[model_.Right_Hand].x_init - model_.link_[model_.Pelvis].x_init, Eigen::Vector3d::Zero(), model_.link_[model_.Right_Hand].rot_init, Eigen::Vector3d::Zero());
       model_.Link_Set_Trajectory(model_.Left_Hand, model_.link_[model_.Pelvis].xpos + model_.link_[model_.Left_Hand].x_init - model_.link_[model_.Pelvis].x_init, Eigen::Vector3d::Zero(), model_.link_[model_.Left_Hand].rot_init, Eigen::Vector3d::Zero());
 
-      f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-      f_star.segment(6, 6) = wholebody_controller_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
-      f_star.segment(12, 6) = wholebody_controller_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
+      f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(6, 6) = wc_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
+      f_star.segment(12, 6) = wc_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
     }
-    else if (task_controller_.taskcommand_.mode_ == 2)
+    else if (tc_.taskcommand_.mode_ == 2)
     {
       // Pelvis control
       task_number = 6;
@@ -203,12 +209,12 @@ void ControlBase::compute()
 
       J_task = model_.link_[model_.Pelvis].Jac;
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos);
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      f_star = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos);
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      f_star = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
     }
-    else if (task_controller_.taskcommand_.mode_ == 3)
+    else if (tc_.taskcommand_.mode_ == 3)
     {
       // COM control with pelvis jacobian
       task_number = 6;
@@ -217,12 +223,12 @@ void ControlBase::compute()
 
       J_task = model_.link_[model_.Pelvis].Jac;
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      f_star = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      f_star = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
     }
-    else if (task_controller_.taskcommand_.mode_ == 4)
+    else if (tc_.taskcommand_.mode_ == 4)
     {
       task_number = 9;
 
@@ -232,17 +238,17 @@ void ControlBase::compute()
       J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.Pelvis].Jac;
       J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
-      task_desired(2) = task_controller_.taskcommand_.height;
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
 
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
-      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * task_controller_.taskcommand_.angle), true);
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * tc_.taskcommand_.angle), true);
 
-      f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-      f_star.segment(6, 3) = wholebody_controller_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
     }
-    else if (task_controller_.taskcommand_.mode_ == 5)
+    else if (tc_.taskcommand_.mode_ == 5)
     {
       task_number = 12;
 
@@ -253,19 +259,19 @@ void ControlBase::compute()
       J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
       J_task.block(9, 0, 3, total_dof_ + 6) = model_.link_[model_.Right_Hand].Jac.block(3, 0, 3, total_dof_ + 6);
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
 
-      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
 
       //model_.link_[model_.Upper_Body].r_traj = DyrosMath::rotateWithX(3.141592 / 6.0) * DyrosMath::rotateWithY(3.141592 / 3.0);
 
-      f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-      f_star.segment(6, 3) = wholebody_controller_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
     }
-    else if (task_controller_.taskcommand_.mode_ == 6)
+    else if (tc_.taskcommand_.mode_ == 6)
     {
       task_number = 15;
 
@@ -275,25 +281,25 @@ void ControlBase::compute()
       J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
       J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Hand].Jac;
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
 
-      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
 
-      f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-      f_star.segment(6, 3) = wholebody_controller_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
-      //wholebody_controller_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
+      f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      //wc_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
 
       Vector3d rhand_desired;
       rhand_desired << 0.17, -0.2, 0.93;
-      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, rhand_desired);
-      model_.Link_Set_Trajectory_rotation(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, DyrosMath::rotateWithZ(-3.141592 / 180.0 * task_controller_.taskcommand_.angle), false);
+      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, rhand_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Right_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, DyrosMath::rotateWithZ(-3.141592 / 180.0 * tc_.taskcommand_.angle), false);
 
-      f_star.segment(9, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(9, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
     }
-    else if (task_controller_.taskcommand_.mode_ == 7)
+    else if (tc_.taskcommand_.mode_ == 7)
     {
       task_number = 9;
       J_task.setZero(task_number, total_dof_ + 6);
@@ -302,14 +308,14 @@ void ControlBase::compute()
       J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.Pelvis].Jac;
       J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
-      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * task_controller_.taskcommand_.angle), true);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * tc_.taskcommand_.angle), true);
 
-      f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-      f_star.segment(6, 3) = wholebody_controller_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
 
       VectorXd ls, rs;
       ls.setZero(8);
@@ -331,8 +337,8 @@ void ControlBase::compute()
 
       for (int i = 0; i < 16; i++)
       {
-        q_trac(21 + i) = DyrosMath::cubic(control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time * 0.8, init_q_(15 + i), desired_q_ub(i), 0.0, 0.0);
-        cubic_q_ub(i) = DyrosMath::cubic(control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time * 0.8, init_q_(15 + i), desired_q_ub(i), 0, 0);
+        q_trac(21 + i) = DyrosMath::cubic(control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time * 0.6, init_q_(15 + i), desired_q_ub(i), 0.0, 0.0);
+        cubic_q_ub(i) = DyrosMath::cubic(control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time * 0.6, init_q_(15 + i), desired_q_ub(i), 0, 0);
       }
 
       //torque_joint_control_ = ((100 * (q_trac - q_virtual_.segment(0, total_dof_ + 6)) + 20 * (-q_dot_virtual_))).segment(6, total_dof_);
@@ -346,14 +352,14 @@ void ControlBase::compute()
       q_upper_dot_ = q_dot_virtual_.segment(21, 16);
       VectorVQd q_star;
       q_star.setZero();
-      q_star_ub = 400 * (cubic_q_ub - q_upper_body_) + 40 * (-q_upper_dot_);
+      q_star_ub = 625 * (cubic_q_ub - q_upper_body_) + 50 * (-q_upper_dot_);
 
       q_star.segment(21, 16) = q_star_ub;
 
       torque_joint_control_ = (model_.A_ * q_star).segment(6, total_dof_);
       //torque_joint_control_.segment(15, 16) = torque_upper_body;
     }
-    else if (task_controller_.taskcommand_.mode_ == 8)
+    else if (tc_.taskcommand_.mode_ == 8)
     {
       task_number = 21;
 
@@ -364,32 +370,39 @@ void ControlBase::compute()
       J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Hand].Jac;
       J_task.block(15, 0, 6, total_dof_ + 6) = model_.link_[model_.Left_Hand].Jac;
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
-      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * task_controller_.taskcommand_.angle), true);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * tc_.taskcommand_.angle), true);
 
-      f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-      f_star.segment(6, 3) = wholebody_controller_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
-      //wholebody_controller_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
+      f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      //wc_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
 
-      Vector3d rdes, ldes;
-      rdes << 0.26, -0.17, 0.13;
-      ldes << 0.26, 0.17, 0.13;
+      rdes = model_.link_[model_.Right_Hand].x_init;
+      rdes(1) = -0.17;
+
+      ldes = model_.link_[model_.Left_Hand].x_init;
+      ldes(1) = 0.17;
 
       Matrix3d r_rot_des;
       r_rot_des << 0, 0, 1, 0, -1, 0, 1, 0, 0;
 
-      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, rdes);
-      model_.Link_Set_Trajectory_rotation(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, r_rot_des, false);
-      f_star.segment(9, 6) = wholebody_controller_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
+      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, rdes);
+      model_.Link_Set_Trajectory_rotation(model_.Right_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, r_rot_des, false);
+      f_star.segment(9, 6) = wc_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
 
-      model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, ldes);
-      model_.Link_Set_Trajectory_rotation(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, r_rot_des, false);
-      f_star.segment(15, 6) = wholebody_controller_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
+      model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, ldes);
+      model_.Link_Set_Trajectory_rotation(model_.Left_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, r_rot_des, false);
+      f_star.segment(15, 6) = wc_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
+
+      if (control_time_ > tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time)
+      {
+        force_mode_ = true;
+      }
     }
-    else if (task_controller_.taskcommand_.mode_ == 9)
+    else if (tc_.taskcommand_.mode_ == 9)
     {
       task_number = 21;
 
@@ -400,25 +413,24 @@ void ControlBase::compute()
       J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Hand].Jac;
       J_task.block(15, 0, 6, total_dof_ + 6) = model_.link_[model_.Left_Hand].Jac;
 
-      task_desired = (task_controller_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - task_controller_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
-      task_desired(2) = task_controller_.taskcommand_.height;
-      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, task_desired);
-      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
-      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * task_controller_.taskcommand_.angle), true);
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+      model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, DyrosMath::rotateWithY(3.141592 / 180.0 * tc_.taskcommand_.angle), true);
 
-      f_star.segment(0, 6) = wholebody_controller_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-      f_star.segment(6, 3) = wholebody_controller_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
-      //wholebody_controller_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
+      f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+      f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      //wc_.getfstar(kpa_, kda_, model_.link_[model_.Upper_Body].r_traj, model_.link_[model_.Upper_Body].Rotm, model_.link_[model_.Upper_Body].w_traj, model_.link_[model_.Upper_Body].w);
 
-      Vector3d rdes, ldes;
-      rdes << 0.26, -0.17, 0.13;
-      ldes << 0.26, 0.17, 0.13;
+      model_.link_[model_.Right_Hand].x_init(1) = -0.17;
+      model_.link_[model_.Left_Hand].x_init(1) = 0.17;
 
-      model_.link_[model_.Right_Hand].x_init = rdes;
-      model_.link_[model_.Left_Hand].x_init = ldes;
+      rdes << 0.375, -0.14, tc_.taskcommand_.height + 0.4;
+      ldes << 0.375, 0.14, tc_.taskcommand_.height + 0.4;
 
-      rdes << 0.375, -0.15, task_controller_.taskcommand_.height + 0.4;
-      ldes << 0.375, 0.15, task_controller_.taskcommand_.height + 0.4;
+      rdes << model_.link_[model_.Right_Hand].x_init(0), -0.14, model_.link_[model_.Right_Hand].x_init(2) + 0.2;
+      ldes << model_.link_[model_.Left_Hand].x_init(0), 0.14, model_.link_[model_.Left_Hand].x_init(2) + 0.2;
 
       Matrix3d r_rot_des;
       //r_rot_des << -1, 0, 0, 0, -1, 0, 0, 0, 1;
@@ -428,27 +440,49 @@ void ControlBase::compute()
       //rdes = model_.link_[model_.Upper_Body].rot_init.transpose() * (rdes - model_.link_[model_.Upper_Body].x_init);
       //ldes = model_.link_[model_.Upper_Body].rot_init.transpose() * (ldes - model_.link_[model_.Upper_Body].x_init);
 
-      //model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * rdes + model_.link_[model_.Upper_Body].xpos);
-      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, rdes);
-      model_.Link_Set_Trajectory_rotation(model_.Right_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, r_rot_des, false);
+      //model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * rdes + model_.link_[model_.Upper_Body].xpos);
+      model_.Link_Set_Trajectory_from_quintic(model_.Right_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, rdes);
+      model_.Link_Set_Trajectory_rotation(model_.Right_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, r_rot_des, false);
       model_.link_[model_.Right_Hand].v_traj += model_.link_[model_.Pelvis].v_traj + model_.link_[model_.Upper_Body].w_traj.cross(model_.link_[model_.Right_Hand].xpos - model_.link_[model_.Upper_Body].xpos);
-      f_star.segment(9, 6) = wholebody_controller_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
+      f_star.segment(9, 6) = wc_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
 
-      //model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * ldes + model_.link_[model_.Upper_Body].xpos);
-      model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, ldes);
-      model_.Link_Set_Trajectory_rotation(model_.Left_Hand, control_time_, task_controller_.taskcommand_.command_time, task_controller_.taskcommand_.command_time + task_controller_.taskcommand_.traj_time, r_rot_des, false);
+      //model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, model_.link_[model_.Upper_Body].Rotm * ldes + model_.link_[model_.Upper_Body].xpos);
+      model_.Link_Set_Trajectory_from_quintic(model_.Left_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, ldes);
+      model_.Link_Set_Trajectory_rotation(model_.Left_Hand, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, r_rot_des, false);
       model_.link_[model_.Left_Hand].v_traj += model_.link_[model_.Pelvis].v_traj + model_.link_[model_.Upper_Body].w_traj.cross(model_.link_[model_.Left_Hand].xpos - model_.link_[model_.Upper_Body].xpos);
-      f_star.segment(15, 6) = wholebody_controller_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
+      f_star.segment(15, 6) = wc_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
+
+      force_mode_ = true;
     }
 
-    torque_task_ = wholebody_controller_.task_control_torque(J_task, f_star);
+    if (force_mode_)
+    {
+      f_slc_matrix.setIdentity(task_number, task_number);
+      f_slc_matrix(10, 10) = 0;
+      f_slc_matrix(16, 16) = 0;
+      hand_f_desired.setZero(task_number);
+      hand_f_desired(10) = 50.0;
+      hand_f_desired(16) = -50.0;
+
+      VectorXd ft_hand_;
+      ft_hand_.resize(12);
+      ft_hand_.segment(0, 6) = right_hand_ft_;
+      ft_hand_.segment(6, 6) = left_hand_ft_;
+
+      torque_task_ = wc_.task_control_torque_custom_force(J_task, f_star, f_slc_matrix, hand_f_desired);
+      torque_task_ = wc_.task_control_torque_custom_force_feedback(J_task, f_star, f_slc_matrix, hand_f_desired, ft_hand_);
+    }
+    else
+    {
+      torque_task_ = wc_.task_control_torque(J_task, f_star);
+    }
   }
 
   ROS_INFO_ONCE("BASE : compute 2");
   torque_desired = torque_gravity_ + torque_task_ + torque_joint_control_;
 
   ROS_INFO_ONCE("BASE : compute 3");
-  torque_contact_ = wholebody_controller_.contact_force_redistribution_torque(model_.yaw_radian, torque_desired, fc_redis, fc_ratio);
+  torque_contact_ = wc_.contact_force_redistribution_torque(model_.yaw_radian, torque_desired, fc_redis, fc_ratio);
 
   ROS_INFO_ONCE("BASE : compute 4");
   if (!contact_switch)
@@ -461,10 +495,15 @@ void ControlBase::compute()
 
   if (!gravity_switch)
     torque_desired = torque_gravity_;
+
+  for (int i = 0; i < 12; i++)
+    dynamics_pub_msgs.contact_force_predict[i] = (wc_.J_C_INV_T * wc_.Slc_k_T * torque_desired - wc_.Lambda_c * wc_.J_C * wc_.A_matrix_inverse * wc_.G)(i);
 }
 
 void ControlBase::reflect()
 {
+  last_sim_time_ = control_time_;
+
   dynamics_pub_msgs.header.stamp = ros::Time::now();
   dynamics_pub_msgs.control_time = control_time_;
   for (int i = 0; i < total_dof_; i++)
@@ -485,7 +524,7 @@ void ControlBase::reflect()
   for (int i = 0; i < 3; i++)
   {
     dynamics_pub_msgs.task_current[i] = model_.com_(i);
-    dynamics_pub_msgs.zmp_position[i] = wholebody_controller_.ZMP_pos(i);
+    dynamics_pub_msgs.zmp_position[i] = wc_.ZMP_pos(i);
   }
   dynamics_pub_msgs.redistribution_ratio = fc_ratio;
   if (rviz_pub)
@@ -551,6 +590,9 @@ void ControlBase::parameterInitialize()
   gravity_switch = true;
   task_switch = false;
   contact_switch = true;
+
+  last_sim_time_ = 0.0;
+  control_time_ = 0.0;
 
   ROS_INFO_ONCE("BASE : parameter initialize end");
 }

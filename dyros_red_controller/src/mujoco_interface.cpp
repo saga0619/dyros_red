@@ -132,6 +132,46 @@ void mujoco_interface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCon
             }
         }
     }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "LH_Force_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                left_hand_ft_(j) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "LH_Torque_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                left_hand_ft_(j + 3) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "RH_Force_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                right_hand_ft_(j) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "RH_Torque_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                right_hand_ft_(j + 3) = msg->sensor[i].data[j];
+            }
+        }
+    }
 }
 
 void mujoco_interface::simCommandCallback(const std_msgs::StringConstPtr &msg)

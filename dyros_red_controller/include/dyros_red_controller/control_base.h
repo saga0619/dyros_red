@@ -70,6 +70,7 @@ public:
   //void stateChangeEvent();
   const double getHz() { return Hz_; }
   double control_time_;
+  double d_time_;
   double last_sim_time_;
 
   bool debug;
@@ -97,6 +98,8 @@ protected:
 
   Vector6d left_foot_ft_;  // current left ft sensor values
   Vector6d right_foot_ft_; // current right ft sensor values
+  Vector6d left_hand_ft_;
+  Vector6d right_hand_ft_;
 
   tf::Quaternion imu_data_; ///< IMU data with filter
 
@@ -123,7 +126,10 @@ protected:
   VectorQd torque_damping;
   VectorQd position_desired;
 
-  VectorXd f_star;
+  VectorXd f_star, hand_f_desired;
+  MatrixXd f_slc_matrix;
+
+  Vector3d rdes, ldes;
 
   bool torque_control_mode = true;
   int compute_init = true;
@@ -133,8 +139,8 @@ protected:
   int total_dof_;
 
   DyrosRedModel model_;
-  TaskController task_controller_;
-  Wholebody_controller wholebody_controller_;
+  TaskController tc_;
+  Wholebody_controller wc_;
 
   //ros::Publisher data_pub_;
   //sensor_msgs::JointState data_pub_msg_;
