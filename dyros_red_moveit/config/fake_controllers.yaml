@@ -25,3 +25,58 @@ controller_list:
   - name: fake_l_hand_controller
     joints:
       - L_Wrist2_Joint
+  - name: fake_r_leg_controller
+    joints:
+      - R_HipRoll_Joint
+      - R_HipCenter_Joint
+      - R_Thigh_Joint
+      - R_Knee_Joint
+      - R_AnkleCenter_Joint
+      - R_AnkleRoll_Joint
+  - name: fake_l_leg_controller
+    joints:
+      - L_HipRoll_Joint
+      - L_HipCenter_Joint
+      - L_Thigh_Joint
+      - L_Knee_Joint
+      - L_AnkleCenter_Joint
+      - L_AnkleRoll_Joint
+  - name: fake_r_foot_controller
+    joints:
+      - R_AnkleRoll_Joint
+  - name: fake_l_foot_controller
+    joints:
+      - L_AnkleRoll_Joint
+  - name: fake_wholebody_controller
+    joints:
+      - L_HipRoll_Joint
+      - L_HipCenter_Joint
+      - L_Thigh_Joint
+      - L_Knee_Joint
+      - L_AnkleCenter_Joint
+      - L_AnkleRoll_Joint
+      - R_HipRoll_Joint
+      - R_HipCenter_Joint
+      - R_Thigh_Joint
+      - R_Knee_Joint
+      - R_AnkleCenter_Joint
+      - R_AnkleRoll_Joint
+      - Waist1_Joint
+      - Waist2_Joint
+      - Upperbody_Joint
+      - L_Shoulder1_Joint
+      - L_Shoulder2_Joint
+      - L_Shoulder3_Joint
+      - L_Armlink_Joint
+      - L_Elbow_Joint
+      - L_Forearm_Joint
+      - L_Wrist1_Joint
+      - L_Wrist2_Joint
+      - R_Shoulder1_Joint
+      - R_Shoulder2_Joint
+      - R_Shoulder3_Joint
+      - R_Armlink_Joint
+      - R_Elbow_Joint
+      - R_Forearm_Joint
+      - R_Wrist1_Joint
+      - R_Wrist2_Joint

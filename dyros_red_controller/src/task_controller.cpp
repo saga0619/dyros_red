@@ -14,6 +14,7 @@ void TaskController::compute()
 
 void TaskController::initTask()
 {
+
 }
 
 void TaskController::addTask()

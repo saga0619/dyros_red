@@ -5,7 +5,7 @@ namespace dyros_red_controller
 
 SimulationInterface::SimulationInterface(ros::NodeHandle &nh, double Hz) : ControlBase(nh, Hz), rate_(Hz), simulation_step_done_(false)
 {
-  simulation_running_ = true;
+  simulation_running_ = true;  
   simulation_time_ = 0.0f; // set initial simulation time
 
   vrep_sim_start_pub_ = nh.advertise<std_msgs::Bool>("/startSimulation", 5);
@@ -27,7 +27,7 @@ SimulationInterface::SimulationInterface(ros::NodeHandle &nh, double Hz) : Contr
   joint_set_msg_.effort.resize(total_dof_);
   for (int i = 0; i < total_dof_; i++)
   {
-    joint_set_msg_.name[i] = DyrosRedModel::ACTUATOR_NAME[i];
+    joint_set_msg_.name[i] = DyrosRedModel::ACTUATOR_NAME[i];    
   }
   ros::Rate poll_rate(100);
 

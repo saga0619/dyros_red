@@ -10,48 +10,49 @@ Wholebody_controller::Wholebody_controller(DyrosRedModel &model, const VectorQd 
   //debug_.open("/home/suhan/jet_test.txt");
 }
 
-void Wholebody_controller::update_dynamics_mode(int mode)
+void Wholebody_controller::update_dynamics()
 {
   ROS_DEBUG_ONCE("dynamics update start ");
   A_matrix.setZero(total_dof_ + 6, total_dof_ + 6);
   A_matrix = model_.A_;
   A_matrix_inverse = A_matrix.inverse();
-
   Grav_ref.setZero(3);
   Grav_ref(2) = -9.81;
 
-  if (mode == DOUBLE_SUPPORT)
+  //bool reset
+
+  task_force_control = false;
+  task_force_control_feedback = false;
+}
+
+void Wholebody_controller::contact_set(int contact_number, int link_id[], Vector3d contact_point[])
+{
+
+  J_C.setZero(contact_number * 6, total_dof_ + 6);
+
+  for (int i = 0; i < contact_number; i++)
   {
-    Eigen::Vector3d left_leg_contact, right_leg_contact;
+    model_.Link_Set_Contact(link_id[i], contact_point[i]);
 
-    left_leg_contact << 0.0317, 0, -0.1368;
-    right_leg_contact << 0.0317, 0, -0.1368;
-
-    model_.Link_Set_Contact(model_.Left_Foot, left_leg_contact);
-    model_.Link_Set_Contact(model_.Right_Foot, right_leg_contact);
-
-    J_C.setZero(12, total_dof_ + 6);
-    J_C.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Foot].Jac_Contact;
-    J_C.block(6, 0, 6, total_dof_ + 6) = model_.link_[model_.Left_Foot].Jac_Contact;
-
-    Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
-    J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
-
-    N_C.setZero(total_dof_ + 6, total_dof_ + 6);
-    I37.setIdentity(total_dof_ + 6, total_dof_ + 6);
-    N_C = I37 - J_C.transpose() * J_C_INV_T;
-
-    Slc_k.setZero(total_dof_, total_dof_ + 6);
-    Slc_k.block(0, 6, total_dof_, total_dof_).setIdentity();
-    Slc_k_T = Slc_k.transpose();
-
-    W = Slc_k * A_matrix_inverse * N_C * Slc_k_T;
-    W_inv = DyrosMath::pinv_SVD(W);
-
-    contact_force_predict.setZero();
+    J_C.block(i * 6, 0, 6, total_dof_ + 6) = model_.link_[link_id[i]].Jac_Contact;
   }
 
-  ROS_DEBUG_ONCE("dynamics update end ");
+  Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
+  J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
+
+  N_C.setZero(total_dof_ + 6, total_dof_ + 6);
+  I37.setIdentity(total_dof_ + 6, total_dof_ + 6);
+  N_C = I37 - J_C.transpose() * J_C_INV_T;
+
+  Slc_k.setZero(total_dof_, total_dof_ + 6);
+  Slc_k.block(0, 6, total_dof_, total_dof_).setIdentity();
+  Slc_k_T = Slc_k.transpose();
+
+  W = Slc_k * N_C.transpose() * A_matrix_inverse * N_C * Slc_k_T;
+  //W = Slc_k * A_matrix_inverse * N_C * Slc_k_T; //2 types for w matrix
+  W_inv = DyrosMath::pinv_SVD(W);
+
+  contact_force_predict.setZero();
 }
 
 VectorQd Wholebody_controller::gravity_compensation_torque()
@@ -123,7 +124,51 @@ VectorQd Wholebody_controller::task_control_torque(MatrixXd J_task, VectorXd f_s
   //Q.svd(s2,u2,v2);
 
   VectorQd torque_task;
-  torque_task = W_inv * Q_T_ * Q_temp_inv * (lambda * (f_star_));
+  if (task_force_control)
+  {
+    VectorXd F_;
+    F_.resize(task_dof);
+    F_ = lambda * task_selection_matrix * f_star_;
+    VectorXd F_2;
+    F_2 = F_ + task_desired_force;
+    torque_task = W_inv * Q_T_ * Q_temp_inv * F_2;
+  }
+  else if (task_force_control_feedback)
+  {
+    VectorXd F_;
+    F_.resize(task_dof);
+
+    static double right_i, left_i;
+
+    double pd = 0.1;
+    double pi = 4.0;
+
+    double left_des = -50.0;
+    double right_des = 50.0;
+
+    double right_err = task_desired_force(10) + task_feedback_reference(1);
+    double left_err = task_desired_force(16) + task_feedback_reference(7);
+
+    right_i += right_err * d_time_;
+    left_i += left_err * d_time_;
+
+    VectorXd fc_fs;
+    fc_fs = task_desired_force;
+    fc_fs.setZero();
+
+    fc_fs(10) = pd * right_err + pi * right_i;
+    fc_fs(16) = pd * left_err + pi * left_i;
+    F_ = lambda * (task_selection_matrix * f_star_ + fc_fs);
+
+    VectorXd F_2;
+    F_2 = F_ + task_desired_force;
+
+    torque_task = W_inv * Q_T_ * Q_temp_inv * F_2;
+  }
+  else
+  {
+    torque_task = W_inv * Q_T_ * Q_temp_inv * (lambda * (f_star_));
+  }
 
   //W.svd(s,u,v);
   //V2.resize(28,6);
@@ -271,6 +316,20 @@ VectorQd Wholebody_controller::task_control_torque_custom_force_feedback(MatrixX
   return torque_task;
 }
 
+void Wholebody_controller::set_force_control(MatrixXd selection_matrix, VectorXd desired_force)
+{
+  task_force_control = true;
+  task_selection_matrix = selection_matrix;
+  task_desired_force = desired_force;
+}
+void Wholebody_controller::set_force_control_feedback(MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand)
+{
+  task_force_control_feedback = true;
+  task_selection_matrix = selection_matrix;
+  task_desired_force = desired_force;
+  task_feedback_reference = ft_hand;
+}
+
 Vector3d Wholebody_controller::getfstar(Vector3d kp, Vector3d kd, Vector3d p_desired, Vector3d p_now, Vector3d d_desired, Vector3d d_now)
 {
 
@@ -358,6 +417,48 @@ Vector6d Wholebody_controller::getfstar6d(int link_id, Vector3d kpt, Vector3d kd
   f_star.segment(3, 3) = getfstar_rot(link_id, kpa, kda);
   return f_star;
 }
+VectorQd Wholebody_controller::contact_force_custom(VectorQd command_torque, Eigen::VectorXd contact_force_now, Eigen::VectorXd contact_force_desired)
+{
+  JacobiSVD<MatrixXd> svd(W, ComputeThinU | ComputeThinV);
+  svd_U = svd.matrixU();
+
+  MatrixXd V2;
+
+  int singular_dof = 6;
+  int contact_dof = J_C.rows();
+
+  V2.setZero(total_dof_, contact_dof - singular_dof);
+  V2 = svd_U.block(0, total_dof_ - contact_dof + singular_dof, total_dof_, contact_dof - singular_dof);
+
+  MatrixXd Scf_;
+  Scf_.setZero(contact_dof - singular_dof, contact_dof);
+  Scf_.block(0, 0, contact_dof - singular_dof, contact_dof - singular_dof).setIdentity();
+
+  // std::cout << contact_force_desired << std::endl
+  //           << std::endl
+  //           << std::endl;
+  // std::cout << contact_force_now << std::endl
+  //           << std::endl
+  //           << std::endl;
+  // std::cout << std::endl;
+
+  VectorXd desired_force = contact_force_desired - contact_force_now;
+
+  MatrixXd temp = Scf_ * J_C_INV_T * Slc_k_T * V2;
+  MatrixXd temp_inv = DyrosMath::pinv_SVD(temp);
+  MatrixXd Vc_ = V2 * temp_inv;
+
+  VectorXd reduced_desired_force = Scf_ * desired_force;
+  VectorQd torque_contact_ = Vc_ * reduced_desired_force;
+
+  return torque_contact_;
+}
+
+VectorXd Wholebody_controller::get_contact_force(VectorQd command_torque)
+{
+  VectorXd contactforce = J_C_INV_T * Slc_k_T * command_torque - Lambda_c * J_C * A_matrix_inverse * G;
+  return contactforce;
+}
 
 VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta)
 {
@@ -416,9 +517,10 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
   MatrixXd V2;
 
   int singular_dof = 6;
+  int contact_dof = J_C.rows();
 
   V2.setZero(total_dof_, singular_dof);
-  V2 = svd_U.block(0, total_dof_ - singular_dof, total_dof_, singular_dof);
+  V2 = svd_U.block(0, total_dof_ - contact_dof + 6, total_dof_, contact_dof - 6);
 
   Vector12d desired_force;
 
@@ -449,10 +551,12 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
     }
   }
 
-  Vector6d reduced_desired_force = Scf_ * desired_force;
   MatrixXd temp = Scf_ * J_C_INV_T * Slc_k_T * V2;
   MatrixXd temp_inv = DyrosMath::pinv_SVD(temp);
-  torque_contact_ = V2 * temp_inv * reduced_desired_force;
+  MatrixXd Vc_ = V2 * temp_inv;
+
+  Vector6d reduced_desired_force = Scf_ * desired_force;
+  torque_contact_ = Vc_ * reduced_desired_force;
 
   return torque_contact_;
 }
@@ -657,26 +761,35 @@ void Wholebody_controller::ForceRedistributionTwoContactMod2(double eta_cust, do
 
 void Wholebody_controller::ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta)
 {
-  Eigen::MatrixXd W;
-  W.setZero(6, 12);
 
   Eigen::Matrix3d P1_hat, P2_hat;
   P1_hat = DyrosMath::skm(P1);
   P2_hat = DyrosMath::skm(P2);
 
-  for (int i = 0; i < 3; i++)
-  {
-    W(i, i) = 1.0;
-    W(i + 3, i + 3) = 1.0;
-    W(i, i + 6) = 1.0;
-    W(i + 3, i + 9) = 1.0;
+  Eigen::MatrixXd W;
+  W.setZero(6, 12);
 
-    for (int j = 0; j < 3; j++)
-    {
-      W(i + 3, j) = P1_hat(i, j);
-      W(i + 3, j + 6) = P2_hat(i, j);
-    }
-  }
+  W.block(0, 0, 6, 6) = Eigen::Matrix6d::Identity();
+  W.block(0, 6, 6, 6) = Eigen::Matrix6d::Identity();
+  W.block(3, 0, 3, 3) = P1_hat;
+  W.block(3, 6, 3, 3) = P2_hat;
+
+  // model_.link_[model_.Right_Leg].Rotm;
+
+  // for (int i = 0; i < 3; i++)
+  // {
+  //   W(i, i) = 1.0;
+  //   W(i + 3, i + 3) = 1.0;
+  //   W(i, i + 6) = 1.0;
+  //   W(i + 3, i + 9) = 1.0;
+
+  //   for (int j = 0; j < 3; j++)
+  //   {
+  //     W(i + 3, j) = P1_hat(i, j);
+  //     W(i + 3, j + 6) = P2_hat(i, j);
+  //   }
+  // }
+
   ResultantForce.resize(6);
   ResultantForce = W * F12; //F1F2;
 

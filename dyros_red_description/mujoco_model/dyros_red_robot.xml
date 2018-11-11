@@ -29,7 +29,7 @@
 
     </default>
 
-    <option timestep='0.0005' iterations="200" tolerance="1e-12" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="100" noslip_tolerance="1e-9"/>
+    <option timestep='0.0005' iterations="100" tolerance="1e-11" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="75" noslip_tolerance="1e-9"/>
 
     <visual>
         <quality shadowsize="4096" offsamples="8"/>
@@ -89,6 +89,11 @@
 
         <!--geom name="box" type="box" size="0.5 0.5 0.5" pos="-1.5 0 0.5"/-->
         <!--geom name="box2" type="box" size="0.2 0.2 0.5" pos="-1.5 0 1.2"/-->
+        <geom name="wall1" type="box" size="1 0.1 1" pos="-3 3.8 1"/>
+        <geom name="wall2" type="box" size="1 0.1 1" pos="-3 2.2 1"/>
+
+        <geom name="wall3" type="box" size="1 0.1 0.434" pos="-3 -3.35 0.434"/>
+        <geom name="wall4" type="box" size="1 0.1 0.434" pos="-3 -2.65 0.434"/>
         <light directional="true" diffuse=".8 .8 .8" pos="0 0 10" dir="0 0 -10"/>
         <light directional="true" diffuse=".5 .5 .5" pos="10 0 0" dir="-10 0 0"/>
         <!--light mode='targetbodycom' target='base_link' directional='false' diffuse='.8 .8 .8' specular='0.8 0.8 0.8' pos='0 0 10.0' dir='0 0 -1'/-->
@@ -450,6 +455,22 @@
 								0 0 0 
 								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
 								0.3 0 1.5 1.87 0.7 0 1 0
+								0.5 0 3 0 0 0 0"/>
+
+        <key time="0" qpos ="-3 -3 0.92683 1 0 0 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 0 
+								0 -0.7 -1.57 -1.57 -1.57 0 0.87 0 
+								0 0.7 1.57 1.57 1.57 0 -0.87 0
+                                0.31 0 0.15 0 0 0 0"/>
+
+        <key time="0" qpos ="-3 3 0.92611 1 0 0 0 
+								0 -0.8 -0.4 0.8 -0.4 -0.8 
+								0 0.8 -0.4 0.8 -0.4 0.8 
+								0 0 0 
+								0 1.5708 0.87 0.0 2.44 0.0 -1.57 0
+								0 -1.5708 -0.87 0.0 -2.44 0.0 1.57 0.0 
 								0.5 0 3 0 0 0 0"/>
 
     </keyframe>

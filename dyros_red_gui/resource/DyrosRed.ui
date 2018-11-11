@@ -161,6 +161,16 @@
                                             <string>pelv_COM control + Upperbody rotation + arms hold control</string>
                                         </property>
                                     </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>wall_holding_test 1</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>wall_holding_test 2</string>
+                                        </property>
+                                    </item>
                                 </widget>
                             </item>
                         </layout>

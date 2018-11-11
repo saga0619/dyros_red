@@ -22,10 +22,12 @@ class DyrosRedGuiPlugin(Plugin):
         self._publisher3 = rospy.Publisher('/mujoco_ros_interface/sim_command_con2sim', String, queue_size=10)
 
 
+
         # Create QWidget
         self._widget = QWidget()
         # Get path to UI file which should be in the "resource" folder of this package
         ui_file = os.path.join(rospkg.RosPack().get_path('dyros_red_gui'), 'resource', 'DyrosRed.ui')
+        icon_file = os.path.join(rospkg.RosPack().get_path('dyros_red_gui'), 'resource', 'Dyros_Logo3.png')
         # Extend the widget with all attributes and children from UI file
         loadUi(ui_file, self._widget)
         # Give QObjects reasonable names
@@ -37,6 +39,7 @@ class DyrosRedGuiPlugin(Plugin):
         # tell from pane to pane.
         if context.serial_number() > 1:
             self._widget.setWindowTitle(self._widget.windowTitle() + (' (%d)' % context.serial_number()))
+            self._widget.setWindowIcon(QtGui.QIcon(icon_file))
         # Add widget to the user interface
         context.add_widget(self._widget)
         self._widget.gravity_button.pressed.connect(self.gravity_button)

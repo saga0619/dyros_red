@@ -36,4 +36,19 @@ after build, launch simulation.launch
 roslaunch dyros_red_launch simulation.launch 
 ```
 
+### qpOASES install ###
+* Download qpOASES from https://projects.coin-or.org/qpOASES/wiki/QpoasesDownload
+```sh
+cd qpOASES-3.2.1
+mkdir build
+cd build
+cmake ..
+make all
+sudo make install
+```
 
+*if error occures, add following line to qpOASES-3.2.1/CMakeLists.txt, next to PROJECT(qpOASES CXX), which is line 34
+
+```
+add_compile_options(-fPIC)
+```

@@ -8,7 +8,7 @@
         <label>RED gui</label>
       </group>
       <label>Dyros Red GUI</label>
-      <icon type="theme">system-help</icon>
+      <icon type="file">resource/Dyros_Logo3.png</icon>
       <statustip>Great user interface to provide real value.</statustip>
     </qtgui>
   </class>

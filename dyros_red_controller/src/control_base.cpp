@@ -1,4 +1,3 @@
-
 #include "dyros_red_controller/control_base.h"
 
 namespace dyros_red_controller
@@ -28,6 +27,7 @@ ControlBase::ControlBase(ros::NodeHandle &nh, double Hz) : ui_update_count_(0), 
 
   if (rviz_pub)
   {
+    //test
     joint_state_publisher_for_rviz = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
     joint_states_rviz.name.resize(total_dof_);
     joint_states_rviz.position.resize(total_dof_);
@@ -100,6 +100,10 @@ void ControlBase::command_cb(const std_msgs::StringConstPtr &msg)
               << model_.link_[model_.Right_Hand].Rotm << std::endl
               << "Lhand rot" << std::endl
               << model_.link_[model_.Left_Hand].Rotm << std::endl;
+    std::cout << "Contact Jacobian" << std::endl
+              << wc_.J_C << std::endl;
+    std::cout << "Weight Matrix " << std::endl
+              << wc_.W << std::endl;
   }
 }
 
@@ -134,23 +138,26 @@ void ControlBase::update()
 
 void ControlBase::compute()
 {
-
-  int ci = 0;
   ROS_INFO_ONCE("BASE : update dynamics");
-  wc_.update_dynamics_mode(wc_.DOUBLE_SUPPORT);
+  wc_.update_dynamics();
+  int ci = 0;
+  QP_switch = false;
+  Eigen::Vector3d lf_c, rf_c, lh_c, rh_c;
+  lf_c << 0.0317, 0, -0.1368;
+  rf_c << 0.0317, 0, -0.1368;
+  rh_c << 0, -0.092, 0;
+  lh_c << 0, 0.092, 0;
+  int cp[4] = {model_.Right_Foot, model_.Left_Foot, model_.Right_Hand, model_.Left_Hand};
+  Vector3d cv[4] = {rf_c, lf_c, rh_c, lh_c};
 
   ROS_INFO_ONCE("BASE : gravity torque calc");
-  torque_gravity_ = wc_.gravity_compensation_torque();
   torque_task_.setZero();
   ROS_INFO_ONCE("BASE : compute 0");
 
   d_time_ = control_time_ - last_sim_time_;
-
   VectorQd torque_joint_control_;
   torque_joint_control_.setZero();
-
   bool force_mode_ = false;
-
   Vector3d kp_, kd_, kpa_, kda_;
   for (int i = 0; i < 3; i++)
   {
@@ -161,11 +168,17 @@ void ControlBase::compute()
   }
   MatrixXd J_task;
 
+  wc_.contact_set(2, cp, cv);
+  torque_gravity_ = wc_.gravity_compensation_torque();
+
   ROS_INFO_ONCE("BASE : compute 1");
   if (task_switch)
   {
     if (tc_.taskcommand_.mode_ == 0)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       // COM jacobian control
       task_number = 6;
       J_task.setZero(task_number, total_dof_ + 6);
@@ -179,6 +192,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 1)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       // Pelvis control with holding hand position
       task_number = 18;
 
@@ -202,6 +218,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 2)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       // Pelvis control
       task_number = 6;
       J_task.setZero(task_number, total_dof_ + 6);
@@ -216,6 +235,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 3)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       // COM control with pelvis jacobian
       task_number = 6;
       J_task.setZero(task_number, total_dof_ + 6);
@@ -230,6 +252,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 4)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 9;
 
       J_task.setZero(task_number, total_dof_ + 6);
@@ -250,6 +275,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 5)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 12;
 
       J_task.setZero(task_number, total_dof_ + 6);
@@ -273,6 +301,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 6)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 15;
 
       J_task.setZero(task_number, total_dof_ + 6);
@@ -301,6 +332,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 7)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 9;
       J_task.setZero(task_number, total_dof_ + 6);
       f_star.setZero(task_number);
@@ -361,6 +395,9 @@ void ControlBase::compute()
     }
     else if (tc_.taskcommand_.mode_ == 8)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 21;
 
       J_task.setZero(task_number, total_dof_ + 6);
@@ -399,11 +436,28 @@ void ControlBase::compute()
 
       if (control_time_ > tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time)
       {
-        force_mode_ = true;
+        f_slc_matrix.setIdentity(task_number, task_number);
+        f_slc_matrix(10, 10) = 0;
+        f_slc_matrix(16, 16) = 0;
+        hand_f_desired.setZero(task_number);
+        hand_f_desired(10) = 50.0;
+        hand_f_desired(16) = -50.0;
+
+        VectorXd ft_hand_;
+        ft_hand_.resize(12);
+        ft_hand_.segment(0, 6) = right_hand_ft_;
+        ft_hand_.segment(6, 6) = left_hand_ft_;
+
+        //torque_task_ = wc_.task_control_torque_custom_force(J_task, f_star, f_slc_matrix, hand_f_desired);
+        //torque_task_ = wc_.task_control_torque_custom_force_feedback(J_task, f_star, f_slc_matrix, hand_f_desired, ft_hand_);
+        wc_.set_force_control_feedback(f_slc_matrix, hand_f_desired, ft_hand_);
       }
     }
     else if (tc_.taskcommand_.mode_ == 9)
     {
+
+      wc_.contact_set(2, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 21;
 
       J_task.setZero(task_number, total_dof_ + 6);
@@ -452,11 +506,6 @@ void ControlBase::compute()
       model_.link_[model_.Left_Hand].v_traj += model_.link_[model_.Pelvis].v_traj + model_.link_[model_.Upper_Body].w_traj.cross(model_.link_[model_.Left_Hand].xpos - model_.link_[model_.Upper_Body].xpos);
       f_star.segment(15, 6) = wc_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
 
-      force_mode_ = true;
-    }
-
-    if (force_mode_)
-    {
       f_slc_matrix.setIdentity(task_number, task_number);
       f_slc_matrix(10, 10) = 0;
       f_slc_matrix(16, 16) = 0;
@@ -469,24 +518,181 @@ void ControlBase::compute()
       ft_hand_.segment(0, 6) = right_hand_ft_;
       ft_hand_.segment(6, 6) = left_hand_ft_;
 
-      torque_task_ = wc_.task_control_torque_custom_force(J_task, f_star, f_slc_matrix, hand_f_desired);
-      torque_task_ = wc_.task_control_torque_custom_force_feedback(J_task, f_star, f_slc_matrix, hand_f_desired, ft_hand_);
+      //torque_task_ = wc_.task_control_torque_custom_force(J_task, f_star, f_slc_matrix, hand_f_desired);
+      //torque_task_ = wc_.task_control_torque_custom_force_feedback(J_task, f_star, f_slc_matrix, hand_f_desired, ft_hand_);
+      wc_.set_force_control_feedback(f_slc_matrix, hand_f_desired, ft_hand_);
     }
-    else
+    else if (tc_.taskcommand_.mode_ == 10)
     {
-      torque_task_ = wc_.task_control_torque(J_task, f_star);
+      QP_switch = true;
+      task_number = 6;
+      J_task.setZero(task_number, total_dof_ + 6);
+      f_star.setZero(task_number);
+      J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.Pelvis].Jac;
+      wc_.contact_set(4, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
+
+      VectorXd ContactForce__ = wc_.get_contact_force(torque_gravity_);
+
+      //qptest
+      QP_test.InitializeProblemSize(24, 6);
+      MatrixXd H, A;
+      H.setZero(24, 24);
+      for (int i = 0; i < 4; i++)
+      {
+        H(6 * i, 6 * i) = 1;
+        H(6 * i + 1, 6 * i + 1) = 1;
+        H(6 * i + 2, 6 * i + 2) = 0.01;
+        H(6 * i + 3, 6 * i + 3) = 100;
+        H(6 * i + 4, 6 * i + 4) = 100;
+        H(6 * i + 5, 6 * i + 5) = 100;
+      }
+      A.setZero(6, 24);
+      for (int i = 0; i < 4; i++)
+      {
+        A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
+        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[cp[i]].xpos_contact - model_.com_);
+      }
+      VectorXd force_res = A * ContactForce__;
+      VectorXd g, lb, ub, lbA, ubA;
+      g.setZero(24);
+      lbA.setZero(6);
+      ubA.setZero(6);
+      lbA = force_res;
+      ubA = force_res;
+
+      ub.setZero(24);
+      lb.setZero(24);
+      for (int i = 0; i < 24; i++)
+      {
+        lb(i) = -1000;
+        ub(i) = 1000;
+      }
+      ub(2) = 0;
+      ub(8) = 0;
+      ub(14) = 0;
+      ub(20) = 0;
+
+      QP_test.EnableEqualityCondition(0.001);
+      QP_test.UpdateMinProblem(H, g);
+      QP_test.UpdateSubjectToAx(A, lbA, ubA);
+      QP_test.UpdateSubjectToX(lb, ub);
+      VectorXd force_redistribute = QP_test.SolveQPoases(100);
+
+      torque_contact_ = wc_.contact_force_custom(torque_gravity_, ContactForce__, force_redistribute);
+
+      std::cout << "Contacct Force now" << std::endl
+                << ContactForce__ << std::endl
+                << std::endl
+                << "QP contact Force " << std::endl
+                << force_redistribute << std::endl
+                << std::endl;
     }
+    else if (tc_.taskcommand_.mode_ == 11)
+    {
+      QP_switch = true;
+      task_number = 6;
+      J_task.setZero(task_number, total_dof_ + 6);
+      f_star.setZero(task_number);
+      J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.Pelvis].Jac;
+      wc_.contact_set(4, cp, cv);
+      torque_gravity_ = wc_.gravity_compensation_torque();
+
+      VectorXd ContactForce__ = wc_.get_contact_force(torque_gravity_);
+
+      //qptest
+      QP_test.InitializeProblemSize(24, 10);
+      MatrixXd H, A;
+      H.setZero(24, 24);
+      for (int i = 0; i < 4; i++)
+      {
+        H(6 * i, 6 * i) = 1;
+        H(6 * i + 1, 6 * i + 1) = 1;
+        H(6 * i + 2, 6 * i + 2) = 0.01;
+        H(6 * i + 3, 6 * i + 3) = 100;
+        H(6 * i + 4, 6 * i + 4) = 100;
+        H(6 * i + 5, 6 * i + 5) = 100;
+      }
+
+      A.setZero(10, 24);
+      for (int i = 0; i < 4; i++)
+      {
+        A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
+        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[cp[i]].xpos_contact - model_.com_);
+      }
+      VectorXd force_res = A.block(0, 0, 6, 24) * ContactForce__;
+      VectorXd g, lb, ub, lbA, ubA;
+      g.setZero(24);
+      lbA.setZero(10);
+      ubA.setZero(10);
+      lbA.segment(0, 6) = force_res;
+      ubA.segment(0, 6) = force_res;
+
+      A(6, 1) = 1.0;
+      A(6, 2) = -2.0;
+      ubA(6) = 0.0;
+      lbA(6) = 0.0;
+      A(7, 7) = 1.0;
+      A(7, 8) = 2.0;
+      ubA(7) = 0.0;
+      lbA(7) = 0.0;
+
+      A(8, 13) = 1.0;
+      A(8, 14) = -2.0;
+      ubA(8) = 0.0;
+      lbA(8) = 0.0;
+      A(9, 19) = 1.0;
+      A(9, 20) = 2.0;
+      ubA(9) = 0.0;
+      lbA(9) = 0.0;
+
+      ub.setZero(24);
+      lb.setZero(24);
+      for (int i = 0; i < 24; i++)
+      {
+        lb(i) = -1000;
+        ub(i) = 1000;
+      }
+      ub(2) = 0;
+      ub(8) = 0;
+      ub(14) = 0;
+      ub(20) = 0;
+
+      QP_test.EnableEqualityCondition(0.001);
+      QP_test.UpdateMinProblem(H, g);
+      QP_test.UpdateSubjectToAx(A, lbA, ubA);
+      QP_test.UpdateSubjectToX(lb, ub);
+      VectorXd force_redistribute = QP_test.SolveQPoases(100);
+
+      torque_contact_ = wc_.contact_force_custom(torque_gravity_, ContactForce__, force_redistribute);
+
+      std::cout << "Contacct Force now" << std::endl
+                << ContactForce__ << std::endl
+                << std::endl
+                << "QP contact Force " << std::endl
+                << force_redistribute << std::endl
+                << std::endl;
+    }
+
+    ROS_INFO_ONCE("BASE : compute - Task torque");
+    torque_task_ = wc_.task_control_torque(J_task, f_star);
   }
 
   ROS_INFO_ONCE("BASE : compute 2");
   torque_desired = torque_gravity_ + torque_task_ + torque_joint_control_;
 
   ROS_INFO_ONCE("BASE : compute 3");
-  torque_contact_ = wc_.contact_force_redistribution_torque(model_.yaw_radian, torque_desired, fc_redis, fc_ratio);
 
-  ROS_INFO_ONCE("BASE : compute 4");
   if (!contact_switch)
+  {
     torque_contact_.setZero();
+  }
+  else if (QP_switch)
+  {
+  }
+  else
+    torque_contact_ = wc_.contact_force_redistribution_torque(model_.yaw_radian, torque_desired, fc_redis, fc_ratio);
+
   if (!task_switch)
     torque_task_.setZero();
 

@@ -40,6 +40,8 @@ public:
     //global COM position of body
     Eigen::Vector3d xipos;
 
+    Eigen::Vector3d xpos_contact;
+
     //local contact point
     Eigen::Vector3d contact_point;
 

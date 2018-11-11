@@ -110,6 +110,8 @@ void DyrosRedModel::Link_Set_Contact(int i, Eigen::Vector3d Contact_position)
 
   RigidBodyDynamics::CalcPointJacobian6D(model_, q_virtual_, link_[i].id, Contact_position, fj_, false);
 
+  link_[i].xpos_contact = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, link_[i].id, Contact_position, false);
+
   // link_[i].Jac_Contact.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0)*E_T_;
   // link_[i].Jac_Contact.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0)*E_T_;
   link_[i].Jac_Contact.block<3, MODEL_DOF + 6>(0, 0) = fj_.block<3, MODEL_DOF + 6>(3, 0);

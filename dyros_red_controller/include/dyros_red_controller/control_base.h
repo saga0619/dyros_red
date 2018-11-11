@@ -42,7 +42,11 @@
 #include "dyros_red_controller/dyros_red_model.h"
 #include "dyros_red_controller/wholebody_controller.h"
 #include "dyros_red_controller/task_controller.h"
+#include "dyros_red_controller/quadraticprogram.h"
+#include <qpOASES.hpp>
+
 // #include "Upperbody_Controller.h"
+
 #include <tf/transform_broadcaster.h>
 
 namespace dyros_red_controller
@@ -50,6 +54,7 @@ namespace dyros_red_controller
 
 using namespace Eigen;
 using namespace std;
+using namespace qpOASES;
 
 class ControlBase
 {
@@ -162,6 +167,13 @@ protected:
 
   void command_cb(const std_msgs::StringConstPtr &msg);
   void com_command_cb(const dyros_red_msgs::ComCommandConstPtr &msg);
+
+  //QP solver setting
+  void QPInitialize();
+  void QPReset();
+  bool QP_switch;
+  int nIter;
+  CQuadraticProgram QP_test;
 
 protected:
   string current_state_;
