@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(dyros_red_controller)
 
-add_compile_options(-std=c++11 -O2)
+add_compile_options(-std=c++11 -Ofast)
 
 find_package(catkin REQUIRED COMPONENTS
     dyros_red_msgs

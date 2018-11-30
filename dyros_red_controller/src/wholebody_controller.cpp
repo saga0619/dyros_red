@@ -7,7 +7,9 @@ Wholebody_controller::Wholebody_controller(DyrosRedModel &model, const VectorQd 
                                                                                                                                                                  current_q_(current_q), hz_(hz), control_time_(control_time), d_time_(d_time),
                                                                                                                                                                  start_time_{}, end_time_{}, target_arrived_{true, true, true, true}
 {
-  //debug_.open("/home/suhan/jet_test.txt");
+  Grav_ref.setZero(3);
+  Grav_ref(2) = -9.81;
+  //bool reset
 }
 
 void Wholebody_controller::update_dynamics()
@@ -16,43 +18,354 @@ void Wholebody_controller::update_dynamics()
   A_matrix.setZero(total_dof_ + 6, total_dof_ + 6);
   A_matrix = model_.A_;
   A_matrix_inverse = A_matrix.inverse();
-  Grav_ref.setZero(3);
-  Grav_ref(2) = -9.81;
-
-  //bool reset
-
   task_force_control = false;
   task_force_control_feedback = false;
 }
 
-void Wholebody_controller::contact_set(int contact_number, int link_id[], Vector3d contact_point[])
+void Wholebody_controller::contact_set(int contact_number, int link_id[])
 {
-
   J_C.setZero(contact_number * 6, total_dof_ + 6);
-
   for (int i = 0; i < contact_number; i++)
   {
-    model_.Link_Set_Contact(link_id[i], contact_point[i]);
-
+    model_.Link_Set_Contact(link_id[i], model_.link_[link_id[i]].contact_point);
     J_C.block(i * 6, 0, 6, total_dof_ + 6) = model_.link_[link_id[i]].Jac_Contact;
   }
-
   Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
   J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
-
   N_C.setZero(total_dof_ + 6, total_dof_ + 6);
   I37.setIdentity(total_dof_ + 6, total_dof_ + 6);
   N_C = I37 - J_C.transpose() * J_C_INV_T;
-
   Slc_k.setZero(total_dof_, total_dof_ + 6);
   Slc_k.block(0, 6, total_dof_, total_dof_).setIdentity();
   Slc_k_T = Slc_k.transpose();
-
-  W = Slc_k * N_C.transpose() * A_matrix_inverse * N_C * Slc_k_T;
-  //W = Slc_k * A_matrix_inverse * N_C * Slc_k_T; //2 types for w matrix
+  //W = Slc_k * N_C.transpose() * A_matrix_inverse * N_C * Slc_k_T;
+  W = Slc_k * A_matrix_inverse * N_C * Slc_k_T; //2 types for w matrix
   W_inv = DyrosMath::pinv_SVD(W);
 
   contact_force_predict.setZero();
+}
+
+void Wholebody_controller::contact_set_multi(bool right_foot, bool left_foot, bool right_hand, bool left_hand)
+{
+  contact_index = 0;
+  if (right_foot)
+  {
+    contact_part[contact_index] = model_.Right_Foot;
+    contact_index++;
+  }
+  if (left_foot)
+  {
+    contact_part[contact_index] = model_.Left_Foot;
+    contact_index++;
+  }
+  if (right_hand)
+  {
+    contact_part[contact_index] = model_.Right_Hand;
+    contact_index++;
+  }
+  if (left_hand)
+  {
+    contact_part[contact_index] = model_.Left_Hand;
+    contact_index++;
+  }
+  contact_set(contact_index, contact_part);
+}
+
+VectorQd Wholebody_controller::contact_torque_calc_from_QP(VectorQd command_torque)
+{
+  VectorXd ContactForce__ = get_contact_force(command_torque);
+
+  //qptest
+  QP_test.InitializeProblemSize(24, 6);
+
+  MatrixXd H, A;
+  H.setZero(24, 24);
+  for (int i = 0; i < 4; i++)
+  {
+    H(6 * i, 6 * i) = 1;
+    H(6 * i + 1, 6 * i + 1) = 1;
+    H(6 * i + 2, 6 * i + 2) = 0.01;
+    H(6 * i + 3, 6 * i + 3) = 100;
+    H(6 * i + 4, 6 * i + 4) = 100;
+    H(6 * i + 5, 6 * i + 5) = 100;
+  }
+  A.setZero(6, 24);
+  for (int i = 0; i < 4; i++)
+  {
+    A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
+    A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[contact_part[i]].xpos_contact - model_.com_);
+  }
+
+  VectorXd force_res = A * ContactForce__;
+
+  VectorXd g, lb, ub, lbA, ubA;
+  g.setZero(24);
+  lbA.setZero(6);
+  ubA.setZero(6);
+  lbA = force_res;
+  ubA = force_res;
+
+  ub.setZero(24);
+  lb.setZero(24);
+  for (int i = 0; i < 24; i++)
+  {
+    lb(i) = -1000;
+    ub(i) = 1000;
+  }
+  ub(2) = 0;
+  ub(8) = 0;
+  ub(14) = 0;
+  ub(20) = 0;
+
+  QP_test.EnableEqualityCondition(0.001);
+  QP_test.UpdateMinProblem(H, g);
+  QP_test.UpdateSubjectToAx(A, lbA, ubA);
+  QP_test.UpdateSubjectToX(lb, ub);
+  VectorXd force_redistribute = QP_test.SolveQPoases(100);
+
+  VectorXd torque_contact_ = contact_force_custom(command_torque, ContactForce__, force_redistribute);
+
+  return torque_contact_;
+}
+
+VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio)
+{
+  VectorXd ContactForce__ = get_contact_force(command_torque);
+  QP_test.InitializeProblemSize(contact_index * 6, 6 + contact_index);
+  MatrixXd H, A;
+  H.setZero(contact_index * 6, contact_index * 6);
+  for (int i = 0; i < contact_index; i++)
+  {
+    H(6 * i, 6 * i) = 1;
+    H(6 * i + 1, 6 * i + 1) = 1;
+    H(6 * i + 2, 6 * i + 2) = 0.01;
+    H(6 * i + 3, 6 * i + 3) = 100;
+    H(6 * i + 4, 6 * i + 4) = 100;
+    H(6 * i + 5, 6 * i + 5) = 100;
+  }
+  A.setZero(6 + contact_index, contact_index * 6);
+  for (int i = 0; i < contact_index; i++)
+  {
+    A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
+    A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[contact_part[i]].xpos_contact - model_.com_);
+  }
+  VectorXd force_res = A.block(0, 0, 6, contact_index * 6) * ContactForce__;
+  VectorXd g, lb, ub, lbA, ubA;
+  g.setZero(contact_index * 6);
+  lbA.setZero(6 + contact_index);
+  ubA.setZero(6 + contact_index);
+  lbA.segment(0, 6) = force_res;
+  ubA.segment(0, 6) = force_res;
+  ub.setZero(contact_index * 6);
+  lb.setZero(contact_index * 6);
+
+  for (int i = 0; i < contact_index; i++)
+  {
+    A(6 + i, 1 + 6 * i) = 1.0;
+
+    ubA(6 + i) = 0.0;
+    lbA(6 + i) = 0.0;
+    if (contact_part[i] == model_.Right_Foot)
+    {
+      A(6 + i, 2 + 6 * i) = -wall_friction_ratio;
+    }
+    if (contact_part[i] == model_.Right_Hand)
+    {
+      A(6 + i, 2 + 6 * i) = -wall_friction_ratio;
+    }
+    if (contact_part[i] == model_.Left_Foot)
+    {
+      A(6 + i, 2 + 6 * i) = wall_friction_ratio;
+    }
+    if (contact_part[i] == model_.Left_Hand)
+    {
+      A(6 + i, 2 + 6 * i) = wall_friction_ratio;
+    }
+  }
+  for (int i = 0; i < contact_index * 6; i++)
+  {
+    lb(i) = -1000;
+    ub(i) = 1000;
+  }
+
+  for (int i = 0; i < contact_index; i++)
+    ub(2 + 6 * i) = 0;
+
+  QP_test.EnableEqualityCondition(0.001);
+  QP_test.UpdateMinProblem(H, g);
+  QP_test.UpdateSubjectToAx(A, lbA, ubA);
+  QP_test.UpdateSubjectToX(lb, ub);
+  VectorXd force_redistribute = QP_test.SolveQPoases(100);
+
+  std::cout << "Contact Force now :  " << std::endl;
+  std::cout << ContactForce__ << std::endl;
+  std::cout << "Contact Force Redistribution : " << std::endl;
+  std::cout << force_redistribute << std::endl;
+
+  VectorQd torque_contact_ = contact_force_custom(command_torque, ContactForce__, force_redistribute);
+  return torque_contact_;
+}
+
+VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio)
+{
+  double a1, a2;
+
+  a1 = 10.0;
+  a2 = 1.0;
+
+  VectorXd ContactForce__ = get_contact_force(command_torque);
+  QP_test.InitializeProblemSize(contact_index * 6, 6 + contact_index * 5);
+  MatrixXd H, A;
+  H.setZero(contact_index * 6, contact_index * 6);
+
+  MatrixXd M;
+  M.setZero(contact_index * 6, contact_index * 6);
+  for (int i = 0; i < contact_index; i++)
+  {
+    M(6 * i, 6 * i) = 1.0;
+    M(6 * i + 1, 6 * i + 1) = 1.0;
+    M(6 * i + 2, 6 * i + 2) = 0.1;
+    M(6 * i + 3, 6 * i + 3) = 100.0;
+    M(6 * i + 4, 6 * i + 4) = 100.0;
+    M(6 * i + 5, 6 * i + 5) = 100.0;
+  }
+
+  H = a1 * MatrixXd::Identity(contact_index * 6, contact_index * 6) + a2 * M;
+
+  A.setZero(6 + contact_index * 5, contact_index * 6);
+  for (int i = 0; i < contact_index; i++)
+  {
+    A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
+    A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[contact_part[i]].xpos_contact - model_.com_);
+  }
+  VectorXd force_res = A.block(0, 0, 6, contact_index * 6) * ContactForce__;
+  VectorXd g, lb, ub, lbA, ubA;
+  g.setZero(contact_index * 6);
+
+  g = -a1 * ContactForce__;
+  lbA.setZero(6 + contact_index * 5);
+  ubA.setZero(6 + contact_index * 5);
+  lbA.segment(0, 6) = force_res;
+  ubA.segment(0, 6) = force_res;
+  ub.setZero(contact_index * 6);
+  lb.setZero(contact_index * 6);
+
+  for (int i = 0; i < contact_index; i++)
+  {
+    A(6 + i * 5, 1 + 6 * i) = 1.0;
+    A(6 + i * 5 + 1, 3 + 6 * i) = 1.0;
+    A(6 + i * 5 + 2, 3 + 6 * i) = 1.0;
+    A(6 + i * 5 + 3, 4 + 6 * i) = 1.0;
+    A(6 + i * 5 + 4, 4 + 6 * i) = 1.0;
+
+    if (contact_part[i] == model_.Right_Foot)
+    {
+      A(6 + i * 5, 2 + 6 * i) = -wall_friction_ratio;
+      ubA(6 + i * 5) = 0.0;
+      lbA(6 + i * 5) = -1000.0;
+
+      A(6 + i * 5 + 1, 1 + 6 * i) = -0.03;
+      A(6 + i * 5 + 2, 1 + 6 * i) = 0.03;
+      lbA(6 + i * 5 + 1) = 0.0;
+      ubA(6 + i * 5 + 1) = 1000.0;
+      lbA(6 + i * 5 + 2) = -1000.0;
+      ubA(6 + i * 5 + 2) = 0;
+
+      A(6 + i * 5 + 3, 1 + 6 * i) = -0.05;
+      A(6 + i * 5 + 4, 1 + 6 * i) = 0.05;
+      lbA(6 + i * 5 + 3) = 0.0;
+      ubA(6 + i * 5 + 3) = 1000.0;
+      lbA(6 + i * 5 + 4) = -1000.0;
+      ubA(6 + i * 5 + 4) = 0;
+    }
+    if (contact_part[i] == model_.Right_Hand)
+    {
+      A(6 + i * 5, 2 + 6 * i) = -wall_friction_ratio;
+
+      ubA(6 + i * 5) = 0.0;
+      lbA(6 + i * 5) = -1000.0;
+
+      A(6 + i * 5 + 1, 6 * i + 1) = -0.02;
+      A(6 + i * 5 + 2, 6 * i + 1) = 0.02;
+      lbA(6 + i * 5 + 1) = 0.0;
+      ubA(6 + i * 5 + 1) = 1000.0;
+      lbA(6 + i * 5 + 2) = -1000.0;
+      ubA(6 + i * 5 + 2) = 0;
+
+      A(6 + i * 5 + 3, 6 * i + 1) = -0.02;
+      A(6 + i * 5 + 4, 6 * i + 1) = 0.02;
+      lbA(6 + i * 5 + 3) = 0.0;
+      ubA(6 + i * 5 + 3) = 1000.0;
+      lbA(6 + i * 5 + 4) = -1000.0;
+      ubA(6 + i * 5 + 4) = 0;
+    }
+    if (contact_part[i] == model_.Left_Foot)
+    {
+      A(6 + i * 5, 2 + 6 * i) = wall_friction_ratio;
+
+      ubA(6 + i * 5) = 1000.0;
+      lbA(6 + i * 5) = 0.0;
+
+      A(6 + i * 5 + 1, 1 + 6 * i) = -0.03;
+      A(6 + i * 5 + 2, 1 + 6 * i) = 0.03;
+      lbA(6 + i * 5 + 1) = -1000.0;
+      ubA(6 + i * 5 + 1) = 0.0;
+      lbA(6 + i * 5 + 2) = 0.0;
+      ubA(6 + i * 5 + 2) = 1000.0;
+
+      A(6 + i * 5 + 3, 1 + 6 * i) = -0.05;
+      A(6 + i * 5 + 4, 1 + 6 * i) = 0.05;
+      lbA(6 + i * 5 + 3) = -1000.0;
+      ubA(6 + i * 5 + 3) = 0.0;
+      lbA(6 + i * 5 + 4) = 0.0;
+      ubA(6 + i * 5 + 4) = 1000.0;
+    }
+    if (contact_part[i] == model_.Left_Hand)
+    {
+      A(6 + i * 5, 2 + 6 * i) = wall_friction_ratio;
+
+      ubA(6 + i * 5) = 1000.0;
+      lbA(6 + i * 5) = 0.0;
+
+      A(6 + i * 5 + 1, 1 + 6 * i) = -0.02;
+      A(6 + i * 5 + 2, 1 + 6 * i) = 0.02;
+
+      A(6 + i * 5 + 3, 1 + 6 * i) = -0.02;
+      A(6 + i * 5 + 4, 1 + 6 * i) = 0.02;
+
+      lbA(6 + i * 5 + 1) = -1000.0;
+      ubA(6 + i * 5 + 1) = 0.0;
+      lbA(6 + i * 5 + 2) = 0.0;
+      ubA(6 + i * 5 + 2) = 1000.0;
+
+      lbA(6 + i * 5 + 3) = -1000.0;
+      ubA(6 + i * 5 + 3) = 0.0;
+      lbA(6 + i * 5 + 4) = 0.0;
+      ubA(6 + i * 5 + 4) = 1000.0;
+    }
+  }
+  for (int i = 0; i < contact_index * 6; i++)
+  {
+    lb(i) = -1000;
+    ub(i) = 1000;
+  }
+
+  for (int i = 0; i < contact_index; i++)
+    ub(2 + 6 * i) = 0;
+
+  QP_test.EnableEqualityCondition(0.01);
+  QP_test.UpdateMinProblem(H, g);
+  QP_test.UpdateSubjectToAx(A, lbA, ubA);
+  QP_test.UpdateSubjectToX(lb, ub);
+  VectorXd force_redistribute = QP_test.SolveQPoases(200);
+
+  std::cout << "Contact Force now :  " << std::endl;
+  std::cout << ContactForce__ << std::endl;
+  std::cout << "Contact Force Redistribution : " << std::endl;
+  std::cout << force_redistribute << std::endl;
+
+  VectorQd torque_contact_ = contact_force_custom(command_torque, ContactForce__, force_redistribute);
+  return torque_contact_;
 }
 
 VectorQd Wholebody_controller::gravity_compensation_torque()
@@ -417,6 +730,7 @@ Vector6d Wholebody_controller::getfstar6d(int link_id, Vector3d kpt, Vector3d kd
   f_star.segment(3, 3) = getfstar_rot(link_id, kpa, kda);
   return f_star;
 }
+
 VectorQd Wholebody_controller::contact_force_custom(VectorQd command_torque, Eigen::VectorXd contact_force_now, Eigen::VectorXd contact_force_desired)
 {
   JacobiSVD<MatrixXd> svd(W, ComputeThinU | ComputeThinV);

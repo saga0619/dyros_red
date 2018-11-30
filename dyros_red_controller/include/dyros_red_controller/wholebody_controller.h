@@ -4,8 +4,12 @@
 #include "dyros_red_controller/dyros_red_model.h"
 #include "math_type_define.h"
 
+#include "dyros_red_controller/quadraticprogram.h"
+#include <qpOASES.hpp>
+
 using namespace Eigen;
 using namespace std;
+using namespace qpOASES;
 
 namespace dyros_red_controller
 {
@@ -32,11 +36,15 @@ public:
   const VectorQd &current_q_; // updated by control_base
 
   //Main loop wholebody function
-  void update_dynamics();                                                                                                                       //update mass matrix
-  void contact_set(int contact_number, int link_id[], Vector3d contact_point[]);                                                                //update contact space dynamics
+  void update_dynamics();                              //update mass matrix
+  void contact_set(int contact_number, int link_id[]); //update contact space dynamics
+  void contact_set_multi(bool right_foot, bool left_foot, bool right_hand, bool left_hand);
   VectorQd contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta); //contact force redistribution at 2 contact
   VectorQd contact_force_custom(VectorQd command_torque, Eigen::VectorXd contact_force_now, Eigen::VectorXd contact_force_desired);
   VectorQd gravity_compensation_torque(); //update gravity compensation torque
+  VectorQd contact_torque_calc_from_QP(VectorQd command_torque);
+  VectorQd contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio);
+  VectorQd contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio);
 
   VectorQd task_control_torque(Eigen::MatrixXd J_task, Eigen::VectorXd f_star_);
   VectorQd task_control_torque_custom_force(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force);
@@ -66,6 +74,9 @@ public:
   const int SINGLE_SUPPORT_RIGHT = 2;
   const int TRIPPLE_SUPPORT = 3;
   const int QUAD_SUPPORT = 4;
+
+  int contact_index;
+  int contact_part[4];
 
   MatrixXd A_matrix;
   MatrixXd A_matrix_inverse;
@@ -99,6 +110,12 @@ public:
   Vector3d ZMP_pos;
 
   double fc_redis;
+
+  //QP solver setting
+  void QPInitialize();
+  void QPReset();
+  int nIter;
+  CQuadraticProgram QP_test;
 };
 
 } // namespace dyros_red_controller

@@ -163,12 +163,22 @@
                                     </item>
                                     <item>
                                         <property name="text">
+                                            <string>multi contact</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
                                             <string>wall_holding_test 1</string>
                                         </property>
                                     </item>
                                     <item>
                                         <property name="text">
                                             <string>wall_holding_test 2</string>
+                                        </property>
+                                    </item>
+                                    <item>
+                                        <property name="text">
+                                            <string>wall_holding_test 3</string>
                                         </property>
                                     </item>
                                 </widget>

@@ -42,8 +42,6 @@
 #include "dyros_red_controller/dyros_red_model.h"
 #include "dyros_red_controller/wholebody_controller.h"
 #include "dyros_red_controller/task_controller.h"
-#include "dyros_red_controller/quadraticprogram.h"
-#include <qpOASES.hpp>
 
 // #include "Upperbody_Controller.h"
 
@@ -54,7 +52,6 @@ namespace dyros_red_controller
 
 using namespace Eigen;
 using namespace std;
-using namespace qpOASES;
 
 class ControlBase
 {
@@ -124,6 +121,7 @@ protected:
   VectorQd torque_contact_;
   VectorQd torque_task_;
   VectorQd torque_gravity_;
+  VectorQd torque_joint_control_;
 
   VectorQd desired_q_; // current desired joint values
   VectorQd init_q_;
@@ -131,6 +129,7 @@ protected:
   VectorQd torque_damping;
   VectorQd position_desired;
 
+  MatrixXd J_task;
   VectorXd f_star, hand_f_desired;
   MatrixXd f_slc_matrix;
 
@@ -168,13 +167,6 @@ protected:
   void command_cb(const std_msgs::StringConstPtr &msg);
   void com_command_cb(const dyros_red_msgs::ComCommandConstPtr &msg);
 
-  //QP solver setting
-  void QPInitialize();
-  void QPReset();
-  bool QP_switch;
-  int nIter;
-  CQuadraticProgram QP_test;
-
 protected:
   string current_state_;
   //realtime_tools::RealtimePublisher<dyros_red_msgs::JointState> joint_state_pub_;
@@ -189,6 +181,8 @@ private:
   bool task_switch = false;
   bool contact_switch = false;
   bool data_switch = false;
+  bool QP_switch = false;
+  bool QP_wall = false;
 
   Vector3d com_init;
   Matrix3d rot_init;

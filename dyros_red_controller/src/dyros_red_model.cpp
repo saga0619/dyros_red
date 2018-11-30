@@ -245,6 +245,16 @@ DyrosRedModel::DyrosRedModel()
       total_mass += link_[i].Mass;
     }
 
+    Eigen::Vector3d lf_c, rf_c, lh_c, rh_c;
+    lf_c << 0.0317, 0, -0.1368;
+    rf_c << 0.0317, 0, -0.1368;
+    rh_c << 0, -0.092, 0;
+    lh_c << 0, 0.092, 0;
+    link_[Right_Foot].contact_point = rf_c;
+    link_[Left_Foot].contact_point = lf_c;
+    link_[Right_Hand].contact_point = rh_c;
+    link_[Left_Hand].contact_point = lh_c;
+
     // RigidBodyDynamics::Joint J_temp;
     // J_temp=RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeEulerXYZ);
 
@@ -252,7 +262,6 @@ DyrosRedModel::DyrosRedModel()
 
     for (int i = 0; i < MODEL_DOF + 6; i++)
     {
-
       // ROS_INFO("Joint type %d : %d", i, model_.mJoints[i].mJointType);
     }
   }
