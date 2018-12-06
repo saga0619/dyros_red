@@ -1,5 +1,10 @@
 # dyros_red_sim
 
+### Environment ###
+* Tested at ubuntu 16.04 , 18.04
+* for mujoco users, 18.04 is better than 16.04 since there are graphical issues in 16.04
+* faster communication between mujoco and controller at ubuntu 18.04 (lag of mujoco or controller due to graphical problem?? 18.04 is faster anyway :) )
+* there are qpOASES installation problem at 18.04, can be solved with adding compile option
 
 
 ### RBDL Setup ###
