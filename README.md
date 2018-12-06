@@ -52,7 +52,7 @@ make all
 sudo make install
 ```
 
-*if error occures, add following line to qpOASES-3.2.1/CMakeLists.txt, next to PROJECT(qpOASES CXX), which is line 34
+*if error occures, add following line to qpOASES-3.2.1/CMakeLists.txt, below PROJECT(qpOASES CXX), which is line 34
 
 ```
 add_compile_options(-fPIC)
