@@ -8,8 +8,8 @@ from std_msgs.msg import String
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Qt, QTimer, Slot
-
 from python_qt_binding.QtWidgets import QWidget
+
 
 class DyrosRedGuiPlugin(Plugin):
 
@@ -17,28 +17,32 @@ class DyrosRedGuiPlugin(Plugin):
         super(DyrosRedGuiPlugin, self).__init__(context)
         # Give QObjects reasonable names
         self.setObjectName('DyrosRedGUI')
-        self._publisher = rospy.Publisher('/dyros_red/command', String, queue_size=10)
-        self._publisher2 = rospy.Publisher('/dyros_red/com_command', dyros_red_msgs.msg.ComCommand, queue_size=10)
-        self._publisher3 = rospy.Publisher('/mujoco_ros_interface/sim_command_con2sim', String, queue_size=10)
-
-
+        self._publisher = rospy.Publisher(
+            '/dyros_red/command', String, queue_size=10)
+        self._publisher2 = rospy.Publisher(
+            '/dyros_red/com_command', dyros_red_msgs.msg.ComCommand, queue_size=10)
+        self._publisher3 = rospy.Publisher(
+            '/mujoco_ros_interface/sim_command_con2sim', String, queue_size=10)
 
         # Create QWidget
         self._widget = QWidget()
         # Get path to UI file which should be in the "resource" folder of this package
-        ui_file = os.path.join(rospkg.RosPack().get_path('dyros_red_gui'), 'resource', 'DyrosRed.ui')
-        icon_file = os.path.join(rospkg.RosPack().get_path('dyros_red_gui'), 'resource', 'Dyros_Logo3.png')
+        ui_file = os.path.join(rospkg.RosPack().get_path(
+            'dyros_red_gui'), 'resource', 'DyrosRed.ui')
+        icon_file = os.path.join(rospkg.RosPack().get_path(
+            'dyros_red_gui'), 'resource', 'Dyros_Logo3.png')
         # Extend the widget with all attributes and children from UI file
         loadUi(ui_file, self._widget)
         # Give QObjects reasonable names
         self._widget.setObjectName('DyrosRedUi')
-        # Show _widget.windowTitle on left-top of each plugin (when 
-        # it's set in _widget). This is useful when you open multiple 
-        # plugins at once. Also if you open multiple instances of your 
-        # plugin at once, these lines add number to make it easy to 
+        # Show _widget.windowTitle on left-top of each plugin (when
+        # it's set in _widget). This is useful when you open multiple
+        # plugins at once. Also if you open multiple instances of your
+        # plugin at once, these lines add number to make it easy to
         # tell from pane to pane.
         if context.serial_number() > 1:
-            self._widget.setWindowTitle(self._widget.windowTitle() + (' (%d)' % context.serial_number()))
+            self._widget.setWindowTitle(
+                self._widget.windowTitle() + (' (%d)' % context.serial_number()))
             self._widget.setWindowIcon(QtGui.QIcon(icon_file))
         # Add widget to the user interface
         context.add_widget(self._widget)
@@ -51,16 +55,22 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.slowmotion_button.pressed.connect(self.slowmotion_button)
         self._widget.reset_button.pressed.connect(self.reset_button)
 
-
-        self.sub = rospy.Subscriber('/dyros_red/point',geometry_msgs.msg.PolygonStamped, self.sub_cb)
+        self.sub = rospy.Subscriber(
+            '/dyros_red/point', geometry_msgs.msg.PolygonStamped, self.sub_cb)
 
     def sub_cb(self, msg):
-        self._widget.label.setText(str(round(msg.polygon.points[0].x,6)) )
-        self._widget.label_2.setText(str(round(msg.polygon.points[0].y,6)) )
-        self._widget.label_3.setText(str(round(msg.polygon.points[0].z,6)) )
-        self._widget.label_14.setText(str(round(msg.polygon.points[3].x,6)) )
-        self._widget.label_15.setText(str(round(msg.polygon.points[3].y,6)) )
-        self._widget.label_16.setText(str(round(msg.polygon.points[3].z,6)) )
+        self._widget.label.setText(str(round(msg.polygon.points[0].x, 6)))
+        self._widget.label_2.setText(str(round(msg.polygon.points[0].y, 6)))
+        self._widget.label_3.setText(str(round(msg.polygon.points[0].z, 6)))
+        self._widget.label_14.setText(str(round(msg.polygon.points[3].x, 6)))
+        self._widget.label_15.setText(str(round(msg.polygon.points[3].y, 6)))
+        self._widget.label_16.setText(str(round(msg.polygon.points[3].z, 6)))
+
+        self._widget.label_22.setText(str(round(msg.polygon.points[4].x, 6)))
+        self._widget.label_23.setText(str(round(msg.polygon.points[4].y, 6)))
+
+        self._widget.label_24.setText(str(round(msg.polygon.points[5].x, 6)))
+        self._widget.label_27.setText(str(round(msg.polygon.points[5].y, 6)))
 
     def pause_button(self):
         self.send_msg2("pause")
@@ -71,9 +81,8 @@ class DyrosRedGuiPlugin(Plugin):
     def reset_button(self):
         self.send_msg2("mjreset")
 
-
     def com_command_sender(self):
-        if self._widget.text_pos.text().replace('.','',1).isdigit() and self._widget.text_time.text().replace('.','',1).isdigit():
+        if self._widget.text_pos.text().replace('.', '', 1).isdigit() and self._widget.text_time.text().replace('.', '', 1).isdigit():
             print("Sending COM command mgs")
             com_command_msg = dyros_red_msgs.msg.ComCommand()
             c_pos = float(self._widget.text_pos.text())
@@ -91,7 +100,7 @@ class DyrosRedGuiPlugin(Plugin):
             com_command_msg.height = c_height
             com_command_msg.angle = float(self._widget.text_angle.text())
             idx = self._widget.comboBox.currentIndex()
-            com_command_msg.mode = idx;
+            com_command_msg.mode = idx
             self._publisher2.publish(com_command_msg)
 
         else:
@@ -138,7 +147,7 @@ class DyrosRedGuiPlugin(Plugin):
         # v = instance_settings.value(k)
         pass
 
-    #def trigger_configuration(self):
+    # def trigger_configuration(self):
         # Comment in to signal that the plugin has a way to configure
         # This will enable a setting button (gear icon) in each dock widget title bar
         # Usually used to open a modal configuration dialog

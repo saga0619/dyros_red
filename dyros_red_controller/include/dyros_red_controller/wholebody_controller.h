@@ -31,8 +31,6 @@ public:
   double end_time_[4];
   bool target_arrived_[4];
   bool debug;
-  bool task_force_control = false;
-  bool task_force_control_feedback = false;
   const VectorQd &current_q_; // updated by control_base
 
   //Main loop wholebody function
@@ -49,11 +47,21 @@ public:
   VectorQd task_control_torque(Eigen::MatrixXd J_task, Eigen::VectorXd f_star_);
   VectorQd task_control_torque_custom_force(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force);
   VectorQd task_control_torque_custom_force_feedback(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
+
+  //focecontrol selection matrix 1 for control with fstar 0 for force control
   void set_force_control(MatrixXd selection_matrix, VectorXd desired_force);
   void set_force_control_feedback(MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
+  void set_zmp_control(Vector2d ZMP, double gain);
+
   MatrixXd task_selection_matrix;
   VectorXd task_desired_force;
   VectorXd task_feedback_reference;
+  Vector2d ZMP_task;
+  bool task_force_control = false;
+  bool task_force_control_feedback = false;
+  bool zmp_control = false;
+  double zmp_gain;
+  bool mpc_init = false;
 
   //Utility functions
   VectorXd get_contact_force(VectorQd command_torque);
@@ -68,8 +76,18 @@ public:
   Vector3d getfstar_rot(int link_id, Vector3d kpa, Vector3d kda);
   Vector6d getfstar6d(int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda);
 
+  //zmp controller
+  VectorQd CP_control_init(double dT);
+  VectorQd CP_controller();
+  Vector6d zmp_controller(Vector2d ZMP, double height);
+  Vector2d CP_ref[20];
+
+  Vector2d getcptraj(double time, Vector2d zmp);
+
+  Vector2d getcpref(double task_time, double future_time);
   //Contact Mode
   const int DOUBLE_SUPPORT = 0;
+
   const int SINGLE_SUPPORT_LEFT = 1;
   const int SINGLE_SUPPORT_RIGHT = 2;
   const int TRIPPLE_SUPPORT = 3;
@@ -107,6 +125,7 @@ public:
 
   int task_dof;
 
+  Vector2d p_k_1;
   Vector3d ZMP_pos;
 
   double fc_redis;
@@ -116,6 +135,8 @@ public:
   void QPReset();
   int nIter;
   CQuadraticProgram QP_test;
+  CQuadraticProgram QP_mpc;
+  Vector12d result_temp;
 };
 
 } // namespace dyros_red_controller

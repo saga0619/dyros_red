@@ -209,8 +209,9 @@ VectorXd CQuadraticProgram::SolveQPoases(const int &num_max_iter)
     }
     int_t nWSR = num_max_iter;
 
-    _options.printLevel = PL_NONE;
-    //_options.printLevel = PL_DEBUG_ITER;
+    // _options.printLevel = PL_NONE;
+    _options.setToMPC();
+    _options.printLevel = PL_DEBUG_ITER;
     _QPprob.setOptions(_options);
 
     returnValue m_status;

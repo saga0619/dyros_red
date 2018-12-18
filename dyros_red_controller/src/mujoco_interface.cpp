@@ -58,7 +58,7 @@ void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr 
                 q_virtual_(i + 6) = msg->position[j];
                 q_dot_(i) = msg->velocity[j];
                 q_dot_virtual_(i + 6) = msg->velocity[j];
-
+                q_ddot_virtaul_(i + 6) = msg->effort[j];
                 torque_(i) = msg->effort[j];
             }
         }
@@ -72,6 +72,7 @@ void mujoco_interface::jointStateCallback(const sensor_msgs::JointStateConstPtr 
     {
         q_virtual_(i) = msg->position[i];
         q_dot_virtual_(i) = msg->velocity[i];
+        q_ddot_virtaul_(i) = msg->effort[i];
     }
 
     q_virtual_(total_dof_ + 6) = msg->position[total_dof_ + 6];

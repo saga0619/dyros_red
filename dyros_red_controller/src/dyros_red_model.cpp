@@ -151,6 +151,19 @@ void DyrosRedModel::Link_Set_Trajectory_from_quintic(int i, double current_time,
   link_[i].w_traj = Eigen::Vector3d::Zero();
 }
 
+void DyrosRedModel::Link_Set_Trajectory_from_quintic(int i, double current_time, double start_time, double end_time, Eigen::Vector3d pos_init, Eigen::Vector3d pos_desired)
+{
+  for (int j = 0; j < 3; j++)
+  {
+    Eigen::Vector3d quintic = DyrosMath::QuinticSpline(current_time, start_time, end_time, pos_init(j), 0, 0, pos_desired(j), 0, 0);
+    link_[i].x_traj(j) = quintic(0);
+    link_[i].v_traj(j) = quintic(1);
+  }
+
+  link_[i].r_traj = link_[i].rot_init;
+  link_[i].w_traj = Eigen::Vector3d::Zero();
+}
+
 void DyrosRedModel::Link_Set_Trajectory_rotation(int i, double current_time, double start_time, double end_time, Eigen::Matrix3d rot_desired, bool local_)
 {
   Eigen::Vector3d axis;
@@ -239,11 +252,6 @@ DyrosRedModel::DyrosRedModel()
     {
       Link_initialize(i, link_id_[i], LINK_NAME[i], model_.mBodies[link_id_[i]].mMass, model_.mBodies[link_id_[i]].mCenterOfMass);
     }
-    total_mass = 0;
-    for (int i = 0; i < MODEL_DOF + 1; i++)
-    {
-      total_mass += link_[i].Mass;
-    }
 
     Eigen::Vector3d lf_c, rf_c, lh_c, rh_c;
     lf_c << 0.0317, 0, -0.1368;
@@ -277,7 +285,7 @@ void DyrosRedModel::test()
   }
 }
 
-void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eigen::VectorXd &q_dot)
+void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eigen::VectorXd &q_dot_virtual, const Eigen::VectorXd &q_ddot_virtual)
 {
   ROS_INFO_ONCE("CONTROLLER : MODEL : updatekinematics enter ");
   /* q_virtual description
@@ -288,9 +296,11 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eig
    * */
 
   q_virtual_ = q_virtual;
-  q_dot_virtual_ = q_dot;
+  q_dot_virtual_ = q_dot_virtual;
+  q_ddot_virtual_ = q_ddot_virtual;
+
   ros::Time t_temp = ros::Time::now();
-  RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, NULL, NULL);
+  RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, &q_dot_virtual, &q_ddot_virtual);
   double uk_time = ros::Time::now().toSec() - t_temp.toSec();
 
   t_temp = ros::Time::now();
@@ -307,8 +317,6 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eig
 
   A_ = A_temp_;
 
-  com_ = getCenterOfMassPosition();
-
   for (int i = 0; i < MODEL_DOF + 1; i++)
   {
     Link_pos_Update(i);
@@ -324,6 +332,33 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eig
   }
 
   //COM link information update ::
+  double com_mass;
+  RigidBodyDynamics::Math::Vector3d com_pos;
+  RigidBodyDynamics::Math::Vector3d com_vel, com_accel, com_ang_momentum;
+
+  RigidBodyDynamics::Utils::CalcCenterOfMass(model_, q_virtual_, q_dot_virtual_, &q_ddot_virtual, com_mass, com_pos, &com_vel, &com_accel, &com_ang_momentum, NULL, true);
+  com_.mass = com_mass;
+  com_.pos = com_pos;
+
+  Eigen::Vector3d vel_temp;
+  vel_temp = com_.vel;
+  com_.vel = com_vel;
+
+  com_.accel = -com_accel;
+  com_.angular_momentum = com_ang_momentum;
+
+  ROS_INFO_ONCE("TOTAL MASS : %f", com_.mass);
+  double w_ = sqrt(9.81 / com_.pos(2));
+
+  com_.ZMP(0) = com_.pos(0) - com_.accel(0) / pow(w_, 2);
+  com_.ZMP(1) = com_.pos(1) - com_.accel(1) / pow(w_, 2);
+
+  //com_.ZMP(0) = (com_.pos(0) * (com_.accel(2) + 9.81) - com_pos(2) * com_accel(0)) / (com_.accel(2) + 9.81) - com_.angular_momentum(2) / com_.mass / (com_.accel(2) + 9.81);
+
+  //com_.ZMP(1) = (com_.pos(1) * (com_.accel(2) + 9.81) - com_pos(2) * com_accel(1)) / (com_.accel(2) + 9.81) - com_.angular_momentum(1) / com_.mass / (com_.accel(2) + 9.81);
+
+  com_.CP(0) = com_.pos(0) + com_.vel(0) / w_;
+  com_.CP(1) = com_.pos(1) + com_.vel(1) / w_;
 
   Eigen::MatrixXd jacobian_com;
   jacobian_com.setZero(3, MODEL_DOF + 6);
@@ -332,13 +367,14 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eig
   {
     jacobian_com += link_[i].Jac_COM_p * link_[i].Mass;
   }
-  jacobian_com = jacobian_com / total_mass;
+  jacobian_com = jacobian_com / com_.mass;
 
   link_[COM_id].Jac.setZero(6, MODEL_DOF + 6);
 
-  link_[COM_id].Jac.block(0, 0, 3, MODEL_DOF + 6) = jacobian_com;
-  link_[COM_id].Jac.block(3, 0, 3, MODEL_DOF + 6) = link_[Pelvis].Jac_COM_r;
-  link_[COM_id].xpos = com_;
+  link_[COM_id].Jac.block(0, 0, 2, MODEL_DOF + 6) = jacobian_com.block(0, 0, 2, MODEL_DOF + 6);
+  link_[COM_id].Jac.block(2, 0, 4, MODEL_DOF + 6) = link_[Pelvis].Jac.block(2, 0, 4, MODEL_DOF + 6);
+  link_[COM_id].xpos = com_.pos;
+  link_[COM_id].xpos(2) = link_[Pelvis].xpos(2);
   link_[COM_id].Rotm = link_[Pelvis].Rotm;
 
   for (int i = 0; i < MODEL_DOF + 2; i++)
@@ -357,20 +393,6 @@ void DyrosRedModel::updateKinematics(const Eigen::VectorXd &q_virtual, const Eig
 
   ROS_DEBUG("Update time - detail \n updatekinematicsCustum Time : % 3.4f ms\n compositeRigid time : %3.4f ms\n jac_update time : %3.4f ms", uk_time * 1000, cr_time * 1000, ju_time * 1000);
   ROS_INFO_ONCE("CONTROLLER : MODEL : updatekinematics end ");
-}
-
-Eigen::Vector3d DyrosRedModel::getCenterOfMassPosition()
-{
-  RigidBodyDynamics::Math::Vector3d position_temp;
-  position_temp.setZero();
-
-  for (int i = 0; i < MODEL_DOF + 1; i++)
-  {
-    position_temp = position_temp + link_[i].Mass * link_[i].xipos;
-  }
-  position_temp = position_temp / total_mass;
-
-  return position_temp;
 }
 
 } // namespace dyros_red_controller

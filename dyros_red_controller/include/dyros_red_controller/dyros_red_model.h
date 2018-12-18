@@ -19,6 +19,17 @@ class DyrosRedModel
 public:
   DyrosRedModel();
 
+  struct Com
+  {
+    double mass;
+    Eigen::Vector3d pos;
+    Eigen::Vector3d vel;
+    Eigen::Vector3d accel;
+    Eigen::Vector3d angular_momentum;
+    Eigen::Vector2d ZMP;
+    Eigen::Vector2d CP;
+  };
+
   struct Link
   {
     int id;
@@ -72,6 +83,7 @@ public:
     Eigen::Vector3d w_traj;
 
     Eigen::Vector3d x_init;
+    Eigen::Vector3d v_init;
     Eigen::Matrix3d rot_init;
   };
 
@@ -98,6 +110,9 @@ public:
 
   // set realtime trajectory of link from quintic spline.
   void Link_Set_Trajectory_from_quintic(int i, double current_time, double start_time, double end_time, Eigen::Vector3d pos_desired);
+
+  // set realtime trajectory of link from quintic spline.
+  void Link_Set_Trajectory_from_quintic(int i, double current_time, double start_time, double end_time, Eigen::Vector3d pos_init, Eigen::Vector3d pos_desired);
 
   // set realtime trajectory of rotation of link
   void Link_Set_Trajectory_rotation(int i, double current_time, double start_time, double end_time, Eigen::Matrix3d rot_desired, bool local_);
@@ -132,6 +147,7 @@ public:
   //part part_[MODEL_DOF+1];
 
   Link link_[40];
+  Com com_;
 
   static const std::string ACTUATOR_NAME[MODEL_DOF];
   static const std::string JOINT_NAME[MODEL_DOF];
@@ -165,11 +181,11 @@ public:
     return joint_name_map_[joint_name];
   }
   // Calc Jacobian, Transformation
-  void updateKinematics(const Eigen::VectorXd &q, const Eigen::VectorXd &q_dot);
+  void updateKinematics(const Eigen::VectorXd &q_virtual, const Eigen::VectorXd &q_dot_virtual, const Eigen::VectorXd &q_ddot_virtual);
 
   Eigen::Vector3d getCenterOfMassPosition();
 
-  const Eigen::Vector3d getCurrentCom() { return com_; }
+  const Eigen::Vector3d getCurrentCom() { return com_.pos; }
 
   //Eigen::VectorXd getGravityCompensation();
   //Eigen::VectorXd GetDampingTorque(Eigen::VectorXd qdot, double damp_);
@@ -180,6 +196,7 @@ private:
   Eigen::VectorXd q_virtual_;
   Eigen::Vector3d base_position_;
   Eigen::VectorXd q_dot_virtual_;
+  Eigen::VectorXd q_ddot_virtual_;
   Eigen::Isometry3d currnet_transform_[4];
 
 public:
@@ -190,9 +207,7 @@ public:
   Eigen::MatrixXd L_ARM_A_;
   Eigen::Matrix3d Eri;
   Eigen::MatrixXd E_T_;
-  Eigen::Vector3d com_;
   Eigen::Vector3d Gravity_;
-  double total_mass;
   double yaw_radian;
 
   bool debug_mode_;

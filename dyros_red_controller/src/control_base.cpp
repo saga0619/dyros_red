@@ -40,7 +40,7 @@ ControlBase::ControlBase(ros::NodeHandle &nh, double Hz) : ui_update_count_(0), 
   model_.debug_mode_ = debug;
   wc_.debug = debug;
 
-  point_pub_msgs.polygon.points.resize(4);
+  point_pub_msgs.polygon.points.resize(11); //
 
   parameterInitialize();
   ROS_INFO_ONCE("BASE : control base initialize end");
@@ -125,15 +125,18 @@ void ControlBase::com_command_cb(const dyros_red_msgs::ComCommandConstPtr &msg)
   model_.Link_Set_initpos(model_.Left_Hand);
   model_.Link_Set_initpos(model_.Pelvis);
   model_.Link_Set_initpos(model_.Upper_Body);
+  model_.Link_Set_initpos(model_.Right_Foot);
+  model_.Link_Set_initpos(model_.Left_Foot);
 
   init_q_ = q_virtual_.segment(6, total_dof_);
 
   task_switch = true;
+  cgen_init = true;
 }
 
 void ControlBase::update()
 {
-  model_.updateKinematics(q_virtual_, q_dot_virtual_); // Update end effector positions and Jacobian
+  model_.updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtaul_); // Update end effector positions and Jacobian
 }
 
 void ControlBase::compute()
@@ -145,6 +148,7 @@ void ControlBase::compute()
 
   torque_task_.setZero();
   torque_joint_control_.setZero();
+  torque_dc_.setZero();
 
   d_time_ = control_time_ - last_sim_time_;
 
@@ -165,7 +169,7 @@ void ControlBase::compute()
 
   if (task_switch)
   {
-    if (tc_.taskcommand_.mode_ == 0)
+    if (tc_.taskcommand_.mode_ == 0) //com jacobian control
     {
 
       wc_.contact_set_multi(1, 1, 0, 0);
@@ -181,7 +185,7 @@ void ControlBase::compute()
       model_.Link_Set_Trajectory_from_quintic(model_.COM_id, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
       f_star = wc_.getfstar6d(model_.COM_id, kp_, kd_, kpa_, kda_);
     }
-    else if (tc_.taskcommand_.mode_ == 1)
+    else if (tc_.taskcommand_.mode_ == 1) //Pelvis with Arms
     {
 
       wc_.contact_set_multi(1, 1, 0, 0);
@@ -207,10 +211,10 @@ void ControlBase::compute()
       f_star.segment(6, 6) = wc_.getfstar6d(model_.Right_Hand, kp_, kd_, kpa_, kda_);
       f_star.segment(12, 6) = wc_.getfstar6d(model_.Left_Hand, kp_, kd_, kpa_, kda_);
     }
-    else if (tc_.taskcommand_.mode_ == 2)
+    else if (tc_.taskcommand_.mode_ == 2) //Pelvis only
     {
 
-      wc_.contact_set(2, cp);
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       // Pelvis control
       task_number = 6;
@@ -224,10 +228,10 @@ void ControlBase::compute()
       model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
       f_star = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
     }
-    else if (tc_.taskcommand_.mode_ == 3)
+    else if (tc_.taskcommand_.mode_ == 3) //Pelvis COM combined
     {
 
-      wc_.contact_set(2, cp);
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       // COM control with pelvis jacobian
       task_number = 6;
@@ -241,10 +245,10 @@ void ControlBase::compute()
       model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
       f_star = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
     }
-    else if (tc_.taskcommand_.mode_ == 4)
+    else if (tc_.taskcommand_.mode_ == 4) //Pelvis COM combined + Upperbody rotate 90
     {
 
-      wc_.contact_set(2, cp);
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 9;
 
@@ -264,10 +268,10 @@ void ControlBase::compute()
       f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
       f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
     }
-    else if (tc_.taskcommand_.mode_ == 5)
+    else if (tc_.taskcommand_.mode_ == 5) //Pelvis COM combined + Upperbody rotation hold
     {
-
-      wc_.contact_set(2, cp);
+      //QP_switch = true;
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 12;
 
@@ -290,10 +294,10 @@ void ControlBase::compute()
       f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
       f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
     }
-    else if (tc_.taskcommand_.mode_ == 6)
+    else if (tc_.taskcommand_.mode_ == 6) //right hand rotation hold with z axis test
     {
 
-      wc_.contact_set(2, cp);
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 15;
 
@@ -321,10 +325,10 @@ void ControlBase::compute()
 
       f_star.segment(9, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
     }
-    else if (tc_.taskcommand_.mode_ == 7)
+    else if (tc_.taskcommand_.mode_ == 7) //pelv_COM control + arms joint control
     {
 
-      wc_.contact_set(2, cp);
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 9;
       J_task.setZero(task_number, total_dof_ + 6);
@@ -384,10 +388,10 @@ void ControlBase::compute()
       torque_joint_control_ = (model_.A_ * q_star).segment(6, total_dof_);
       //torque_joint_control_.segment(15, 16) = torque_upper_body;
     }
-    else if (tc_.taskcommand_.mode_ == 8)
+    else if (tc_.taskcommand_.mode_ == 8) //pelv_COM control + arms task control
     {
 
-      wc_.contact_set(2, cp);
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 21;
 
@@ -444,10 +448,10 @@ void ControlBase::compute()
         wc_.set_force_control_feedback(f_slc_matrix, hand_f_desired, ft_hand_);
       }
     }
-    else if (tc_.taskcommand_.mode_ == 9)
+    else if (tc_.taskcommand_.mode_ == 9) //pelv_COM control + Upperbody rotation + arms hold control
     {
 
-      wc_.contact_set(2, cp);
+      wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
       task_number = 21;
 
@@ -513,9 +517,8 @@ void ControlBase::compute()
       //torque_task_ = wc_.task_control_torque_custom_force_feedback(J_task, f_star, f_slc_matrix, hand_f_desired, ft_hand_);
       wc_.set_force_control_feedback(f_slc_matrix, hand_f_desired, ft_hand_);
     }
-    else if (tc_.taskcommand_.mode_ == 10)
-    { //Contact Force Distribution with QP
-      QP_switch = true;
+    else if (tc_.taskcommand_.mode_ == 10) //multi contact
+    {                                      //Contact Force Distribution with QP
       task_number = 6;
       J_task.setZero(task_number, total_dof_ + 6);
       f_star.setZero(task_number);
@@ -531,13 +534,11 @@ void ControlBase::compute()
       model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
       if (tc_.taskcommand_.angle > 1)
         f_star.segment(0, 6) = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
-
       f_star.segment(3, 3).setZero();
-
       wc_.contact_set_multi(1, 1, 1, 1);
       torque_gravity_ = wc_.gravity_compensation_torque();
     }
-    else if (tc_.taskcommand_.mode_ == 11)
+    else if (tc_.taskcommand_.mode_ == 11) //wall_holding_test 1
     {
       QP_wall = true;
       task_number = 6;
@@ -547,7 +548,7 @@ void ControlBase::compute()
       wc_.contact_set_multi(1, 1, 0, 0);
       torque_gravity_ = wc_.gravity_compensation_torque();
     }
-    else if (tc_.taskcommand_.mode_ == 12)
+    else if (tc_.taskcommand_.mode_ == 12) //wall_holding_test 2
     {
       QP_wall = true;
       task_number = 6;
@@ -557,7 +558,7 @@ void ControlBase::compute()
       wc_.contact_set_multi(0, 0, 1, 1);
       torque_gravity_ = wc_.gravity_compensation_torque();
     }
-    else if (tc_.taskcommand_.mode_ == 13)
+    else if (tc_.taskcommand_.mode_ == 13) //wall_holding_test 3
     {
       QP_wall = true;
       task_number = 6;
@@ -566,6 +567,757 @@ void ControlBase::compute()
       J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.Pelvis].Jac;
       wc_.contact_set_multi(1, 1, 1, 1);
       torque_gravity_ = wc_.gravity_compensation_torque();
+    }
+    else if (tc_.taskcommand_.mode_ == 14) //single support right
+    {
+      task_number = 6;
+      J_task.setZero(task_number, total_dof_ + 6);
+      f_star.setZero(task_number);
+      J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.Pelvis].Jac;
+      wc_.contact_set_multi(1, 0, 0, 0);
+      torque_gravity_ = wc_.gravity_compensation_torque();
+
+      task_desired = (tc_.taskcommand_.f_ratio * model_.link_[model_.Left_Foot].xpos + (1.0 - tc_.taskcommand_.f_ratio) * model_.link_[model_.Right_Foot].xpos) - model_.link_[model_.COM_id].xpos + model_.link_[model_.Pelvis].xpos;
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+      model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), true);
+
+      f_star = wc_.getfstar6d(model_.Pelvis, kp_, kd_, kpa_, kda_);
+    }
+    else if (tc_.taskcommand_.mode_ == 15) //ZMP control test
+    {
+      //QP_switch = true;
+
+      right_foot_contact_ = true;
+      left_foot_contact_ = true;
+
+      double time_segment = 1.0;
+      double step_length = 0.1;
+
+      double task_time = control_time_ - tc_.taskcommand_.command_time;
+      Vector2d cp_current = model_.com_.CP;
+      double w_ = sqrt(9.81 / model_.com_.pos(2));
+      loop_temp = loop_;
+      loop_ = (int)(task_time / time_segment);
+
+      double loop_time = task_time - (double)loop_ * time_segment;
+
+      double b_ = exp(w_ * (time_segment - loop_time));
+
+      Vector2d desired_cp;
+      Vector2d right_cp, left_cp, cp_mod;
+      cp_mod << -0.02, -0.00747;
+      right_cp << -0.04, -0.095;
+      left_cp << -0.04, 0.095;
+
+      if (loop_ - loop_temp)
+      {
+        loop_cnged = true;
+        cgen_init = true;
+      }
+      double st_temp;
+
+      if (loop_ % 2)
+      {
+        st_temp = step_length;
+        if (loop_ == 1)
+          st_temp = step_length / 2.0;
+
+        desired_cp = right_cp;
+        desired_cp(0) = right_cp(0) + ((double)loop_) * st_temp;
+      }
+      else
+      {
+        st_temp = step_length;
+        if (loop_ == 1)
+          st_temp = step_length / 2.0;
+        desired_cp = left_cp;
+        desired_cp(0) = left_cp(0) + ((double)loop_) * st_temp;
+      }
+
+      Vector2d zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * model_.com_.CP;
+
+      if (cgen_init)
+      {
+        std::cout << "loop : " << loop_ << " loop time : " << loop_time << std::endl;
+        //cx_init = model_.com_.pos.segment(0, 2);
+        //cv_init = model_.com_.vel.segment(0, 2);
+        std::cout << "desired cp   x : " << desired_cp(0) << "  y : " << desired_cp(1) << std::endl;
+        std::cout << "zmp gen   x : " << zmp(0) << "  y : " << zmp(1) << std::endl;
+        //std::cout << "c CP" << std::endl;
+        //std::cout << model_.com_.CP << std::endl;
+
+        //zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * model_.com_.CP;
+        //cgen_init = false;
+      }
+
+      if (zmp(1) > 0.12)
+      {
+        zmp(1) = 0.12;
+      }
+      if (zmp(1) < -0.12)
+      {
+        zmp(1) = -0.12;
+      }
+
+      // est_cp_ = b_ * (model_.com_.pos.segment(0, 2) + model_.com_.vel.segment(0, 2) / w_) + (1 - b_) * zmp;
+      // std::cout << "estimated_cp" << std::endl;
+      // std::cout << est_cp_ << std::endl;
+      wc_.set_zmp_control(zmp, 1.05);
+      //MatrixXd damping_matrix;
+      //damping_matrix.setIdentity(total_dof_, total_dof_);
+
+      // //torque_dc_.segment(0, 12) = q_dot_.segment(0, 12) * 2.0;
+      // std::cout << "zmp_des" << std::endl;
+      // std::cout << zmp << std::endl;
+      //std::cout << "zmp_cur" << std::endl;
+      //std::cout << model_.com_.ZMP << std::endl;
+      //std::cout << "Sensor ZMP" << std::endl;
+      //std::cout << body_zmp_ << std::endl;
+
+      //single support test at tc_
+      // single support , 0.1 ~ 0.9s foot up -> down just for 4cm?
+      // at loop_ = 0( first phase)
+      // at loop_ = 1, zmp at right foot.
+      // at each loop, 0~0.1 double support 0.1~ 0.9 singlesupport 0.9~1.0 double support
+
+      //
+      double lr_st, lr_mt, lr_et;
+      lr_st = time_segment / 10.0;
+      lr_mt = time_segment / 10.0 * 5.0;
+      lr_et = time_segment / 10.0 * 9.0;
+
+      if ((double)loop_ > 0.1)
+      {
+        if (loop_ % 2)
+        {
+          if ((loop_time < lr_et))
+          {
+            right_foot_contact_ = false;
+            left_foot_contact_ = true;
+          }
+          else
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = true;
+          }
+        }
+        else
+        {
+          if ((loop_time < lr_et))
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = false;
+          }
+          else
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = true;
+          }
+        }
+      }
+      //(model_.link_[model_.COM_id].x_init - zmp)*cosh(loop_time/time_segment)+time_segment * model_.link_[model_.COM_id]
+      task_desired.setZero();
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.COM_id, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+
+      // model_.link_[model_.COM_id].x_traj.segment(0, 2) = (cx_init - zmp) * cosh(loop_time * w_) + cv_init * sinh(loop_time * w_) / w_ + zmp;
+
+      // model_.link_[model_.COM_id].v_traj.segment(0, 2) = (cx_init - zmp) * w_ * sinh(loop_time * w_) + cv_init * cosh(loop_time * w_);
+
+      // std::cout << " xtraj : " << std::endl;
+      //std::cout << model_.link_[model_.COM_id].x_traj.segment(0, 2) << std::endl;
+      //std::cout << "vtrah : " << std::endl;
+      //std::cout << model_.link_[model_.COM_id].v_traj.segment(0, 2) << std::endl;
+
+      if (right_foot_contact_ && left_foot_contact_)
+      {
+        walking_init = true;
+        task_number = 9;
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        wc_.contact_set_multi(1, 1, 0, 0);
+        torque_gravity_ = wc_.gravity_compensation_torque();
+
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      }
+      else if (left_foot_contact_)
+      {
+        if (walking_init)
+        {
+          model_.link_[model_.Right_Foot].x_init = model_.link_[model_.Right_Foot].xpos;
+          walking_init = false;
+        }
+        task_number = 15;
+
+        wc_.contact_set_multi(0, 1, 0, 0);
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Foot].Jac;
+        torque_gravity_ = wc_.gravity_compensation_torque();
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        Vector3d lf_desired;
+        lf_desired = model_.link_[model_.Right_Foot].x_init;
+        lf_desired(1) = -0.1024;
+        lf_desired(2) = lf_desired(2) + 0.04;
+
+        model_.Link_Set_Trajectory_from_quintic(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+        Vector3d lf_init = lf_desired;
+
+        lf_desired(2) = lf_desired(2) - 0.04;
+        if (loop_time > lr_mt)
+          model_.Link_Set_Trajectory_from_quintic(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+
+        Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et - 0.05, model_.link_[model_.Right_Foot].x_init(0), 0, 0, model_.link_[model_.Left_Foot].xpos(0) + step_length, 0, 0);
+        model_.link_[model_.Right_Foot].x_traj(0) = quintic(0);
+        model_.link_[model_.Right_Foot].v_traj(0) = quintic(1);
+
+        model_.Link_Set_Trajectory_rotation(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+        f_star.segment(9, 3) = wc_.getfstar_tra(model_.Right_Foot, kp_, kd_);
+        f_star.segment(12, 3) = wc_.getfstar_rot(model_.Right_Foot, kpa_, kda_);
+      }
+      else if (right_foot_contact_)
+      {
+
+        Vector3d lf_desired;
+        if (walking_init)
+        {
+          model_.link_[model_.Left_Foot].x_init = model_.link_[model_.Left_Foot].xpos;
+          walking_init = false;
+        }
+        task_number = 15;
+        wc_.contact_set_multi(1, 0, 0, 0);
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Left_Foot].Jac;
+
+        torque_gravity_ = wc_.gravity_compensation_torque();
+
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        lf_desired = model_.link_[model_.Left_Foot].x_init;
+
+        lf_desired(1) = 0.1024;
+        lf_desired(2) = lf_desired(2) + 0.04;
+
+        model_.Link_Set_Trajectory_from_quintic(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+        Vector3d lf_init = lf_desired;
+
+        lf_desired(2) = lf_desired(2) - 0.04;
+        if (loop_time > lr_mt)
+          model_.Link_Set_Trajectory_from_quintic(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+
+        Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et - 0.05, model_.link_[model_.Left_Foot].x_init(0), 0, 0, model_.link_[model_.Right_Foot].xpos(0) + step_length, 0, 0);
+        model_.link_[model_.Left_Foot].x_traj(0) = quintic(0);
+        model_.link_[model_.Left_Foot].v_traj(0) = quintic(1);
+
+        model_.Link_Set_Trajectory_rotation(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+        f_star.segment(9, 3) = wc_.getfstar_tra(model_.Left_Foot, kp_, kd_);
+        f_star.segment(12, 3) = wc_.getfstar_rot(model_.Left_Foot, kpa_, kda_);
+      }
+    }
+    else if (tc_.taskcommand_.mode_ == 16)
+    {
+      right_foot_contact_ = true;
+      left_foot_contact_ = true;
+
+      double time_segment = 1.0;
+      double step_length = 0.1;
+
+      double task_time = control_time_ - tc_.taskcommand_.command_time;
+      Vector2d cp_current = model_.com_.CP;
+      double w_ = sqrt(9.81 / model_.com_.pos(2));
+      loop_temp = loop_;
+      loop_ = (int)(task_time / time_segment);
+
+      if (loop_ > 7)
+        loop_ = 7;
+
+      double loop_time = task_time - (double)loop_ * time_segment;
+
+      double b_ = exp(w_ * (time_segment - loop_time));
+
+      Vector2d desired_cp;
+      Vector2d right_cp, left_cp, cp_mod;
+      cp_mod << -0.02, -0.00747;
+      right_cp << -0.04, -0.095;
+      left_cp << -0.04, 0.095;
+
+      Vector3d R_init, L_init;
+      R_init << -0.04, -0.1024, 0.13637;
+      L_init << -0.04, 0.1024, 0.13637;
+      Vector3d support_position[8];
+      for (int i = 0; i < 8; i++)
+      {
+        support_position[i];
+      }
+
+      Vector3d des_foot_position[9];
+      for (int i = 0; i < 8; i++)
+      {
+        des_foot_position[i] = R_init * (i % 2) + L_init * ((i + 1) % 2);
+        des_foot_position[i](0) = des_foot_position[i](0) + i * step_length;
+      }
+
+      des_foot_position[6](0) = des_foot_position[6](0) - step_length;
+
+      Vector3d cp_ref[9];
+      for (int i = 0; i < 7; i++)
+      {
+        cp_ref[i] = des_foot_position[i];
+        cp_ref[i](1) = des_foot_position[i](1) * 0.94;
+      }
+      cp_ref[6] = (des_foot_position[5] + des_foot_position[6]) * 0.5;
+      cp_ref[7] = cp_ref[6];
+      Vector2d zmp = 1 / (1 - b_) * cp_ref[loop_].segment(0, 2) - b_ / (1 - b_) * model_.com_.CP;
+
+      if (zmp(1) > 0.12)
+      {
+        zmp(1) = 0.12;
+      }
+      if (zmp(1) < -0.12)
+      {
+        zmp(1) = -0.12;
+      }
+
+      static bool init = true;
+      if (init)
+      {
+        for (int i = 0; i < 8; i++)
+        {
+          cout << i << " cpref    x : " << cp_ref[i](0) << "  y : " << cp_ref[i](1) << std::endl;
+          cout << i << " cpref    x : " << des_foot_position[i](0) << "  y : " << des_foot_position[i](1) << std::endl;
+        }
+
+        init = false;
+      }
+
+      wc_.set_zmp_control(zmp, 1.05);
+
+      double lr_st, lr_mt, lr_et;
+      lr_st = time_segment / 10.0;
+      lr_mt = time_segment / 10.0 * 5.0;
+      lr_et = time_segment / 10.0 * 9.0;
+      if ((double)loop_ > 0.1)
+      {
+        if (loop_ % 2)
+        {
+          if ((loop_time > lr_st) && (loop_time < lr_et))
+          {
+            right_foot_contact_ = false;
+            left_foot_contact_ = true;
+          }
+          else
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = true;
+          }
+        }
+        else
+        {
+          if ((loop_time > lr_st) && (loop_time < lr_et))
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = false;
+          }
+          else
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = true;
+          }
+        }
+
+        if (loop_ == 7)
+        {
+          std::cout << "walk end" << std::endl;
+          right_foot_contact_ = true;
+          left_foot_contact_ = true;
+        }
+      }
+
+      task_desired.setZero();
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.COM_id, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+
+      //
+
+      point_pub_msgs.polygon.points[8].x = wc_.getcpref(task_time, 0.5)(0);
+      point_pub_msgs.polygon.points[8].y = wc_.getcpref(task_time, 0.5)(1);
+      point_pub_msgs.polygon.points[8].z = 0.0;
+
+      if (right_foot_contact_ && left_foot_contact_)
+      {
+        walking_init = true;
+        task_number = 9;
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        wc_.contact_set_multi(1, 1, 0, 0);
+        torque_gravity_ = wc_.gravity_compensation_torque();
+
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      }
+      else if (left_foot_contact_)
+      {
+        std::cout << "SS_ left_support" << std::endl;
+        Vector3d lf_desired;
+        if (walking_init)
+        {
+          model_.link_[model_.Right_Foot].x_init = model_.link_[model_.Right_Foot].xpos;
+          walking_init = false;
+        }
+        task_number = 15;
+
+        wc_.contact_set_multi(0, 1, 0, 0);
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Foot].Jac;
+        torque_gravity_ = wc_.gravity_compensation_torque();
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        lf_desired = des_foot_position[loop_];
+        lf_desired(2) = 0.1363727 + 0.04;
+        model_.Link_Set_Trajectory_from_quintic(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+        Vector3d lf_init = lf_desired;
+
+        lf_desired(2) = 0.1363727;
+        if (loop_time > lr_mt)
+          model_.Link_Set_Trajectory_from_quintic(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+        std::cout << loop_ << " landing pos : " << des_foot_position[loop_] << std::endl;
+        Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et - 0.05, model_.link_[model_.Right_Foot].x_init(0), 0, 0, des_foot_position[loop_](0), 0, 0);
+        model_.link_[model_.Right_Foot].x_traj(0) = quintic(0);
+        model_.link_[model_.Right_Foot].v_traj(0) = quintic(1);
+
+        model_.Link_Set_Trajectory_rotation(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+        f_star.segment(9, 3) = wc_.getfstar_tra(model_.Right_Foot, kp_, kd_);
+        f_star.segment(12, 3) = wc_.getfstar_rot(model_.Right_Foot, kpa_, kda_);
+      }
+      else if (right_foot_contact_)
+      {
+        std::cout << "SS_ right_support" << std::endl;
+
+        Vector3d lf_desired;
+        if (walking_init)
+        {
+          model_.link_[model_.Left_Foot].x_init = model_.link_[model_.Left_Foot].xpos;
+          walking_init = false;
+        }
+        task_number = 15;
+        wc_.contact_set_multi(1, 0, 0, 0);
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Left_Foot].Jac;
+
+        torque_gravity_ = wc_.gravity_compensation_torque();
+
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        lf_desired = des_foot_position[loop_];
+        lf_desired(2) = 0.1363727 + 0.04;
+
+        model_.Link_Set_Trajectory_from_quintic(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+        Vector3d lf_init = lf_desired;
+
+        lf_desired(2) = 0.1363727;
+        if (loop_time > lr_mt)
+          model_.Link_Set_Trajectory_from_quintic(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+        std::cout << loop_ << " landing pos : " << des_foot_position[loop_] << std::endl;
+        Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et - 0.05, model_.link_[model_.Left_Foot].x_init(0), 0, 0, des_foot_position[loop_](0), 0, 0);
+        model_.link_[model_.Left_Foot].x_traj(0) = quintic(0);
+        model_.link_[model_.Left_Foot].v_traj(0) = quintic(1);
+
+        model_.Link_Set_Trajectory_rotation(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+        f_star.segment(9, 3) = wc_.getfstar_tra(model_.Left_Foot, kp_, kd_);
+        f_star.segment(12, 3) = wc_.getfstar_rot(model_.Left_Foot, kpa_, kda_);
+      }
+    }
+    else if (tc_.taskcommand_.mode_ == 17)
+    {
+      //MPC application
+      //MPC settings
+
+      int n_sample = 30;
+      double t_sample = 10 / 1000;
+
+      double q_par = 1.0;
+      double r_par = 0.4;
+
+      MatrixXd H(2 * n_sample, 2 * n_sample);
+      VectorXd g(2 * n_sample);
+      //MatrixXd A;
+      double f = 0.4;
+
+      // MPC setting ends
+
+      right_foot_contact_ = true;
+      left_foot_contact_ = true;
+
+      double time_segment = 1.0;
+      double step_length = 0.1;
+
+      double task_time = control_time_ - tc_.taskcommand_.command_time;
+      Vector2d cp_current = model_.com_.CP;
+      double w_ = sqrt(9.81 / model_.com_.pos(2));
+      loop_temp = loop_;
+      loop_ = (int)(task_time / time_segment);
+      if (loop_ > 7)
+        loop_ = 7;
+      double loop_time = task_time - (double)loop_ * time_segment;
+      double b_ = exp(w_ * (time_segment - loop_time));
+
+      Vector2d desired_cp;
+      Vector3d R_init, L_init;
+      R_init << -0.04, -0.1024, 0.13637;
+      L_init << -0.04, 0.1024, 0.13637;
+
+      Vector3d des_foot_position[9];
+      for (int i = 0; i < 8; i++)
+      {
+        des_foot_position[i] = R_init * (i % 2) + L_init * ((i + 1) % 2);
+        des_foot_position[i](0) = des_foot_position[i](0) + i * step_length;
+      }
+
+      des_foot_position[6](0) = des_foot_position[6](0) - step_length;
+
+      Vector3d cp_ref[9];
+      for (int i = 0; i < 7; i++)
+      {
+        cp_ref[i] = des_foot_position[i];
+        cp_ref[i](1) = des_foot_position[i](1) * 0.94;
+      }
+      cp_ref[6] = (des_foot_position[5] + des_foot_position[6]) * 0.5;
+      cp_ref[7] = cp_ref[6];
+      Vector2d zmp = 1 / (1 - b_) * cp_ref[loop_].segment(0, 2) - b_ / (1 - b_) * model_.com_.CP;
+
+      std::cout << "current control is : " << zmp << std::endl;
+      Vector2d MPC_zmp;
+
+      MPC_zmp = wc_.getcptraj(task_time, zmp);
+
+      Vector3d cp_ref2[9];
+
+      for (int i = 0; i < 8; i++)
+        cp_ref2[i + 1] = cp_ref[i];
+      cp_ref2[0] = (R_init + L_init) / 2;
+      Vector2d CP_mpc;
+      CP_mpc = exp(w_ * loop_time) * cp_ref2[loop_].segment(0, 2) + (1 - exp(w_ * loop_time)) * MPC_zmp;
+
+      point_pub_msgs.polygon.points[9].x = MPC_zmp(0);
+      point_pub_msgs.polygon.points[9].y = MPC_zmp(1);
+      point_pub_msgs.polygon.points[9].z = 0.0;
+
+      point_pub_msgs.polygon.points[10].x = CP_mpc(0);
+      point_pub_msgs.polygon.points[10].y = CP_mpc(1);
+      point_pub_msgs.polygon.points[10].z = 0.0;
+
+      if (zmp(1) > 0.12)
+      {
+        zmp(1) = 0.12;
+      }
+      if (zmp(1) < -0.12)
+      {
+        zmp(1) = -0.12;
+      }
+
+      wc_.set_zmp_control(zmp, 1.0);
+
+      double lr_st, lr_mt, lr_et;
+      lr_st = time_segment / 10.0;
+      lr_mt = time_segment / 10.0 * 5.0;
+      lr_et = time_segment / 10.0 * 9.0;
+
+      if ((double)loop_ > 0.1)
+      {
+        if (loop_ % 2)
+        {
+          if ((loop_time > lr_st) && (loop_time < lr_et))
+          {
+            right_foot_contact_ = false;
+            left_foot_contact_ = true;
+          }
+          else
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = true;
+          }
+        }
+        else
+        {
+          if ((loop_time > lr_st) && (loop_time < lr_et))
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = false;
+          }
+          else
+          {
+            right_foot_contact_ = true;
+            left_foot_contact_ = true;
+          }
+        }
+
+        if (loop_ == 7)
+        {
+          std::cout << "END" << std::endl;
+          right_foot_contact_ = true;
+          left_foot_contact_ = true;
+        }
+      }
+
+      task_desired.setZero();
+      task_desired(2) = tc_.taskcommand_.height;
+      model_.Link_Set_Trajectory_from_quintic(model_.COM_id, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, task_desired);
+
+      //
+
+      if (right_foot_contact_ && left_foot_contact_)
+      {
+        walking_init = true;
+        task_number = 9;
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        wc_.contact_set_multi(1, 1, 0, 0);
+        torque_gravity_ = wc_.gravity_compensation_torque();
+
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+      }
+      else if (left_foot_contact_)
+      {
+        Vector3d lf_desired;
+        if (walking_init)
+        {
+          model_.link_[model_.Right_Foot].x_init = model_.link_[model_.Right_Foot].xpos;
+          walking_init = false;
+        }
+        task_number = 15;
+
+        wc_.contact_set_multi(0, 1, 0, 0);
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Right_Foot].Jac;
+        torque_gravity_ = wc_.gravity_compensation_torque();
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        lf_desired = des_foot_position[loop_];
+        lf_desired(2) = 0.1363727 + 0.04;
+        model_.Link_Set_Trajectory_from_quintic(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+        Vector3d lf_init = lf_desired;
+
+        lf_desired(2) = 0.1363727;
+        if (loop_time > lr_mt)
+          model_.Link_Set_Trajectory_from_quintic(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+
+        Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et - 0.05, model_.link_[model_.Right_Foot].x_init(0), 0, 0, des_foot_position[loop_](0), 0, 0);
+        model_.link_[model_.Right_Foot].x_traj(0) = quintic(0);
+        model_.link_[model_.Right_Foot].v_traj(0) = quintic(1);
+
+        model_.Link_Set_Trajectory_rotation(model_.Right_Foot, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+        f_star.segment(9, 3) = wc_.getfstar_tra(model_.Right_Foot, kp_, kd_);
+        f_star.segment(12, 3) = wc_.getfstar_rot(model_.Right_Foot, kpa_, kda_);
+      }
+      else if (right_foot_contact_)
+      {
+
+        Vector3d lf_desired;
+        if (walking_init)
+        {
+          model_.link_[model_.Left_Foot].x_init = model_.link_[model_.Left_Foot].xpos;
+          walking_init = false;
+        }
+        task_number = 15;
+        wc_.contact_set_multi(1, 0, 0, 0);
+        J_task.setZero(task_number, total_dof_ + 6);
+        f_star.setZero(task_number);
+
+        J_task.block(0, 0, 6, total_dof_ + 6) = model_.link_[model_.COM_id].Jac;
+        J_task.block(6, 0, 3, total_dof_ + 6) = model_.link_[model_.Upper_Body].Jac.block(3, 0, 3, total_dof_ + 6);
+        J_task.block(9, 0, 6, total_dof_ + 6) = model_.link_[model_.Left_Foot].Jac;
+
+        torque_gravity_ = wc_.gravity_compensation_torque();
+
+        model_.Link_Set_Trajectory_rotation(model_.Pelvis, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+        lf_desired = des_foot_position[loop_];
+        lf_desired(2) = 0.1363727 + 0.04;
+
+        model_.Link_Set_Trajectory_from_quintic(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+        Vector3d lf_init = lf_desired;
+
+        lf_desired(2) = 0.1363727;
+        if (loop_time > lr_mt)
+          model_.Link_Set_Trajectory_from_quintic(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_mt, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+
+        Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_st, tc_.taskcommand_.command_time + (double)loop_ * time_segment + lr_et - 0.05, model_.link_[model_.Left_Foot].x_init(0), 0, 0, des_foot_position[loop_](0), 0, 0);
+        model_.link_[model_.Left_Foot].x_traj(0) = quintic(0);
+        model_.link_[model_.Left_Foot].v_traj(0) = quintic(1);
+
+        model_.Link_Set_Trajectory_rotation(model_.Left_Foot, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+        f_star.segment(0, 3) = wc_.getfstar_tra(model_.COM_id, kp_, kd_);
+        f_star.segment(3, 3) = wc_.getfstar_rot(model_.Pelvis, kpa_, kda_);
+        f_star.segment(6, 3) = wc_.getfstar_rot(model_.Upper_Body, kpa_, kda_);
+        f_star.segment(9, 3) = wc_.getfstar_tra(model_.Left_Foot, kp_, kd_);
+        f_star.segment(12, 3) = wc_.getfstar_rot(model_.Left_Foot, kpa_, kda_);
+      }
     }
 
     ROS_INFO_ONCE("BASE : compute - Task torque");
@@ -603,21 +1355,46 @@ void ControlBase::compute()
     torque_contact_ = wc_.contact_torque_calc_from_QP_wall_mod2(torque_desired, 2.0);
   }
   else
-    torque_contact_ = wc_.contact_force_redistribution_torque(model_.yaw_radian, torque_desired, fc_redis, fc_ratio);
+  {
+    if (wc_.contact_index > 1)
+    {
+      torque_contact_ = wc_.contact_force_redistribution_torque(model_.yaw_radian, torque_desired, fc_redis, fc_ratio);
+      //torque_contact_ = wc_.contact_torque_calc_from_QP(torque_desired);
+    }
+    else
+    {
+      torque_contact_.setZero();
+    }
+  }
 
   if (!task_switch)
     torque_task_.setZero();
 
   ROS_INFO_ONCE("BASE : compute 5");
-  torque_desired = torque_gravity_ + torque_task_ + torque_contact_ + torque_joint_control_;
+  torque_desired = torque_gravity_ + torque_task_ + torque_contact_ + torque_joint_control_ + torque_dc_;
+
+  left_foot_zmp_(0) = model_.link_[model_.Left_Foot].xpos(0) + (-left_foot_ft_(4) - left_foot_ft_(0) * 0.027) / left_foot_ft_(2);
+  left_foot_zmp_(1) = model_.link_[model_.Left_Foot].xpos(1) + (left_foot_ft_(3) - left_foot_ft_(1) * 0.027) / left_foot_ft_(2);
+
+  right_foot_zmp_(0) = model_.link_[model_.Right_Foot].xpos(1) + (-right_foot_ft_(4) - right_foot_ft_(0) * 0.027) / right_foot_ft_(2);
+  right_foot_zmp_(1) = model_.link_[model_.Right_Foot].xpos(1) + (right_foot_ft_(3) - right_foot_ft_(1) * 0.027) / right_foot_ft_(2);
+
+  Vector2d body_zmp_;
+  body_zmp_(0) = (right_foot_zmp_(0) * right_foot_ft_(2) + left_foot_zmp_(0) * left_foot_ft_(2)) / (right_foot_ft_(2) + left_foot_ft_(2));
+  body_zmp_(1) = (right_foot_zmp_(1) * right_foot_ft_(2) + left_foot_zmp_(1) * left_foot_ft_(2)) / (right_foot_ft_(2) + left_foot_ft_(2));
+
+  Vector2d est_cp_;
+  point_pub_msgs.polygon.points[4].x = body_zmp_(0);
+  point_pub_msgs.polygon.points[4].y = body_zmp_(1);
 
   if (!gravity_switch)
     torque_desired = torque_gravity_;
 
   VectorXd cf_temp = wc_.get_contact_force(torque_desired);
-  for (int i = 0; i < 12; i++)
+
+  for (int i = 0; i < cf_temp.size(); i++)
     dynamics_pub_msgs.contact_force_predict[i] = cf_temp(i);
-}
+} // namespace dyros_red_controller
 
 void ControlBase::reflect()
 {
@@ -632,6 +1409,7 @@ void ControlBase::reflect()
     dynamics_pub_msgs.torque_gravity[i] = torque_gravity_(i);
     dynamics_pub_msgs.torque_control[i] = torque_(i);
   }
+
   for (int i = 0; i < 12; i++)
   {
     dynamics_pub_msgs.force_redistribution[i] = fc_redis(i);
@@ -642,7 +1420,7 @@ void ControlBase::reflect()
   }
   for (int i = 0; i < 3; i++)
   {
-    dynamics_pub_msgs.task_current[i] = model_.com_(i);
+    dynamics_pub_msgs.task_current[i] = model_.com_.pos(i);
     dynamics_pub_msgs.zmp_position[i] = wc_.ZMP_pos(i);
   }
   dynamics_pub_msgs.redistribution_ratio = fc_ratio;
@@ -662,9 +1440,9 @@ void ControlBase::reflect()
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "Pelvis_Link"));
   }
 
-  point_pub_msgs.polygon.points[0].x = model_.com_(0);
-  point_pub_msgs.polygon.points[0].y = model_.com_(1);
-  point_pub_msgs.polygon.points[0].z = model_.com_(2);
+  point_pub_msgs.polygon.points[0].x = model_.com_.pos(0);
+  point_pub_msgs.polygon.points[0].y = model_.com_.pos(1);
+  point_pub_msgs.polygon.points[0].z = model_.com_.pos(2);
 
   point_pub_msgs.polygon.points[1].x = model_.link_[model_.Right_Foot].xpos(0);
   point_pub_msgs.polygon.points[1].y = model_.link_[model_.Right_Foot].xpos(1);
@@ -678,6 +1456,22 @@ void ControlBase::reflect()
   point_pub_msgs.polygon.points[3].y = model_.link_[model_.Pelvis].xpos(1);
   point_pub_msgs.polygon.points[3].z = model_.link_[model_.Pelvis].xpos(2);
 
+  //point_pub_msgs.polygon.points[4].x = model_.com_.ZMP(0);
+  //point_pub_msgs.polygon.points[4].y = model_.com_.ZMP(1);
+  point_pub_msgs.polygon.points[4].z = 0.0;
+
+  point_pub_msgs.polygon.points[5].x = model_.com_.CP(0);
+  point_pub_msgs.polygon.points[5].y = model_.com_.CP(1);
+  point_pub_msgs.polygon.points[5].z = 0.0;
+
+  point_pub_msgs.polygon.points[6].x = model_.com_.accel(0);
+  point_pub_msgs.polygon.points[6].y = model_.com_.accel(1);
+  point_pub_msgs.polygon.points[6].z = 0.0;
+
+  point_pub_msgs.polygon.points[7].x = model_.com_.vel(0);
+  point_pub_msgs.polygon.points[7].y = model_.com_.vel(1);
+  point_pub_msgs.polygon.points[7].z = 0.0;
+
   point_pub_msgs.header.stamp = ros::Time::now();
 
   point_pub.publish(point_pub_msgs);
@@ -686,7 +1480,6 @@ void ControlBase::reflect()
 
 void ControlBase::parameterInitialize()
 {
-  ROS_INFO_ONCE("BASE : parameter initialize");
   q_.setZero();
   q_dot_.setZero();
   q_virtual_.setZero(total_dof_ + 7);
@@ -712,8 +1505,6 @@ void ControlBase::parameterInitialize()
 
   last_sim_time_ = 0.0;
   control_time_ = 0.0;
-
-  ROS_INFO_ONCE("BASE : parameter initialize end");
 }
 void ControlBase::readDevice()
 {

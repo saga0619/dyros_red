@@ -97,11 +97,15 @@ protected:
   **/
   VectorVquatQd q_virtual_;
   VectorVQd q_dot_virtual_;
+  VectorVQd q_ddot_virtaul_;
 
   Vector6d left_foot_ft_;  // current left ft sensor values
   Vector6d right_foot_ft_; // current right ft sensor values
-  Vector6d left_hand_ft_;
-  Vector6d right_hand_ft_;
+  Vector6d left_hand_ft_;  // current left hand ft sensor values
+  Vector6d right_hand_ft_; // current right hand ft sensor values
+
+  Vector2d left_foot_zmp_;  //
+  Vector2d right_foot_zmp_; //
 
   tf::Quaternion imu_data_; ///< IMU data with filter
 
@@ -122,6 +126,7 @@ protected:
   VectorQd torque_task_;
   VectorQd torque_gravity_;
   VectorQd torque_joint_control_;
+  VectorQd torque_dc_;
 
   VectorQd desired_q_; // current desired joint values
   VectorQd init_q_;
@@ -183,6 +188,19 @@ private:
   bool data_switch = false;
   bool QP_switch = false;
   bool QP_wall = false;
+  bool left_foot_contact_ = true;
+  bool right_foot_contact_ = true;
+  bool walking_init = true;
+  bool cgen_init = true;
+  bool loop_cnged = false;
+
+  int loop_temp = 0;
+  int loop_ = 0;
+
+  Vector2d zmp;
+
+  Vector2d cx_init;
+  Vector2d cv_init;
 
   Vector3d com_init;
   Matrix3d rot_init;

@@ -1,0 +1,29 @@
+# Produced by CVXGEN, 2018-12-11 02:48:56 -0500.
+# CVXGEN is Copyright (C) 2006-2017 Jacob Mattingley, jem@cvxgen.com.
+# The code in this file is Copyright (C) 2006-2017 Jacob Mattingley.
+# CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial
+# applications without prior written permission from Jacob Mattingley.
+
+# Filename: description.cvxgen.
+# Description: A description of the CVXGEN problem.
+
+dimensions
+  N=30
+end
+
+parameters
+  H(2*N,2*N) psd
+  g(2*N)
+  r(2*N)
+  f
+end
+
+variables
+  P(2*N)
+end
+
+minimize
+  0.5*quad(P, H) + g'*P
+subject to
+  -f <= P[i] - r[i] <= f, i=1..2*N
+end
