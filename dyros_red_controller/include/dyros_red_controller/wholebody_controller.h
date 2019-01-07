@@ -136,7 +136,7 @@ public:
   int nIter;
   CQuadraticProgram QP_test;
   CQuadraticProgram QP_mpc;
-  Vector12d result_temp;
+  VectorXd result_temp;
 };
 
 } // namespace dyros_red_controller

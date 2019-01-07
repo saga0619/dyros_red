@@ -145,7 +145,7 @@ void DyrosRedModel::Link_Set_Trajectory_from_quintic(int i, double current_time,
     Eigen::Vector3d quintic = DyrosMath::QuinticSpline(current_time, start_time, end_time, link_[i].x_init(j), 0, 0, pos_desired(j), 0, 0);
     link_[i].x_traj(j) = quintic(0);
     link_[i].v_traj(j) = quintic(1);
-  }
+    }
 
   link_[i].r_traj = link_[i].rot_init;
   link_[i].w_traj = Eigen::Vector3d::Zero();

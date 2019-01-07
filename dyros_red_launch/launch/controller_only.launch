@@ -1,0 +1,15 @@
+<launch>
+  <arg name="debug" default="false"/>
+  <arg name="rviz" default="false"/>
+  <arg name="controller" default="true" />
+  <arg name="gui" default="true"/>
+
+  <group if="$(arg controller)">
+    <node name="dyros_red_controller" pkg="dyros_red_controller" type="dyros_red_controller" output="screen">
+      <param name="debug" value="$(arg debug)" />
+      <param name="rviz_pub" value="$(arg rviz)"/>
+    </node>
+  </group>
+
+</launch>
+

@@ -311,7 +311,6 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP(VectorQd command_torq
     M(6 * i + 4, 6 * i + 4) = 100;
     M(6 * i + 5, 6 * i + 5) = 100;
   }
-
   H = a1 * MatrixXd::Identity(contact_index * 6, contact_index * 6) + a2 * M;
 
   A.setZero(6 + constraint_per_contact * contact_index, 6 * contact_index);
@@ -378,10 +377,13 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP(VectorQd command_torq
   QP_test.UpdateSubjectToAx(A, lbA, ubA);
   QP_test.UpdateSubjectToX(lb, ub);
 
+  ROS_INFO("l8");
   VectorXd force_redistribute = QP_test.SolveQPoases(100);
 
+  ROS_INFO("l9");
   result_temp = force_redistribute;
 
+  ROS_INFO("l10");
   VectorXd torque_contact_ = contact_force_custom(command_torque, ContactForce__, force_redistribute);
 
   // std::cout << "redistribute" << std::endl;
@@ -399,6 +401,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP(VectorQd command_torq
   // std::cout << "lb" << std::endl;
   // std::cout << lb << std::endl;
 
+  ROS_INFO("l2");
   return torque_contact_;
 }
 

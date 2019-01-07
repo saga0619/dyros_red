@@ -29,7 +29,7 @@
 
     </default>
 
-    <option timestep='0.0002' iterations="100" tolerance="1e-11" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="75" noslip_tolerance="1e-9"/>
+    <option timestep='0.0005' iterations="100" tolerance="1e-11" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="75" noslip_tolerance="1e-9"/>
 
     <visual>
         <quality shadowsize="10000" offsamples="16"/>
@@ -428,14 +428,14 @@
 
     <keyframe>
         <!--Initial Position Setting -->
-        <key time="0" qpos ="0 0 0.92683 1 0 0 0 
+        <key name="front" time="0" qpos ="0 0 0.92683 1 0 0 0 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 0 
 								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
 								0.3 0 1.5 1.87 0.7 0 1 0"/>
 
-        <key time="0" qpos ="0 0 0.92611 0 0 0 1 
+        <key name="pos2" time="0" qpos ="0 0 0.92611 0 0 0 1 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 -0.24 0.6 -0.36 0 
 								0 0 0 

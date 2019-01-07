@@ -165,6 +165,7 @@ void ControlBase::compute()
     kda_(i) = 40;
   }
 
+  model_.link_[model_.Upper_Body].Jac_COM;
   ROS_INFO_ONCE("BASE : compute 1");
 
   if (task_switch)
@@ -537,6 +538,8 @@ void ControlBase::compute()
       f_star.segment(3, 3).setZero();
       wc_.contact_set_multi(1, 1, 1, 1);
       torque_gravity_ = wc_.gravity_compensation_torque();
+
+      QP_switch = true;
     }
     else if (tc_.taskcommand_.mode_ == 11) //wall_holding_test 1
     {
