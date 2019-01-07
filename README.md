@@ -11,7 +11,7 @@
 ```sh
 wget https://bitbucket.org/rbdl/rbdl/get/default.zip
 unzip default.zip
-cd rbdl-rbdl-849d2aee8f4c
+cd rbdl-rbdl-0879ee8c548a
 mkdir build
 cd build
 cmake -D RBDL_BUILD_ADDON_URDFREADER=ON ..
@@ -23,7 +23,7 @@ sudo make install
 ```cpp
 #include <ros.h>
 ```
-* If controller can't find librbdl.so.2.6.0, add following line to .bashrc
+* Add following line to .bashrc ( controller can't find can't find librbdl.so.2.6.0) 
 ```sh
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 ```
