@@ -145,7 +145,7 @@ void DyrosRedModel::Link_Set_Trajectory_from_quintic(int i, double current_time,
     Eigen::Vector3d quintic = DyrosMath::QuinticSpline(current_time, start_time, end_time, link_[i].x_init(j), 0, 0, pos_desired(j), 0, 0);
     link_[i].x_traj(j) = quintic(0);
     link_[i].v_traj(j) = quintic(1);
-    }
+  }
 
   link_[i].r_traj = link_[i].rot_init;
   link_[i].w_traj = Eigen::Vector3d::Zero();
@@ -245,7 +245,7 @@ DyrosRedModel::DyrosRedModel()
       // ROS_INFO("%dth parent
       // %d",link_id_[i],model_.GetParentBodyId(link_id_[i]));
       // std::cout << model_.mBodies[link_id_[i]].mCenterOfMass << std::endl;
-      // joint_name_map_[JOINT_NAME[i]] = i;
+      // //joint_name_map_[JOINT_NAME[i]] = i;
     }
 
     for (int i = 0; i < MODEL_DOF + 1; i++)
