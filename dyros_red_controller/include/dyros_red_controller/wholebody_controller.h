@@ -82,7 +82,7 @@ public:
   Vector6d zmp_controller(Vector2d ZMP, double height);
   Vector2d CP_ref[20];
 
-  Vector2d getcptraj(double time, Vector2d zmp);
+  //Vector2d getcptraj(double time, Vector2d zmp);
 
   Vector2d getcpref(double task_time, double future_time);
   //Contact Mode

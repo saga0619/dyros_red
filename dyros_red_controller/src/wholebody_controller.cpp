@@ -1,11 +1,11 @@
 #include "dyros_red_controller/wholebody_controller.h"
 
-#include "cvxgen/solver.h"
+// #include "cvxgen/solver.h"
 
-Vars vars;
-Params params;
-Workspace work;
-Settings settings;
+// Vars vars;
+// Params params;
+// Workspace work;
+// Settings settings;
 
 namespace dyros_red_controller
 {
@@ -139,153 +139,153 @@ Vector2d Wholebody_controller::getcpref(double task_time, double future_time)
   return CP_t;
 }
 
-Vector2d Wholebody_controller::getcptraj(double time, Vector2d zmp) //task_time
-{
-  double time_segment = 1.0;
-  double step_length = 0.1;
+// Vector2d Wholebody_controller::getcptraj(double time, Vector2d zmp) //task_time
+// {
+//   double time_segment = 1.0;
+//   double step_length = 0.1;
 
-  int n_sample = 30;
-  double t_sample = 0.005; //milliseconds
+//   int n_sample = 30;
+//   double t_sample = 0.005; //milliseconds
 
-  //double task_time = control_time_ - tc_.taskcommand_.command_time;
+//   double task_time = control_time_ - tc_.taskcommand_.command_time;
 
-  double w_ = sqrt(9.81 / 0.81);
+//   double w_ = sqrt(9.81 / 0.81);
 
-  Matrix2d A, B;
-  A << exp(w_ * t_sample), 0, 0, exp(w_ * t_sample);
-  B << 1 - exp(w_ * t_sample), 0, 0, 1 - exp(w_ * t_sample);
+//   Matrix2d A, B;
+//   A << exp(w_ * t_sample), 0, 0, exp(w_ * t_sample);
+//   B << 1 - exp(w_ * t_sample), 0, 0, 1 - exp(w_ * t_sample);
 
-  MatrixXd F_xi, F_p, F_p_temp;
-  F_xi.setZero(n_sample * 2, 2);
-  F_p.setZero(n_sample * 2, n_sample * 2);
-  F_p_temp.setZero(n_sample * 2, 2);
+//   MatrixXd F_xi, F_p, F_p_temp;
+//   F_xi.setZero(n_sample * 2, 2);
+//   F_p.setZero(n_sample * 2, n_sample * 2);
+//   F_p_temp.setZero(n_sample * 2, 2);
 
-  for (int i = 0; i < n_sample; i++)
-  {
-    F_xi.block(i * 2, 0, 2, 2) = matpower(A, i + 1);
-    for (int j = i; j < n_sample; j++)
-    {
-      F_p.block(j * 2, i * 2, 2, 2) = matpower(A, j - i) * B;
-    }
-  }
+//   for (int i = 0; i < n_sample; i++)
+//   {
+//     F_xi.block(i * 2, 0, 2, 2) = matpower(A, i + 1);
+//     for (int j = i; j < n_sample; j++)
+//     {
+//       F_p.block(j * 2, i * 2, 2, 2) = matpower(A, j - i) * B;
+//     }
+//   }
 
-  MatrixXd THETA;
-  THETA.setIdentity(n_sample * 2, n_sample * 2);
+//   MatrixXd THETA;
+//   THETA.setIdentity(n_sample * 2, n_sample * 2);
 
-  Matrix2d I2;
-  I2.setIdentity();
+//   Matrix2d I2;
+//   I2.setIdentity();
 
-  for (int i = 0; i < n_sample - 1; i++)
-  {
-    THETA.block(i * 2 + 2, i * 2, 2, 2) = -I2;
-  }
+//   for (int i = 0; i < n_sample - 1; i++)
+//   {
+//     THETA.block(i * 2 + 2, i * 2, 2, 2) = -I2;
+//   }
 
-  MatrixXd e1;
-  e1.setZero(2 * n_sample, 2);
-  e1.block(0, 0, 2, 2) = I2;
+//   MatrixXd e1;
+//   e1.setZero(2 * n_sample, 2);
+//   e1.block(0, 0, 2, 2) = I2;
 
-  double q_par = 1.0;
-  double r_par = 0.4;
+//   double q_par = 1.0;
+//   double r_par = 0.4;
 
-  MatrixXd H, I_nsample;
-  I_nsample.setIdentity(2 * n_sample, 2 * n_sample);
-  MatrixXd Q, R;
-  Q = q_par * I_nsample;
-  R = r_par * I_nsample;
+//   MatrixXd H, I_nsample;
+//   I_nsample.setIdentity(2 * n_sample, 2 * n_sample);
+//   MatrixXd Q, R;
+//   Q = q_par * I_nsample;
+//   R = r_par * I_nsample;
 
-  H = THETA.transpose() * R * THETA + F_p.transpose() * Q * F_p;
+//   H = THETA.transpose() * R * THETA + F_p.transpose() * Q * F_p;
 
-  VectorXd g;
-  VectorXd cp_ref_t;
-  cp_ref_t.setZero(n_sample * 2);
-  for (int i = 0; i < n_sample; i++)
-  {
-    cp_ref_t.segment(i * 2, 2) = getcpref(time, i * t_sample);
-  }
-  // std::cout << " pk-1" << std::endl;
-  // std::cout << p_k_1 << std::endl;
-  std::cout << " cp_ref_t : " << std::endl;
-  std::cout << cp_ref_t << std::endl;
-  // std::cout << " model_.com_CP : " << model_.com_.CP << std::endl;
-  // std::cout << " g1 : " << std::endl
-  //           << F_p.transpose() * Q * (F_xi * model_.com_.CP.segment(0, 2) - cp_ref_t) << std::endl;
-  // std::cout << " g2 : " << std::endl
-  //           << THETA.transpose() * R * e1 * p_k_1 << std::endl;
+//   VectorXd g;
+//   VectorXd cp_ref_t;
+//   cp_ref_t.setZero(n_sample * 2);
+//   for (int i = 0; i < n_sample; i++)
+//   {
+//     cp_ref_t.segment(i * 2, 2) = getcpref(time, i * t_sample);
+//   }
+//   std::cout << " pk-1" << std::endl;
+//   std::cout << p_k_1 << std::endl;
+//   std::cout << " cp_ref_t : " << std::endl;
+//   std::cout << cp_ref_t << std::endl;
+//   std::cout << " model_.com_CP : " << model_.com_.CP << std::endl;
+//   std::cout << " g1 : " << std::endl
+//             << F_p.transpose() * Q * (F_xi * model_.com_.CP.segment(0, 2) - cp_ref_t) << std::endl;
+//   std::cout << " g2 : " << std::endl
+//             << THETA.transpose() * R * e1 * p_k_1 << std::endl;
 
-  g = F_p.transpose() * Q * (F_xi * model_.com_.CP.segment(0, 2) - cp_ref_t) - THETA.transpose() * R * e1 * p_k_1;
+//   g = F_p.transpose() * Q * (F_xi * model_.com_.CP.segment(0, 2) - cp_ref_t) - THETA.transpose() * R * e1 * p_k_1;
 
-  VectorXd r(n_sample * 2);
-  Vector2d sf[8];
-  sf[0] << -0.04, 0;
-  sf[1] << -0.04, 0.1024;
-  sf[2] << 0.06, -0.1024;
-  sf[3] << 0.16, 0.1024;
-  sf[4] << 0.26, -0.1024;
-  sf[5] << 0.36, 0.1024;
-  sf[6] << 0.46, -0.1024;
-  sf[7] << 0.46, 0.0;
+//   VectorXd r(n_sample * 2);
+//   Vector2d sf[8];
+//   sf[0] << -0.04, 0;
+//   sf[1] << -0.04, 0.1024;
+//   sf[2] << 0.06, -0.1024;
+//   sf[3] << 0.16, 0.1024;
+//   sf[4] << 0.26, -0.1024;
+//   sf[5] << 0.36, 0.1024;
+//   sf[6] << 0.46, -0.1024;
+//   sf[7] << 0.46, 0.0;
 
-  for (int i = 0; i < n_sample; i++)
-  {
-    r.segment(i * 2, 2) = sf[(int)(time + t_sample * i)];
-  }
+//   for (int i = 0; i < n_sample; i++)
+//   {
+//     r.segment(i * 2, 2) = sf[(int)(time + t_sample * i)];
+//   }
 
-  VectorXd lb, ub, f;
-  f.setZero(n_sample * 2);
+//   VectorXd lb, ub, f;
+//   f.setZero(n_sample * 2);
 
-  for (int i = 0; i < n_sample * 2; i++)
-  {
-    f(i) = 0.1;
-  }
-  lb = lb.setZero(n_sample * 2);
-  lb = r - f;
-  ub = ub.setZero(n_sample * 2);
-  ub = r + f;
+//   for (int i = 0; i < n_sample * 2; i++)
+//   {
+//     f(i) = 0.1;
+//   }
+//   lb = lb.setZero(n_sample * 2);
+//   lb = r - f;
+//   ub = ub.setZero(n_sample * 2);
+//   ub = r + f;
 
-  Vector2d res_2;
-  res_2.setZero();
-  VectorXd res;
-  res.setZero(n_sample * 2);
-  if (mpc_init)
-  {
-    //QP_mpc.InitializeProblemSize(2 * n_sample, 1);
-    //QP_mpc.UpdateMinProblem(H, g);
-    //QP_mpc.PrintMinProb();
-    //QP_mpc.PrintSubjectTox();
-    //QP_mpc.SolveQPoases(1000);
-    set_defaults();
-    setup_indexing();
-    settings.verbose = 0;
+//   Vector2d res_2;
+//   res_2.setZero();
+//   VectorXd res;
+//   res.setZero(n_sample * 2);
+//   if (mpc_init)
+//   {
+//     QP_mpc.InitializeProblemSize(2 * n_sample, 1);
+//     QP_mpc.UpdateMinProblem(H, g);
+//     QP_mpc.PrintMinProb();
+//     QP_mpc.PrintSubjectTox();
+//     QP_mpc.SolveQPoases(1000);
+//     set_defaults();
+//     setup_indexing();
+//     settings.verbose = 0;
 
-    for (int i = 0; i < 2 * n_sample; i++)
-      for (int j = 0; j < 2 * n_sample; j++)
-        params.H[i + j * 2 * n_sample] = H(i, j);
+//     for (int i = 0; i < 2 * n_sample; i++)
+//       for (int j = 0; j < 2 * n_sample; j++)
+//         params.H[i + j * 2 * n_sample] = H(i, j);
 
-    for (int i = 0; i < 2 * n_sample; i++)
-    {
-      params.g[i] = g(i);
-      params.r[i] = r(i);
-    }
+//     for (int i = 0; i < 2 * n_sample; i++)
+//     {
+//       params.g[i] = g(i);
+//       params.r[i] = r(i);
+//     }
 
-    params.f[0] = 0.025;
-    int num_inters = solve();
+//     params.f[0] = 0.025;
+//     int num_inters = solve();
 
-    std::cout << "ANSWER IS " << vars.P[0] << vars.P[1] << std::endl;
+//     std::cout << "ANSWER IS " << vars.P[0] << vars.P[1] << std::endl;
 
-    res_2(0) = vars.P[0];
-    res_2(1) = vars.P[1];
+//     res_2(0) = vars.P[0];
+//     res_2(1) = vars.P[1];
 
-    p_k_1 = res_2;
-  }
+//     p_k_1 = res_2;
+//   }
 
-  if (mpc_init == false)
-  {
-    p_k_1 = zmp;
-  }
-  mpc_init = true;
+//   if (mpc_init == false)
+//   {
+//     p_k_1 = zmp;
+//   }
+//   mpc_init = true;
 
-  return res_2;
-}
+//   return res_2;
+// }
 
 VectorQd Wholebody_controller::contact_torque_calc_from_QP(VectorQd command_torque)
 {

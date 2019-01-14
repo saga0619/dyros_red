@@ -1140,7 +1140,7 @@ void ControlBase::compute()
       std::cout << "current control is : " << zmp << std::endl;
       Vector2d MPC_zmp;
 
-      MPC_zmp = wc_.getcptraj(task_time, zmp);
+      //MPC_zmp = wc_.getcptraj(task_time, zmp);
 
       Vector3d cp_ref2[9];
 

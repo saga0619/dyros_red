@@ -42,19 +42,20 @@ file(GLOB CONTROLLER_SRC
     "src/wholebody_controller.cpp"
     "src/quadraticprogram.cpp"
     )
-file(GLOB CVXGEN_SRC
-    "include/cvxgen/*.h"
-    "include/cvxgen/solver.c"
-    "include/cvxgen/matrix_support.c"
-    "include/cvxgen/ldl.c"
-    "include/cvxgen/util.c"
-    )
+
+#file(GLOB CVXGEN_SRC
+#    "include/cvxgen/*.h"
+#    "include/cvxgen/solver.c"
+#    "include/cvxgen/matrix_support.c"
+#    "include/cvxgen/ldl.c"
+#    "include/cvxgen/util.c"
+#    )
 
 
 add_library(dyros_red_controller_lib
     ${BRIDGE_SRC}
     ${CONTROLLER_SRC}
-    ${CVXGEN_SRC}
+    #  ${CVXGEN_SRC}
     #  ${UPPER_SRC}
     )
 
