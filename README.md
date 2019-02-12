@@ -22,11 +22,11 @@ sudo make install
 ```
 
 ### Error handling
-* If an error occurs, open rbdl-rbdl-[commit]/addons/urdfreader/urdfreader.cc and remove following line
+* If any error related to ROS occurs, open rbdl-rbdl-[commit]/addons/urdfreader/urdfreader.cc and remove following line
 ```cpp
 #include <ros.h>
 ```
-* If error : 'boost' does not name a type occurs, open rbdl-rbdl-[commit]/addons/urdfreader/urdfreader.cc and edit boost::shared_ptr to std::shared_ptr. (line 15~18)
+* If error " 'boost' does not name a type" occurs, open rbdl-rbdl-[commit]/addons/urdfreader/urdfreader.cc and edit boost::shared_ptr to std::shared_ptr. (line 15~18)
 ```cpp
 typedef boost::shared_ptr<urdf::Link> LinkPtr;
 typedef const boost::shared_ptr<const urdf::Link> ConstLinkPtr;
