@@ -41,7 +41,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 
 ## qpOASES setup
-Download qpOASES from https://projects.coin-or.org/qpOASES/wiki/QpoasesDownload
+Download qpOASES [Link](http://www.qpoases.org/go/release) 
 ```sh
 cd qpOASES-3.2.1
 mkdir build
