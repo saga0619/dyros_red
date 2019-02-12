@@ -1,4 +1,7 @@
 # dyros_red_sim
+This project is simulation of humanoid robot DYROS RED, which is torque controlled robot. It's control algorithm is based on 
+"Contact Consistent Control for Humanoid Robots, Jaeheung Park"
+
 
 ## Environment 
 * Tested at ubuntu 16.04 , 18.04
