@@ -23,6 +23,26 @@ sudo make install
 ```cpp
 #include <ros.h>
 ```
+* If 'boost' does not name a type error occurs,
+* open rbdl-rbdl-[commit]/addons/urdfreader/urdfreader.cc
+* and edit boost::shared_ptr to std::shared_ptr.
+```cpp
+typedef boost::shared_ptr<urdf::Link> LinkPtr;
+typedef const boost::shared_ptr<const urdf::Link> ConstLinkPtr;
+typedef boost::shared_ptr<urdf::Joint> JointPtr;
+typedef boost::shared_ptr<urdf::ModelInterface> ModelPtr;
+```
+
+to
+
+```cpp
+typedef std::shared_ptr<urdf::Link> LinkPtr;
+typedef const std::shared_ptr<const urdf::Link> ConstLinkPtr;
+typedef std::shared_ptr<urdf::Joint> JointPtr;
+typedef std::shared_ptr<urdf::ModelInterface> ModelPtr;
+```
+
+
 * Add following line to .bashrc ( controller can't find can't find librbdl.so.2.6.0) 
 ```sh
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib

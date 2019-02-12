@@ -34,22 +34,51 @@ public:
   const VectorQd &current_q_; // updated by control_base
 
   //Main loop wholebody function
-  void update_dynamics();                              //update mass matrix
-  void contact_set(int contact_number, int link_id[]); //update contact space dynamics
+
+  //update mass matrix
+  void update_dynamics();
+
+  //set contact status of robot. true for contact false for not contact
   void contact_set_multi(bool right_foot, bool left_foot, bool right_hand, bool left_hand);
-  VectorQd contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta); //contact force redistribution at 2 contact
+
+  //contact force redistribution by yisoolee method at 2 contact(both foot)
+  VectorQd contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta);
+
+  //set contact force to desired contact force
   VectorQd contact_force_custom(VectorQd command_torque, Eigen::VectorXd contact_force_now, Eigen::VectorXd contact_force_desired);
-  VectorQd gravity_compensation_torque(); //update gravity compensation torque
+
+  //update gravity compensation torque
+  VectorQd gravity_compensation_torque();
+
+  //get contact redistribution torque with Quadratic programing
   VectorQd contact_torque_calc_from_QP(VectorQd command_torque);
+
+  // Get Contact Redistribution Torque with QP. Wall contact mode.
   VectorQd contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio);
+
+  //Get Contact Redistribution Torque with QP. Wall contact mode.
+
   VectorQd contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio);
 
+  /*
+  * Get Task Control Torque.
+  * task jacobian and f_star must be defined. 
+  */
   VectorQd task_control_torque(Eigen::MatrixXd J_task, Eigen::VectorXd f_star_);
+
+  /*
+  * Get Task Control Torque 
+  * task jacobian and f_star must be defined. 
+  */
   VectorQd task_control_torque_custom_force(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force);
+
+  // Get Task Control Torque task jacobian and f_star must be defined.
   VectorQd task_control_torque_custom_force_feedback(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
 
-  //focecontrol selection matrix 1 for control with fstar 0 for force control
+  //force control with selection matrix. selec 1 for control with fstar 0 for force control
   void set_force_control(MatrixXd selection_matrix, VectorXd desired_force);
+
+  //force control selection matrix 1 for control with fstar 0 for force control
   void set_force_control_feedback(MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
   void set_zmp_control(Vector2d ZMP, double gain);
 
@@ -64,10 +93,12 @@ public:
   bool mpc_init = false;
 
   //Utility functions
+
+  //Get contact force from command torque
   VectorXd get_contact_force(VectorQd command_torque);
+
+  //Get ZMP position from contact forces and both foot position
   Vector3d GetZMPpos(Vector3d P_right, Vector3d P_left, Vector12d ContactForce);
-  void ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
-  void ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
 
   //Eigen::Vector6d Getfstar( );
   Vector3d getfstar(Vector3d kp, Vector3d kd, Vector3d p_desired, Vector3d p_now, Vector3d d_desired, Vector3d d_now);
@@ -137,6 +168,13 @@ public:
   CQuadraticProgram QP_test;
   CQuadraticProgram QP_mpc;
   VectorXd result_temp;
+
+private:
+  //update contact space dynamics
+  void contact_set(int contact_number, int link_id[]);
+
+  void ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
+  void ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
 };
 
 } // namespace dyros_red_controller
