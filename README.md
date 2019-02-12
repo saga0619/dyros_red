@@ -21,19 +21,12 @@ make all
 sudo make install
 ```
 
-### Error handling
+### RBDL Error handling
 * If any error related to ROS occurs, open rbdl-rbdl-[commit]/addons/urdfreader/urdfreader.cc and remove following line
 ```cpp
 #include <ros.h>
 ```
 * If error " 'boost' does not name a type" occurs, open rbdl-rbdl-[commit]/addons/urdfreader/urdfreader.cc and edit boost::shared_ptr to std::shared_ptr. (line 15~18)
-```cpp
-typedef boost::shared_ptr<urdf::Link> LinkPtr;
-typedef const boost::shared_ptr<const urdf::Link> ConstLinkPtr;
-typedef boost::shared_ptr<urdf::Joint> JointPtr;
-typedef boost::shared_ptr<urdf::ModelInterface> ModelPtr;
-```
-to
 ```cpp
 typedef std::shared_ptr<urdf::Link> LinkPtr;
 typedef const std::shared_ptr<const urdf::Link> ConstLinkPtr;
@@ -48,7 +41,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 
 ## qpOASES setup
-* Download qpOASES from https://projects.coin-or.org/qpOASES/wiki/QpoasesDownload
+Download qpOASES from https://projects.coin-or.org/qpOASES/wiki/QpoasesDownload
 ```sh
 cd qpOASES-3.2.1
 mkdir build
@@ -58,7 +51,8 @@ make all
 sudo make install
 ```
 
-*if error occures, add following line to qpOASES-3.2.1/CMakeLists.txt, below PROJECT(qpOASES CXX), which is line 34
+### qpOASES error handling
+if error occures, add following line to qpOASES-3.2.1/CMakeLists.txt, below PROJECT(qpOASES CXX), which is line 34
 
 ```
 add_compile_options(-fPIC)
