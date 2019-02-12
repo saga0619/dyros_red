@@ -62,7 +62,8 @@ add_compile_options(-fPIC)
 ## Mujoco setup
 
 ### license file 
-* for mujoco user, you need to edit the position of license in dyros_red_simulation/simulation.launch with your license file's location
+For mujoco user, you need to edit the position of license in dyros_red_simulation/simulation.launch with your license file's location
+(mjkey.txt at Home for default)
 
 ### How to start with mujoco ###
 clone mujoco_ros_sim, then build. 
