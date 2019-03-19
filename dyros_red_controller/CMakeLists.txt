@@ -36,6 +36,7 @@ file(GLOB BRIDGE_SRC
     "src/control_base.cpp"
     "src/mujoco_interface.cpp"
     )
+    
 file(GLOB CONTROLLER_SRC
     "src/dyros_red_model.cpp"
     "src/task_controller.cpp"
@@ -63,11 +64,9 @@ add_executable(dyros_red_controller src/dyros_red_controller.cpp)
 target_link_libraries(dyros_red_controller_lib
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
-
     -L/usr/local/lib
     -lrbdl
     -lrbdl_urdfreader
-
     -lqpOASES
     -lrt
     )

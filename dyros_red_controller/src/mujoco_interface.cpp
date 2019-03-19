@@ -208,6 +208,9 @@ void mujoco_interface::simCommandCallback(const std_msgs::StringConstPtr &msg)
         std_msgs::String rst_msg_;
         rst_msg_.data = "INIT";
         mujoco_sim_command_pub_.publish(rst_msg_);
+        mujoco_sim_time = 0.0;
+        control_time_ = 0.0;
+        mujoco_reset = true;
     }
 }
 
@@ -262,6 +265,14 @@ void mujoco_interface::wait()
         ros::spinOnce();
         poll_rate.sleep();
         n++;
+        if (control_time_ == 0.0)
+        {
+            if (mujoco_reset)
+            {
+                mujoco_reset = false;
+                break;
+            }
+        }
     }
     ROS_INFO_COND(test_b, " wait loop exit with n = %d", n);
 }
