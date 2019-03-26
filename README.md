@@ -1,5 +1,7 @@
 # dyros_red_sim
-This project is controller of humanoid robot DYROS RED, which is torque controlled robot. It's main control algorithm is based on "Contact Consistent Control for Humanoid Robots, Jaeheung Park".
+* 
+
+* This project is controller of humanoid robot DYROS RED, which is torque controlled robot. It's main control algorithm is based on "Contact Consistent Control for Humanoid Robots, Jaeheung Park".
 This controller can be simulated through [mujoco_ros](https://github.com/saga0619/mujoco_ros_sim)
 
 
@@ -60,6 +62,10 @@ if error occures, add following line to qpOASES-3.2.1/CMakeLists.txt, below PROJ
 ```
 add_compile_options(-fPIC)
 ```
+
+## Dyros Red Controller Setup
+Download 1.0 version from release list. [1.0 release](https://github.com/saga0619/dyros_red/releases)
+Unzip at ros worksapce (ex:catkin_ws)
 
 
 ## Mujoco setup
