@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   realtime_tools
   roscpp
+  roslib
   sensor_msgs
   std_msgs
   tf
@@ -31,13 +32,16 @@ include_directories(
 file(GLOB AD_SRC
     "src/state_manager.cpp"
     "src/dynamics_manager.cpp"
+    "src/mujoco_interface.cpp"
+    "src/link.cpp"
+    "src/red_controller.cpp"
     )
 
 add_library(dyros_red_controller_lib
   ${AD_SRC}
 )
 
-add_executable(dyros_red_controller src/dyros_red_controller.cpp)
+add_executable(dyros_red_controller src/main.cpp)
 
 
 target_link_libraries(dyros_red_controller_lib
@@ -46,6 +50,7 @@ target_link_libraries(dyros_red_controller_lib
    -lrbdl_urdfreader
    -lrt
    -lqpOASES
+   -lncurses
  )
 
  target_link_libraries(dyros_red_controller

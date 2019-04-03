@@ -1,7 +1,7 @@
 <mujoco>
     <worldbody>
         <light diffuse=".5 .5 .5" pos="0 0 3" dir="0 0 -1"/>
-        <geom type="plane" size="1 1 0.1" rgba=".9 0 0 1"/>
+        <geom type="plane" size="3 3 0.1" rgba=".9 0 0 1"/>
         <body>
             <geom type="capsule" fromto="0 0 0.6  0.3 0 0.6" size="0.04"/>
             <joint name="jnt1" type="hinge" pos="0 0 0.6" axis="0 1 0"/>
@@ -10,6 +10,13 @@
                 <joint name="jnt2" type="hinge" pos="0.3 0 0.6" axis="0 1 0"/>
             </body>
         </body>
+	<body pos="1 0 0.1">
+	    <geom size="1 1 0.1" type="box" solref="0.02 0.1"/>
+	</body>
+	<body pos="1 0 5">
+            <joint name="virtual_joint" type="free" limited='false' frictionloss="0" damping="0" stiffness="0" armature="0"/>
+	    <geom size="0.2 0.2 0.2" type="box" solref="0.02 0.1"/>
+	</body>
     </worldbody>
 
     <actuator>
