@@ -1,38 +1,29 @@
 #include <ros/ros.h>
-#include <dyros_red_controller/red_controller.h>
-
+#include "dyros_red_controller/red_controller.h"
 #include "dyros_red_controller/terminal.h"
-
-void waitfor(int ch)
-{
-}
 
 int main(int argc, char **argv)
 {
-    initscr();
-    nodelay(stdscr, TRUE);
-    noecho();
-    curs_set(0);
-    keypad(stdscr, TRUE);
-    printw(welcome.c_str());
+    ros::init(argc, argv, "dyros_red_controller");
 
-    while (1)
-    {
-        if (!(getch() == -1))
-            break;
-    }
+    DataContainer dc;
+    Tui tui(dc);
 
-    bool s1, s2, s3;
-    s1 = false;
-    s2 = false;
-    s3 = true;
+    //mvprintw(3, 0, wc.c_str());
 
-    int cnt = 0;
+    tui.ReadAndPrint(3, 0, "ascii0");
+
+    refresh();
+    wait_for_keypress();
+
+    bool s3;
+
     erase();
-    mvprintw(0, 0, red.c_str());
+    //mvprintw(0, 0, red.c_str());
+
+    tui.ReadAndPrint(0, 0, "red");
     refresh();
     s3 = true;
-    start_color();
     init_pair(1, -1, -1);
     init_pair(2, COLOR_BLACK, COLOR_WHITE);
 
@@ -111,83 +102,54 @@ int main(int argc, char **argv)
                 menu_slc = 3;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        cnt++;
+        wait_for_ms(10);
         refresh();
     }
-
-    ros::init(argc, argv, "dyros_red_controller");
-    DataContainer dc;
-    //std::cout << std::endl  << welcome << std::endl;
-
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    //td::cout << red0 ;
 
     bool simulation = true;
     dc.dym_hz = 500; //frequency should be divisor of a million (timestep must be integer)
     dc.stm_hz = 4000;
     dc.dym_timestep = std::chrono::microseconds((int)(1000000 / dc.dym_hz));
     dc.stm_timestep = std::chrono::microseconds((int)(1000000 / dc.stm_hz));
-    /*
-    if (simulation)
-    {
-        std::cout << red0 << " simulation. " << std::endl;
-    }
-    std::cout << red1 << dc.stm_hz << "Hz and " << std::endl << red2 << dc.dym_hz << "Hz!" << std::endl;
 
-    if ((!(1000000 % dc.dym_hz)) && (!(1000000 % dc.stm_hz)))
-    {
-        std::cout << red3 << "     Frequency settings are OK !" << std::endl;
-    }
-    else
-    {
-        std::cout << "Oops! something wrong with frequency setting. stoping controller" << std::endl;
-        return 0;
-    }*/
-    //std::cout << red35 << "    Managers initialzation complete! " << std::endl;
-    //std::cout << red4 << "    Here We Go! " << std::endl
-    //          << red5 << std::endl;
-    //std::cout << "\n\n";
-    //StateManager stm(dc);
-    /*
+    MujocoInterface stm(dc);
+    DynamicsManager dym(dc);
+    RedController rc(dc, stm, dym);
+
     if (menu_slc == 0)
     {
-        MujocoInterface stm(dc);
-        DynamicsManager dym(dc);
-        std::thread state_thread(&StateManager::stateThread, &stm);
-        std::thread dynamics_thread(&DynamicsManager::dynamicsThread, &dym);
-        state_thread.join();
-        dynamics_thread.join();
+        std::thread thread0(&RedController::stateThread, &rc);
+        std::thread thread1(&RedController::dynamicsThreadHigh, &rc);
+        std::thread thread2(&RedController::dynamicsThreadLow, &rc);
+        std::thread thread3(&RedController::tuiThread, &rc);
+
+        thread0.join();
+        mvprintw(0, 10, "t1");
+        refresh();
+
+        thread1.join();
+        mvprintw(0, 14, "t2");
+        refresh();
+
+        thread2.join();
+        mvprintw(0, 18, "t3");
+        refresh();
+
+        thread3.join();
+        mvprintw(0, 22, "t4");
+        refresh();
     }
     else if (menu_slc == 1)
     {
     }
     else if (menu_slc == 2)
     {
-        MujocoInterface stm(dc);
-        DynamicsManager dym(dc);
-        erase();
         std::thread state_thread(&StateManager::testThread, &stm);
         std::thread dynamics_thread(&DynamicsManager::testThread, &dym);
         state_thread.join();
         dynamics_thread.join();
     }
-    */
-    //std::cout << "red controller exit \n";
-
-    MujocoInterface stm(dc);
-    DynamicsManager dym(dc);
-    RedController rc(dc, stm, dym);
-
-    std::thread thread0(&RedController::stateThread, &rc);
-    std::thread thread1(&RedController::dynamicsThreadHigh, &rc);
-    std::thread thread2(&RedController::dynamicsThreadLow, &rc);
-    thread0.join();
-    thread1.join();
-    thread2.join();
-
     mvprintw(22, 10, "PRESS ANY KEY TO EXIT ...");
-
     while (1)
     {
         if (!(getch() == -1))

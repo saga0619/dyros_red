@@ -3,8 +3,7 @@
 #include <rbdl/rbdl.h>
 #include <rbdl/addons/urdfreader/urdfreader.h>
 #include <tf/transform_datatypes.h>
-
-std::mutex mtx;
+#include <sstream>
 
 StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
 {
@@ -45,7 +44,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         }
         for (int i = 0; i < MODEL_DOF + 1; i++)
         {
-            link_[i].initialize(link_id_[i], RED::LINK_NAME[i], model_.mBodies[link_id_[i]].mMass, model_.mBodies[link_id_[i]].mCenterOfMass);
+            link_[i].initialize(model_, link_id_[i], RED::LINK_NAME[i], model_.mBodies[link_id_[i]].mMass, model_.mBodies[link_id_[i]].mCenterOfMass);
         }
 
         Eigen::Vector3d lf_c, rf_c, lh_c, rh_c;
@@ -66,37 +65,44 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
 
 void StateManager::stateThread(void)
 {
-    connect();
-
     std::chrono::high_resolution_clock::time_point StartTime = std::chrono::high_resolution_clock::now();
     std::chrono::seconds sec10(1);
+    std::chrono::milliseconds ms(50);
 
+    std::chrono::duration<double> e_s(0);
     //ROS_INFO("START");
     int ThreadCount = 0;
+    int i = 1;
 
     while (ros::ok())
     {
 
         updateState();
+
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
         mtx.lock();
         storeState();
+
+        if (!dc.firstcalc)
+        {
+            dc.firstcalc = true;
+        }
         mtx.unlock();
 
-        //std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
-        if ((std::chrono::high_resolution_clock::now() - StartTime) > sec10)
+        std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
+
+        if (dc.shutdown)
         {
-            //ROS_INFO("END");
-            int w_x, w_y;
-            getyx(stdscr, w_y, w_x);
-            mvprintw(w_y + 2, 10, "Total Calc Count : %d times in 1 second! ", ThreadCount);
-            refresh();
-            //std::cout << "\n\tTotal Calc Count : " << ThreadCount << " times in 1 second! \n";
-            //std::cout << link_[0];
             break;
         }
-
+        e_s = std::chrono::high_resolution_clock::now() - StartTime;
+        //To check frequency
+        /*if (e_s.count() > sec10.count() * i)
+        {
+            mvprintw(0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
+            i++;
+        }*/
         ThreadCount++;
     }
 }
@@ -132,14 +138,18 @@ void StateManager::testThread()
             StartTime = std::chrono::high_resolution_clock::now();
             mtx.unlock();
         }
-        if (!(getch() == -1))
+        if ((getch() == 'q') || dc.shutdown)
         {
+            dc.shutdown = true;
+            move(19, 0);
+            clrtoeol();
+            mvprintw(19, 10, "state end");
             break;
         }
         ThreadCount++;
     }
 }
-void StateManager::connect()
+bool StateManager::connect()
 {
     //overrid
 }
@@ -172,6 +182,7 @@ void StateManager::storeState()
         dc.link_[i] = link_[i];
     }
     dc.com_ = com_;
+    dc.sim_time = sim_time_;
     dc.q_ = q_;
     dc.q_dot_ = q_dot_;
     dc.q_dot_virtual_ = q_dot_virtual_;
@@ -202,10 +213,25 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     m.getRPY(roll, pitch, yaw);
     yaw_radian = yaw;
 
+    if (!(A_ == A_temp_))
+    {
+        tui_addQue(dc, 0, 0, "RBDL PROBLEM AT %f", ros::Time::now().toSec());
+    }
+
     A_ = A_temp_;
     for (int i = 0; i < MODEL_DOF + 1; i++)
     {
         link_[i].pos_Update(model_, q_virtual_);
+    }
+
+    for (int i = 0; i < MODEL_DOF + 1; i++)
+    {
+        if (!(link_[i].xpos == dc.link_[i].xpos))
+            tui_addQue(dc, 1, 0, "xpos PROBLEM AT %f", ros::Time::now().toSec());
+        if (!(link_[i].xipos == dc.link_[i].xipos))
+            tui_addQue(dc, 2, 0, "xipos PROBLEM AT %f", ros::Time::now().toSec());
+        if (!(link_[i].Rotm == dc.link_[i].Rotm))
+            tui_addQue(dc, 3, 0, "Rotm PROBLEM AT %f", ros::Time::now().toSec());
     }
 
     Eigen::Vector3d zero;
@@ -271,6 +297,12 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     {
         link_[i].vw_Update(q_dot_virtual_);
     }
+
+    //contactJacUpdate
+    //link_[Right_Foot].Set_Contact(model_, q_virtual_, link_[Right_Foot].contact_point);
+    //link_[Left_Foot].Set_Contact(model_, q_virtual_, link_[Left_Foot].contact_point);
+    //link_[Right_Hand].Set_Contact(model_, q_virtual_, link_[Right_Hand].contact_point);
+    //link_[Left_Hand].Set_Contact(model_, q_virtual_, link_[Left_Hand].contact_point);
 
     //ROS_INFO_ONCE("CONTROLLER : MODEL : updatekinematics end ");
 }

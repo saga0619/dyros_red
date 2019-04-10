@@ -4,7 +4,7 @@
 
     <default>
 
-        <joint damping="2.0" frictionloss="0.0"/>
+        <joint damping="3.0" frictionloss="0.05"/>
 
         <motor ctrllimited="true" ctrlrange="-300 300"/>
 

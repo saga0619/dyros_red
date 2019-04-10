@@ -24,6 +24,7 @@ void MujocoInterface::updateState()
 
 void MujocoInterface::sendCommand(Eigen::VectorQd command)
 {
+    mtx.lock();
     mujoco_joint_set_msg_.MODE = 1;
 
     for (int i = 0; i < MODEL_DOF; i++)
@@ -41,23 +42,25 @@ void MujocoInterface::sendCommand(Eigen::VectorQd command)
     mujoco_joint_set_msg_.time = control_time_;
     mujoco_joint_set_pub_.publish(mujoco_joint_set_msg_);
     mujoco_sim_last_time = mujoco_sim_time;
+    mtx.unlock();
 }
 
-void MujocoInterface::connect()
+bool MujocoInterface::connect()
 {
     //std::cout << "________________________________________________________________________________\n\n";
 
     //std::cout << "\tConnecting to Mujoco ..." << std::flush;
 
-    int w_y, w_x;
-    getyx(stdscr, w_y, w_x);
-    mvprintw(w_y + 2, 10, "Press any key to stop ");
-    mvprintw(w_y + 1, 10, "Connecting to Mujoco ");
-    refresh();
-    ros::Rate r(10);
+    int w_y;
+
+    w_y = 12;
+    rprint(dc, 14, 10, "Press any key to stop ");
+    rprint(dc, 13, 10, "Connecting to Mujoco .... ");
+    ros::Rate r(100);
     ros::Time start_time = ros::Time::now();
     int cnt = 0;
     int kbhit = -1;
+    int loading = 0;
     while (!mujoco_ready & ros::ok())
     {
         kbhit = getch();
@@ -66,19 +69,37 @@ void MujocoInterface::connect()
         ros::spinOnce();
         if ((cnt % 10) == 0)
         {
-            addch('.');
-            refresh();
+            if (loading == 0)
+                rprint(dc, 13, 31, ":    ");
+            else if (loading == 1)
+                rprint(dc, 13, 31, " :   ");
+            else if (loading == 2)
+                rprint(dc, 13, 31, "  :  ");
+            else if (loading == 3)
+                rprint(dc, 13, 31, "   : ");
+            else if (loading == 4)
+                rprint(dc, 13, 31, "    :");
+            else if (loading == 5)
+                rprint(dc, 13, 31, "   : ");
+            else if (loading == 6)
+                rprint(dc, 13, 31, "  :  ");
+            else if (loading == 7)
+                rprint(dc, 13, 31, " :  ");
+
+            loading++;
+            if (loading > 7)
+                loading = 0;
         }
         if (!(kbhit == -1))
         {
-            printw("Stopping");
-            refresh();
+            rprint(dc, 13, 31, "::::");
+            rprint(dc, 13, 36, "Stopping");
             break;
         }
         if ((ros::Time::now().toSec() - start_time.toSec()) > 60.0)
         {
-            printw("Stopping");
-            refresh();
+            rprint(dc, 13, 31, "::::");
+            rprint(dc, 13, 36, "Stopping");
             break;
         }
     }
@@ -96,15 +117,20 @@ void MujocoInterface::connect()
 
     if ((!mujoco_init_receive) && (!mujoco_ready))
     {
+        mujoco_init_receive = false;
+        mujoco_ready = false;
         //std::cout << "\tConnection failed. \n"                  << std::flush;
     }
     else if (mujoco_init_receive && mujoco_ready)
     {
+        mujoco_init_receive = false;
+        mujoco_ready = false;
+        rprint(dc, 13, 31, "::::");
+        rprint(dc, 13, 36, "Connected");
+        dc.connected = true;
+        return 1;
         //std::cout << "\tConnected! \n"                  << std::flush;
     }
-
-    mujoco_init_receive = false;
-    mujoco_ready = false;
 }
 
 void MujocoInterface::playMujoco()
@@ -118,6 +144,7 @@ void MujocoInterface::simTimeCallback(const std_msgs::Float32ConstPtr &msg)
 {
     mujoco_sim_time = msg->data;
     control_time_ = mujoco_sim_time;
+    sim_time_ = mujoco_sim_time;
 }
 
 void MujocoInterface::jointStateCallback(const sensor_msgs::JointStateConstPtr &msg)

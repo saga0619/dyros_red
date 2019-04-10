@@ -1,20 +1,19 @@
 #include "dyros_red_controller/data_container.h"
+#include "dyros_red_controller/terminal.h"
 
 class StateManager
 {
 public:
   DataContainer &dc;
-
   StateManager(DataContainer &dc_global);
 
-  virtual void connect();
+  virtual bool connect();
   virtual void stateThread(); //main thread managing state
   virtual void updateState();
   virtual void sendCommand(Eigen::VectorQd command);
 
   //initialize variables
   virtual void initialize();
-
   //store data at container
   void storeState();
 
@@ -31,6 +30,7 @@ public:
   unsigned int link_id_[40];
 
   double control_time_;
+  double sim_time_;
 
   Eigen::VectorQd q_;
   Eigen::VectorQVQd q_virtual_;

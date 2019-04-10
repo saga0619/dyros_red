@@ -16,7 +16,7 @@ public:
   virtual void sendCommand(Eigen::VectorQd command) override;
 
   //connect to Mujoco_ros
-  virtual void connect() override;
+  virtual bool connect() override;
 
   //Toggle play
   void playMujoco();

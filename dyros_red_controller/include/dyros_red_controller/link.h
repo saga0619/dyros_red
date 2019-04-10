@@ -32,7 +32,7 @@ class Link
 {
 public:
   // Update link i of rbdl link id. name : link name, mass : link mass, xipos : local center of mass position
-  void initialize(int id_, std::string name_, double mass, Eigen::Vector3d &local_com_position);
+  void initialize(RigidBodyDynamics::Model &model_, int id_, std::string name_, double mass, Eigen::Vector3d &local_com_position);
 
   // Update COM jacobian
   void COM_Jac_Update(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_virtual_);
@@ -42,6 +42,9 @@ public:
 
   // Set Contact point, Contact jacobian
   void Set_Contact(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_position);
+
+  // Set Contact point, Contact jacobian
+  void Set_Contact(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_position);
 
   // update Jacobian matrix of local position at link.
   void Set_Jacobian(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Jacobian_position);
@@ -67,6 +70,8 @@ public:
   int id;
   double Mass;
   std::string name;
+
+  RigidBodyDynamics::Model *model;
 
   //local COM position of body
   Eigen::Vector3d COM_position;

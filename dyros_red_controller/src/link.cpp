@@ -1,7 +1,7 @@
 #include "dyros_red_controller/link.h"
 #include "ros/ros.h"
 
-void Link::initialize(int id_, std::string name_, double mass, Eigen::Vector3d &local_com_position)
+void Link::initialize(RigidBodyDynamics::Model &model_, int id_, std::string name_, double mass, Eigen::Vector3d &local_com_position)
 {
     id = id_;
     Mass = mass;
@@ -10,6 +10,8 @@ void Link::initialize(int id_, std::string name_, double mass, Eigen::Vector3d &
     Rotm.setZero();
     inertia.setZero();
     contact_point.setZero();
+
+    model = &model_;
 
     Jac.setZero(6, MODEL_DOF + 6);
     Jac_COM.setZero(6, MODEL_DOF + 6);
@@ -67,6 +69,24 @@ void Link::Set_Contact(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_vi
     RigidBodyDynamics::CalcPointJacobian6D(model_, q_virtual_, id, Contact_position, j_temp, false);
 
     xpos_contact = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, id, Contact_position, false);
+
+    // Jac_Contact.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0)*E_T_;
+    // Jac_Contact.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0)*E_T_;
+    Jac_Contact.block<3, MODEL_DOF + 6>(0, 0) = j_temp.block<3, MODEL_DOF + 6>(3, 0);
+    Jac_Contact.block<3, MODEL_DOF + 6>(3, 0) = j_temp.block<3, MODEL_DOF + 6>(0, 0);
+
+    // Jac_Contact.block<3,3>(0,3)= -
+    // DyrosMath::skm(RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,id,Contact_position,false)
+    // - link_[0].xpos);
+}
+
+void Link::Set_Contact(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_position)
+{
+    j_temp.setZero(6, MODEL_DOF_VIRTUAL);
+
+    RigidBodyDynamics::CalcPointJacobian6D(*model, q_virtual_, id, Contact_position, j_temp, false);
+
+    xpos_contact = RigidBodyDynamics::CalcBodyToBaseCoordinates(*model, q_virtual_, id, Contact_position, false);
 
     // Jac_Contact.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0)*E_T_;
     // Jac_Contact.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0)*E_T_;

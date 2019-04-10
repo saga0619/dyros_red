@@ -35,6 +35,9 @@ file(GLOB AD_SRC
     "src/mujoco_interface.cpp"
     "src/link.cpp"
     "src/red_controller.cpp"
+    "src/terminal.cpp"
+    "src/qp.cpp"
+    "src/ascii"
     )
 
 add_library(dyros_red_controller_lib

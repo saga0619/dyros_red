@@ -12,46 +12,67 @@
 #include <mujoco_ros_msgs/SensorState.h>
 #include <mujoco_ros_msgs/JointSet.h>
 #include <sensor_msgs/JointState.h>
-#include "dyros_red_controller/link.h"
 #include <ncurses.h>
+#include "dyros_red_controller/link.h"
+
+class TQue
+{
+public:
+  bool update;
+  int x;
+  int y;
+  //std::string text;
+  char text[1024];
+};
 
 class DataContainer
 {
-  public:
-    ros::NodeHandle nh;
-    //Basic var
-    bool simulation = true;
+public:
+  ros::NodeHandle nh;
+  //Basic var
+  bool simulation = true;
+  bool shutdown = false;
+  bool connected = false;
+  bool firstcalc = false;
 
-    double time;
-    double com_time;
+  bool ncurse_mode = false;
 
-    int dym_hz;
-    std::chrono::microseconds dym_timestep;
+  //Tui Var..
+  bool state_end;
+  bool dynamics_end;
+  TQue Tq_[100];
 
-    int stm_hz;
-    std::chrono::microseconds stm_timestep;
-    bool check = false;
+  double time;
+  double com_time;
+  double sim_time;
 
-    Eigen::VectorQd q_;
-    Eigen::VectorQVQd q_virtual_;
-    Eigen::VectorQd q_dot_;
-    Eigen::VectorVQd q_dot_virtual_;
-    Eigen::VectorVQd q_ddot_virtual_;
-    Eigen::VectorQd torque_;
+  int dym_hz;
+  std::chrono::microseconds dym_timestep;
 
-    //Command Var
-    Eigen::VectorQd torque_desired;
+  int stm_hz;
+  std::chrono::microseconds stm_timestep;
+  bool check = false;
 
-    //Kinematics Information :
-    Link link_[LINK_NUMBER + 1];
+  Eigen::VectorQd q_;
+  Eigen::VectorQVQd q_virtual_;
+  Eigen::VectorQd q_dot_;
+  Eigen::VectorVQd q_dot_virtual_;
+  Eigen::VectorVQd q_ddot_virtual_;
+  Eigen::VectorQd torque_;
 
-    double yaw_radian;
+  //Command Var
+  Eigen::VectorQd torque_desired;
 
-    Eigen::Matrix37d A_;
+  //Kinematics Information :
+  Link link_[LINK_NUMBER + 1];
 
-    Com com_;
+  double yaw_radian;
 
-    //Model var
+  Eigen::Matrix37d A_;
+
+  Com com_;
+
+  //Model var
 };
 
 namespace RED
@@ -85,5 +106,7 @@ static constexpr const char *LINK_NAME[32] = {
     "L_Shoulder1_Link", "L_Shoulder2_Link", "L_Shoulder3_Link", "L_Armlink_Link", "L_Elbow_Link", "L_Forearm_Link", "L_Wrist1_Link", "L_Wrist2_Link",
     "R_Shoulder1_Link", "R_Shoulder2_Link", "R_Shoulder3_Link", "R_Armlink_Link", "R_Elbow_Link", "R_Forearm_Link", "R_Wrist1_Link", "R_Wrist2_Link"};
 } // namespace RED
+
+static std::mutex mtx;
 
 #endif
