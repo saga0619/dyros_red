@@ -19,6 +19,9 @@ void Link::initialize(RigidBodyDynamics::Model &model_, int id_, std::string nam
     Jac_COM_r.setZero(3, MODEL_DOF + 6);
     Jac_Contact.setZero(6, MODEL_DOF + 6);
     Jac_point.setZero(6, MODEL_DOF + 6);
+
+    j_temp.setZero(6, MODEL_DOF + 6);
+    j_temp2.setZero(6, MODEL_DOF + 6);
 }
 
 void Link::pos_Update(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_virtual_)
@@ -93,6 +96,22 @@ void Link::Set_Contact(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_p
     Jac_Contact.block<3, MODEL_DOF + 6>(0, 0) = j_temp.block<3, MODEL_DOF + 6>(3, 0);
     Jac_Contact.block<3, MODEL_DOF + 6>(3, 0) = j_temp.block<3, MODEL_DOF + 6>(0, 0);
 
+    for (int i = 0; i < 3; i++)
+    {
+        if (!(j_temp(i, 3 + i) == 1))
+        {
+            std::cout << name << std::endl;
+            std::cout << i << ", " << i << " is not 1" << std::endl;
+        }
+    }
+    for (int i = 0; i < 3; i++)
+    {
+        if (!(j_temp(3 + i, i) == 1))
+        {
+            std::cout << name << std::endl;
+            std::cout << i << ", " << i << " is not 1" << std::endl;
+        }
+    }
     // Jac_Contact.block<3,3>(0,3)= -
     // DyrosMath::skm(RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,id,Contact_position,false)
     // - link_[0].xpos);

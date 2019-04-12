@@ -1,6 +1,7 @@
 #include "dyros_red_controller/red_controller.h"
 #include "dyros_red_controller/terminal.h"
 #include "dyros_red_controller/redsvd.h"
+#include <fstream>
 
 RedController::RedController(DataContainer &dc_global, StateManager &sm, DynamicsManager &dm) : dc(dc_global), s_(sm), d_(dm)
 {
@@ -17,15 +18,15 @@ void RedController::dynamicsThreadHigh()
 {
     ros::Rate r(2000);
 
-    while ((!dc.connected) && (!dc.shutdown))
+    while ((!dc.connected) && (!dc.shutdown) && ros::ok())
     {
         r.sleep();
     }
-    while ((!dc.firstcalc) && (!dc.shutdown))
+    while ((!dc.firstcalc) && (!dc.shutdown) && ros::ok())
     {
         r.sleep();
     }
-    while (!dc.shutdown)
+    while (!dc.shutdown && ros::ok())
     {
         mtx.lock();
         s_.sendCommand(torque_desired);
@@ -41,11 +42,11 @@ void RedController::dynamicsThreadLow()
     int ThreadCount = 0;
     int i = 1;
 
-    while ((!dc.connected) && (!dc.shutdown))
+    while ((!dc.connected) && (!dc.shutdown) && ros::ok())
     {
         r.sleep();
     }
-    while ((!dc.firstcalc) && (!dc.shutdown))
+    while ((!dc.firstcalc) && (!dc.shutdown) && ros::ok())
     {
         r.sleep();
     }
@@ -70,8 +71,16 @@ void RedController::dynamicsThreadLow()
     Eigen::MatrixXd tg_temp;
     Eigen::MatrixXd A_matrix_inverse;
     Eigen::MatrixXd J_C;
+    Eigen::MatrixXd J_C_temp;
+    Eigen::MatrixXd Jcon[2];
 
-    while (!dc.shutdown)
+    Eigen::VectorXd qtemp[2], conp[2];
+
+    J_C.setZero(contact_number * 6, MODEL_DOF_VIRTUAL);
+    N_C.setZero(total_dof_ + 6, total_dof_ + 6);
+    bool first = true;
+
+    while (!dc.shutdown && ros::ok())
     {
 
         mtx.lock();
@@ -81,18 +90,51 @@ void RedController::dynamicsThreadLow()
         A_matrix_inverse = A_.inverse();
         link_id[0] = Right_Foot;
         link_id[1] = Left_Foot;
-        J_C.setZero(contact_number * 6, MODEL_DOF_VIRTUAL);
-
         for (int i = 0; i < contact_number; i++)
         {
             link_[link_id[i]].Set_Contact(q_virtual_, link_[link_id[i]].contact_point);
+            if (!first)
+            {
+                if (qtemp[i] != q_virtual_)
+                {
+                    rprint(dc, 4, 30 * i, "qtmp %d : %f", i, ros::Time::now().toSec());
+                }
+            }
+            if (!first)
+            {
+                if (conp[i] != link_[link_id[i]].contact_point)
+                {
+                    rprint(dc, 5, 30 * i, "conp %d : %f", i, ros::Time::now().toSec());
+                }
+            }
+            qtemp[i] = q_virtual_;
+            conp[i] = link_[link_id[i]].contact_point;
+
             J_C.block(i * 6, 0, 6, MODEL_DOF_VIRTUAL) = link_[link_id[i]].Jac_Contact;
+
+            if (false)
+            {
+                if (Jcon[i] != link_[link_id[i]].Jac_Contact)
+                {
+                    rprint(dc, 6 + i, 0, "jcon %d : %f", i, ros::Time::now().toSec());
+                    std::cout << "J_con " << i << std::endl
+                              << Jcon[i] << std::endl
+                              << "J con before " << std::endl
+                              << link_[link_id[i]].Jac_Contact << std::endl
+                              << "Diff" << std::endl
+                              << Jcon[i] - link_[link_id[i]].Jac_Contact << std::endl;
+                }
+            }
+            Jcon[i] = link_[link_id[i]].Jac_Contact;
         }
 
+        J_C_temp = J_C;
+
         Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
+
         J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
-        N_C.setZero(total_dof_ + 6, total_dof_ + 6);
         I37.setIdentity(total_dof_ + 6, total_dof_ + 6);
+
         N_C = I37 - J_C.transpose() * J_C_INV_T;
         Slc_k.setZero(total_dof_, total_dof_ + 6);
         Slc_k.block(0, 6, total_dof_, total_dof_).setIdentity();
@@ -126,12 +168,20 @@ void RedController::dynamicsThreadLow()
 
         tg_temp = ppinv * J_g * A_matrix_inverse * N_C;
         torque_grav = tg_temp * G;
-
+        if (!first)
+        {
+            if (torque_desired != torque_grav)
+            {
+                rprint(dc, 9, 0, "torque_grav : %f", ros::Time::now().toSec());
+            }
+        }
         mtx.lock();
         torque_desired = torque_grav;
         mtx.unlock();
         if (dc.shutdown)
             break;
+
+        first = false;
     }
 
     while (false)
@@ -252,7 +302,7 @@ void RedController::dynamicsThreadLow()
 
 void RedController::tuiThread()
 {
-    while (!dc.shutdown)
+    while (!dc.shutdown && ros::ok())
     {
         for (int i = 0; i < 40; i++)
         {
@@ -261,6 +311,11 @@ void RedController::tuiThread()
                 mtx.lock();
                 mvprintw(dc.Tq_[i].y, dc.Tq_[i].x, dc.Tq_[i].text);
                 dc.Tq_[i].update = false;
+                if (dc.Tq_[i].clr_line)
+                {
+                    move(dc.Tq_[i].y, 0);
+                    clrtoeol();
+                }
                 mtx.unlock();
             }
             else if (dc.Tq_[i].update && (!dc.ncurse_mode))
@@ -269,7 +324,14 @@ void RedController::tuiThread()
                 dc.Tq_[i].update = false;
             }
         }
-        if (getch() == 'q')
+        if (dc.ncurse_mode)
+        {
+            if (getch() == 'q')
+            {
+                dc.shutdown = true;
+            }
+        }
+        else if (!ros::ok())
         {
             dc.shutdown = true;
         }

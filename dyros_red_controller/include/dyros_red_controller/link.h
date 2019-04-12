@@ -107,6 +107,7 @@ public:
   Eigen::Matrix6Vd Jac_Contact;
 
   Eigen::MatrixXd j_temp;
+  Eigen::MatrixXd j_temp2;
 
   //realtime traj of cartesian & orientation.
   //)) traj is outcome of cubic or quintic function, which will be used to make fstar!

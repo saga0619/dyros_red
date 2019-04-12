@@ -1,5 +1,5 @@
 #include "dyros_red_controller/dynamics_manager.h"
-
+#include "dyros_red_controller/terminal.h"
 using namespace Eigen;
 
 MatrixXd mat_inv(MatrixXd mat)
@@ -30,12 +30,9 @@ void DynamicsManager::dynamicsThread(void)
         //std::cout << "none thread calc done : " << (ros::Time::now() - start).toNSec() / 1.0E+6 << std::endl;
         //std::cout << "dcl test : " << dc.check << std::endl;
 
-        if ((!(getch() == -1)) || dc.shutdown)
+        if (dc.shutdown)
         {
-            dc.shutdown = true;
-            move(17, 0);
-            clrtoeol();
-            mvprintw(17, 10, "thread calc end ");
+            rprint(dc, true, 17, 10, "thread calc end ");
             break;
         }
     }
@@ -43,10 +40,10 @@ void DynamicsManager::dynamicsThread(void)
 
 void DynamicsManager::testThread()
 {
-    int testval = 10;
+    int testval = 500;
     std::future<MatrixXd> ret[testval];
     mtx.lock();
-    mvprintw(16, 10, "Calc SVD %d times ", testval);
+    rprint(dc, 16, 10, "Calc SVD %d times ", testval);
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     mtx.unlock();
 
@@ -84,17 +81,13 @@ void DynamicsManager::testThread()
         mtx.lock();
         //erase();
 
-        mvprintw(17, 10, "single thread : %8.4f ms   multi thread : %8.4f ms              ", d2, d1);
+        rprint(dc, 17, 10, "single thread : %8.4f ms   multi thread : %8.4f ms              ", d2, d1);
 
         mtx.unlock();
-        if ((!(getch() == -1)) || dc.shutdown)
+        if (dc.shutdown)
         {
-            dc.shutdown = true;
-            move(17, 0);
-            clrtoeol();
-            move(16, 0);
-            clrtoeol();
-            mvprintw(17, 10, "thread calc end ");
+            rprint(dc, true, 17, 10, "thread calc end ");
+            rprint(dc, true, 16, 10, " ");
             break;
         }
     }

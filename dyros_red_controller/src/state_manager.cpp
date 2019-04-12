@@ -100,7 +100,7 @@ void StateManager::stateThread(void)
         //To check frequency
         /*if (e_s.count() > sec10.count() * i)
         {
-            mvprintw(0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
+            rprint(dc, 0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
             i++;
         }*/
         ThreadCount++;
@@ -131,19 +131,13 @@ void StateManager::testThread()
         {
             mtx.lock();
             e_s = std::chrono::high_resolution_clock::now() - StartTime;
-            mvprintw(19, 10, "Kinematics update %8.4f hz                         ", 500 / e_s.count());
-            refresh();
-            //std::cout << "\n\tTotal Calc Count : " << ThreadCount << " times in 1 second! \n";
-            //std::cout << link_[0];
+            rprint(dc, 19, 10, "Kinematics update %8.4f hz                         ", 500 / e_s.count());
             StartTime = std::chrono::high_resolution_clock::now();
             mtx.unlock();
         }
-        if ((getch() == 'q') || dc.shutdown)
+        if (dc.shutdown)
         {
-            dc.shutdown = true;
-            move(19, 0);
-            clrtoeol();
-            mvprintw(19, 10, "state end");
+            rprint(dc, true, 19, 10, "state end");
             break;
         }
         ThreadCount++;
@@ -215,7 +209,7 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
 
     if (!(A_ == A_temp_))
     {
-        tui_addQue(dc, 0, 0, "RBDL PROBLEM AT %f", ros::Time::now().toSec());
+        rprint(dc, 0, 0, "RBDL PROBLEM AT %f", ros::Time::now().toSec());
     }
 
     A_ = A_temp_;
@@ -227,11 +221,11 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     for (int i = 0; i < MODEL_DOF + 1; i++)
     {
         if (!(link_[i].xpos == dc.link_[i].xpos))
-            tui_addQue(dc, 1, 0, "xpos PROBLEM AT %f", ros::Time::now().toSec());
+            rprint(dc, 1, 0, "xpos PROBLEM AT %f", ros::Time::now().toSec());
         if (!(link_[i].xipos == dc.link_[i].xipos))
-            tui_addQue(dc, 2, 0, "xipos PROBLEM AT %f", ros::Time::now().toSec());
+            rprint(dc, 2, 0, "xipos PROBLEM AT %f", ros::Time::now().toSec());
         if (!(link_[i].Rotm == dc.link_[i].Rotm))
-            tui_addQue(dc, 3, 0, "Rotm PROBLEM AT %f", ros::Time::now().toSec());
+            rprint(dc, 3, 0, "Rotm PROBLEM AT %f", ros::Time::now().toSec());
     }
 
     Eigen::Vector3d zero;

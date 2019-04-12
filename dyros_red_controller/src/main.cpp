@@ -5,32 +5,45 @@
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "dyros_red_controller");
-
     DataContainer dc;
+
+    std::string mode;
+
+    dc.nh.param<std::string>("run_mode", mode, "default");
     Tui tui(dc);
-
-    //mvprintw(3, 0, wc.c_str());
-
     tui.ReadAndPrint(3, 0, "ascii0");
 
-    refresh();
-    wait_for_keypress();
-
-    bool s3;
-
-    erase();
-    //mvprintw(0, 0, red.c_str());
-
-    tui.ReadAndPrint(0, 0, "red");
-    refresh();
-    s3 = true;
-    init_pair(1, -1, -1);
-    init_pair(2, COLOR_BLACK, COLOR_WHITE);
+    if (mode == "simulation")
+    {
+        mvprintw(20, 30, " :: SIMULATION MODE :: ");
+        refresh();
+        wait_for_ms(1000);
+    }
+    else if (mode == "realrobot")
+    {
+        mvprintw(20, 30, " :: REAL ROBOT MODE :: ");
+        refresh();
+        wait_for_ms(1000);
+    }
+    else if (mode == "default")
+    {
+        wait_for_keypress();
+        erase();
+        tui.ReadAndPrint(0, 0, "red");
+        refresh();
+    }
+    else
+    {
+        mvprintw(20, 10, " !! SOMETHING WRONG :: Unidentified ROS Param! Press Any Key to End");
+        refresh();
+        wait_for_keypress();
+        endwin();
+        return 0;
+    }
 
     int menu_slc = 0;
-    while (s3)
+    while (mode == "default")
     {
-        int ch = getch();
         if (menu_slc == 0)
         {
             attron(COLOR_PAIR(2));
@@ -67,20 +80,24 @@ int main(int argc, char **argv)
             mvprintw(9, 35, "EXIT");
             attroff(COLOR_PAIR(2));
         }
+
+        int ch = getch();
         if (ch == 10)
         {
-            s3 = false;
             if (menu_slc == 0)
             {
                 mvprintw(16, 10, "SIMULATION MODE! ");
+                mode = "simulation";
             }
             else if (menu_slc == 1)
             {
                 mvprintw(16, 10, "REAL ROBOT IS NOT READY");
+                mode = "realrobot";
             }
             else if (menu_slc == 2)
             {
                 mvprintw(16, 10, "TEST MODE !");
+                mode = "testmode";
             }
             else if (menu_slc == 3)
             {
@@ -88,6 +105,7 @@ int main(int argc, char **argv)
                 endwin();
                 return 0;
             }
+            break;
         }
         else if (ch == KEY_DOWN)
         {
@@ -105,6 +123,14 @@ int main(int argc, char **argv)
         wait_for_ms(10);
         refresh();
     }
+    erase();
+    tui.ReadAndPrint(0, 0, "red");
+    refresh();
+
+    dc.ncurse_mode = false;
+
+    if (!dc.ncurse_mode)
+        endwin();
 
     bool simulation = true;
     dc.dym_hz = 500; //frequency should be divisor of a million (timestep must be integer)
@@ -116,41 +142,67 @@ int main(int argc, char **argv)
     DynamicsManager dym(dc);
     RedController rc(dc, stm, dym);
 
-    if (menu_slc == 0)
+    std::thread thread[4];
+    if (mode == "simulation")
     {
-        std::thread thread0(&RedController::stateThread, &rc);
-        std::thread thread1(&RedController::dynamicsThreadHigh, &rc);
-        std::thread thread2(&RedController::dynamicsThreadLow, &rc);
-        std::thread thread3(&RedController::tuiThread, &rc);
+        thread[0] = std::thread(&RedController::stateThread, &rc);
+        thread[1] = std::thread(&RedController::dynamicsThreadHigh, &rc);
+        thread[2] = std::thread(&RedController::dynamicsThreadLow, &rc);
+        thread[3] = std::thread(&RedController::tuiThread, &rc);
+        bool tj[4];
+        while (ros::ok())
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            for (int i = 0; i < 4; i++)
+            {
+                if (thread[i].joinable())
+                {
+                    if (dc.ncurse_mode)
+                    {
+                        mvprintw(3 + 2 * i, 35, "Thread %d End", i);
+                        refresh();
+                    }
+                    else
+                    {
+                        std::cout << "Thread " << i << " End!" << std::endl;
+                    }
+                }
+            }
+            if (thread[0].joinable() && thread[1].joinable() && thread[2].joinable() && thread[3].joinable())
+            {
+                break;
+            }
+        }
 
-        thread0.join();
-        mvprintw(0, 10, "t1");
-        refresh();
-
-        thread1.join();
-        mvprintw(0, 14, "t2");
-        refresh();
-
-        thread2.join();
-        mvprintw(0, 18, "t3");
-        refresh();
-
-        thread3.join();
-        mvprintw(0, 22, "t4");
-        refresh();
+        for (int i = 0; i < 4; i++)
+        {
+            thread[i].join();
+        }
     }
-    else if (menu_slc == 1)
+    else if (mode == "realrobot")
     {
     }
-    else if (menu_slc == 2)
+    else if (mode == "testmode")
     {
-        std::thread state_thread(&StateManager::testThread, &stm);
-        std::thread dynamics_thread(&DynamicsManager::testThread, &dym);
-        state_thread.join();
-        dynamics_thread.join();
+        thread[0] = std::thread(&StateManager::testThread, &stm);
+        thread[1] = std::thread(&DynamicsManager::testThread, &dym);
+        thread[2] = std::thread(&RedController::tuiThread, &rc);
+
+        for (int i = 0; i < 3; i++)
+        {
+            thread[i].join();
+            if (dc.ncurse_mode)
+            {
+                mvprintw(3 + 2 * i, 35, "Thread %d End", i);
+                refresh();
+            }
+        }
     }
-    mvprintw(22, 10, "PRESS ANY KEY TO EXIT ...");
-    while (1)
+
+    if (dc.ncurse_mode)
+        mvprintw(22, 10, "PRESS ANY KEY TO EXIT ...");
+
+    while (ros::ok())
     {
         if (!(getch() == -1))
         {

@@ -13,6 +13,9 @@ Tui::Tui(DataContainer &dc_global) : dc(dc_global)
 
     ncurse_ = true;
     dc.ncurse_mode = true;
+
+    init_pair(1, -1, -1);
+    init_pair(2, COLOR_BLACK, COLOR_WHITE);
 }
 
 void Tui::tuiThread()
@@ -21,14 +24,14 @@ void Tui::tuiThread()
     {
         for (int i = 0; i < 40; i++)
         {
-            if (dc.Tq_[i].update && ncurse_)
+            if (dc.Tq_[i].update && dc.ncurse_mode)
             {
                 mtx.lock();
                 mvprintw(dc.Tq_[i].x, dc.Tq_[i].y, dc.Tq_[i].text);
                 dc.Tq_[i].update = false;
                 mtx.unlock();
             }
-            else if (dc.Tq_[i].update && (!ncurse_))
+            else if (dc.Tq_[i].update && (!dc.ncurse_mode))
             {
                 std::cout << dc.Tq_[i].text << std::endl;
                 dc.Tq_[i].update = false;
@@ -38,6 +41,7 @@ void Tui::tuiThread()
         {
             dc.shutdown = true;
         }
+        endwin();
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
@@ -78,7 +82,10 @@ void rprint(DataContainer &dc_q, int y, int x, const char *str, ...)
             dc_q.Tq_[i].update = true;
             dc_q.Tq_[i].y = y;
             dc_q.Tq_[i].x = x;
-            sprintf(dc_q.Tq_[i].text, str, lst);
+            //sprintf(dc_q.Tq_[i].text, str, lst);
+            vsnprintf(dc_q.Tq_[i].text, 255, str, lst);
+            //vfprintf(dc_q.Tq_[i].text, str, lst);
+            dc_q.Tq_[i].clr_line = false;
             break;
         }
     }
@@ -86,6 +93,30 @@ void rprint(DataContainer &dc_q, int y, int x, const char *str, ...)
     mtx.unlock();
 }
 
+void rprint(DataContainer &dc_q, bool clr_line, int y, int x, const char *str, ...)
+{
+
+    mtx.lock();
+    va_list lst;
+    va_start(lst, str);
+    //char buff[1024];
+    for (int i = 0; i < 50; i++)
+    {
+
+        if (!dc_q.Tq_[i].update)
+        {
+            dc_q.Tq_[i].update = true;
+            dc_q.Tq_[i].y = y;
+            dc_q.Tq_[i].x = x;
+            sprintf(dc_q.Tq_[i].text, str, lst);
+            dc_q.Tq_[i].clr_line = clr_line;
+            break;
+        }
+    }
+    va_end(lst);
+
+    mtx.unlock();
+}
 /*
 void tui_addQue(DataContainer &dc_g, int y, int x, std::string text)
 {

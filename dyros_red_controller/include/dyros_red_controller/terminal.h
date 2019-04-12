@@ -27,6 +27,7 @@ void wait_for_keypress();
 void wait_for_ms(int ms);
 
 void rprint(DataContainer &dc, int y, int x, const char *str, ...);
+void rprint(DataContainer &dc, bool clr_line, int y, int x, const char *str, ...);
 void rprint(DataContainer &dc, const char *str, ...);
 
 #endif

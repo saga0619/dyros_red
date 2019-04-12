@@ -15,16 +15,19 @@
 #include <ncurses.h>
 #include "dyros_red_controller/link.h"
 
+//Terminal Data Que
 class TQue
 {
 public:
   bool update;
+  bool clr_line;
   int x;
   int y;
   //std::string text;
-  char text[1024];
+  char text[256];
 };
 
+//Robot data Storage
 class DataContainer
 {
 public:
