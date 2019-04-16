@@ -1,5 +1,8 @@
 #include "dyros_red_controller/data_container.h"
 
+extern std::mutex mtx;
+extern std::mutex mtx_dc;
+
 class DynamicsManager
 {
 private:

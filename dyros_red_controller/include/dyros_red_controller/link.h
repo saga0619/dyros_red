@@ -5,6 +5,9 @@
 #include "math_type_define.h"
 #include <rbdl/rbdl.h>
 #include <rbdl/addons/urdfreader/urdfreader.h>
+#include <mutex>
+
+extern std::mutex mtx_rbdl;
 
 const int Pelvis = 0;
 const int Upper_Body = 3;

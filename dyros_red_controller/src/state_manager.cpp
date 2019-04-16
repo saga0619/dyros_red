@@ -81,14 +81,14 @@ void StateManager::stateThread(void)
 
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
-        mtx.lock();
+        mtx_dc.lock();
         storeState();
 
         if (!dc.firstcalc)
         {
             dc.firstcalc = true;
         }
-        mtx.unlock();
+        mtx_dc.unlock();
 
         std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
 
@@ -122,18 +122,16 @@ void StateManager::testThread()
         updateState();
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
-        mtx.lock();
+        mtx_dc.lock();
         storeState();
-        mtx.unlock();
+        mtx_dc.unlock();
 
         //std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
-        if ((ThreadCount % 500) == 0)
+        if ((ThreadCount % 2000) == 0)
         {
-            mtx.lock();
             e_s = std::chrono::high_resolution_clock::now() - StartTime;
-            rprint(dc, 19, 10, "Kinematics update %8.4f hz                         ", 500 / e_s.count());
+            rprint(dc, 19, 10, "Kinematics update %8.4f hz                         ", 2000 / e_s.count());
             StartTime = std::chrono::high_resolution_clock::now();
-            mtx.unlock();
         }
         if (dc.shutdown)
         {
@@ -152,7 +150,7 @@ void StateManager::updateState()
     //overrid by simulation or red robot
 }
 
-void StateManager::sendCommand(Eigen::VectorQd command)
+void StateManager::sendCommand(Eigen::VectorQd command, double simt)
 {
     //overrid by simulation or red robot
 }
@@ -196,9 +194,10 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
    * 6 ~ MODEL_DOF + 5 : joint position
    * model dof + 6 ( last component of q_virtual) : w of Quaternion
    * */
+    mtx_rbdl.lock();
     RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, &q_dot_virtual, &q_ddot_virtual);
-
-    RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_, true);
+    RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_, false);
+    mtx_rbdl.unlock();
 
     tf::Quaternion q(q_virtual_(3), q_virtual_(4), q_virtual_(5), q_virtual_(MODEL_DOF + 6));
 
@@ -207,25 +206,10 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     m.getRPY(roll, pitch, yaw);
     yaw_radian = yaw;
 
-    if (!(A_ == A_temp_))
-    {
-        rprint(dc, 0, 0, "RBDL PROBLEM AT %f", ros::Time::now().toSec());
-    }
-
     A_ = A_temp_;
     for (int i = 0; i < MODEL_DOF + 1; i++)
     {
         link_[i].pos_Update(model_, q_virtual_);
-    }
-
-    for (int i = 0; i < MODEL_DOF + 1; i++)
-    {
-        if (!(link_[i].xpos == dc.link_[i].xpos))
-            rprint(dc, 1, 0, "xpos PROBLEM AT %f", ros::Time::now().toSec());
-        if (!(link_[i].xipos == dc.link_[i].xipos))
-            rprint(dc, 2, 0, "xipos PROBLEM AT %f", ros::Time::now().toSec());
-        if (!(link_[i].Rotm == dc.link_[i].Rotm))
-            rprint(dc, 3, 0, "Rotm PROBLEM AT %f", ros::Time::now().toSec());
     }
 
     Eigen::Vector3d zero;
@@ -246,8 +230,9 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     double com_mass;
     RigidBodyDynamics::Math::Vector3d com_pos;
     RigidBodyDynamics::Math::Vector3d com_vel, com_accel, com_ang_momentum;
-
-    RigidBodyDynamics::Utils::CalcCenterOfMass(model_, q_virtual_, q_dot_virtual_, &q_ddot_virtual, com_mass, com_pos, &com_vel, &com_accel, &com_ang_momentum, NULL, true);
+    mtx_rbdl.lock();
+    RigidBodyDynamics::Utils::CalcCenterOfMass(model_, q_virtual_, q_dot_virtual_, &q_ddot_virtual, com_mass, com_pos, &com_vel, &com_accel, &com_ang_momentum, NULL, false);
+    mtx_rbdl.unlock();
 
     com_.mass = com_mass;
     com_.pos = com_pos;

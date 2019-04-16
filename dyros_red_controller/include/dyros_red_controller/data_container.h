@@ -110,6 +110,7 @@ static constexpr const char *LINK_NAME[32] = {
     "R_Shoulder1_Link", "R_Shoulder2_Link", "R_Shoulder3_Link", "R_Armlink_Link", "R_Elbow_Link", "R_Forearm_Link", "R_Wrist1_Link", "R_Wrist2_Link"};
 } // namespace RED
 
-static std::mutex mtx;
+//static std::mutex mtx;
+//static std::mutex mtx_rbdl;
 
 #endif

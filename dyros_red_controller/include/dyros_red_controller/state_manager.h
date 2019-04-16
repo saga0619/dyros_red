@@ -1,6 +1,10 @@
 #include "dyros_red_controller/data_container.h"
 #include "dyros_red_controller/terminal.h"
 
+extern std::mutex mtx;
+extern std::mutex mtx_rbdl;
+extern std::mutex mtx_dc;
+
 class StateManager
 {
 public:
@@ -10,7 +14,8 @@ public:
   virtual bool connect();
   virtual void stateThread(); //main thread managing state
   virtual void updateState();
-  virtual void sendCommand(Eigen::VectorQd command);
+  //virtual void sendCommand(Eigen::VectorQd command);
+  virtual void sendCommand(Eigen::VectorQd command, double sim_time);
 
   //initialize variables
   virtual void initialize();

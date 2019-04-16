@@ -22,9 +22,8 @@ void MujocoInterface::updateState()
     //updateKinematics();
 }
 
-void MujocoInterface::sendCommand(Eigen::VectorQd command)
+/*void MujocoInterface::sendCommand(Eigen::VectorQd command)
 {
-    mtx.lock();
     mujoco_joint_set_msg_.MODE = 1;
 
     for (int i = 0; i < MODEL_DOF; i++)
@@ -42,7 +41,27 @@ void MujocoInterface::sendCommand(Eigen::VectorQd command)
     mujoco_joint_set_msg_.time = control_time_;
     mujoco_joint_set_pub_.publish(mujoco_joint_set_msg_);
     mujoco_sim_last_time = mujoco_sim_time;
-    mtx.unlock();
+}*/
+
+void MujocoInterface::sendCommand(Eigen::VectorQd command, double simt)
+{
+    mujoco_joint_set_msg_.MODE = 1;
+
+    for (int i = 0; i < MODEL_DOF; i++)
+    {
+        for (int j = 0; j < MODEL_DOF; j++)
+        {
+            if (RED::ACTUATOR_NAME[i] == joint_name_mj[j])
+            {
+                mujoco_joint_set_msg_.torque[j] = command[i];
+            }
+        }
+    }
+
+    mujoco_joint_set_msg_.header.stamp = ros::Time::now();
+    mujoco_joint_set_msg_.time = simt;
+    mujoco_joint_set_pub_.publish(mujoco_joint_set_msg_);
+    mujoco_sim_last_time = mujoco_sim_time;
 }
 
 bool MujocoInterface::connect()

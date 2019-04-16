@@ -13,7 +13,8 @@ public:
   virtual void updateState() override;
 
   //Send command to Mujoco
-  virtual void sendCommand(Eigen::VectorQd command) override;
+  //virtual void sendCommand(Eigen::VectorQd command) override;
+  virtual void sendCommand(Eigen::VectorQd command, double sim_time) override;
 
   //connect to Mujoco_ros
   virtual bool connect() override;

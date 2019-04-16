@@ -26,9 +26,11 @@ void Link::initialize(RigidBodyDynamics::Model &model_, int id_, std::string nam
 
 void Link::pos_Update(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_virtual_)
 {
+    mtx_rbdl.lock();
     xpos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, id, Eigen::Vector3d::Zero(), false);
     xipos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, id, COM_position, false);
     Rotm = (RigidBodyDynamics::CalcBodyWorldOrientation(model_, q_virtual_, id, false)).transpose();
+    mtx_rbdl.unlock();
     // COM_position =
     // RigidBodyDynamics::CalcBaseToBodyCoordinates(model_,q_virtual_,link_[i])
 }
@@ -41,7 +43,10 @@ void Link::COM_Jac_Update(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q
 
     fj_.setZero();
 
+    mtx_rbdl.lock();
     RigidBodyDynamics::CalcPointJacobian6D(model_, q_virtual_, id, COM_position, fj_, false);
+
+    mtx_rbdl.unlock();
     j_p_ = fj_.block<3, MODEL_DOF + 6>(3, 0);
     j_r_ = fj_.block<3, MODEL_DOF + 6>(0, 0);
 
@@ -59,8 +64,10 @@ void Link::Set_Jacobian(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_v
 {
     j_temp.setZero(6, MODEL_DOF_VIRTUAL);
 
+    mtx_rbdl.lock();
     RigidBodyDynamics::CalcPointJacobian6D(model_, q_virtual_, id, Jacobian_position, j_temp, false);
 
+    mtx_rbdl.unlock();
     Jac.block<3, MODEL_DOF + 6>(0, 0) = j_temp.block<3, MODEL_DOF + 6>(3, 0);
     Jac.block<3, MODEL_DOF + 6>(3, 0) = j_temp.block<3, MODEL_DOF + 6>(0, 0);
 }
@@ -69,10 +76,12 @@ void Link::Set_Contact(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_vi
 {
     j_temp.setZero(6, MODEL_DOF_VIRTUAL);
 
+    mtx_rbdl.lock();
     RigidBodyDynamics::CalcPointJacobian6D(model_, q_virtual_, id, Contact_position, j_temp, false);
 
     xpos_contact = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, id, Contact_position, false);
 
+    mtx_rbdl.unlock();
     // Jac_Contact.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0)*E_T_;
     // Jac_Contact.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0)*E_T_;
     Jac_Contact.block<3, MODEL_DOF + 6>(0, 0) = j_temp.block<3, MODEL_DOF + 6>(3, 0);
@@ -87,31 +96,16 @@ void Link::Set_Contact(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_p
 {
     j_temp.setZero(6, MODEL_DOF_VIRTUAL);
 
+    mtx_rbdl.lock();
     RigidBodyDynamics::CalcPointJacobian6D(*model, q_virtual_, id, Contact_position, j_temp, false);
-
     xpos_contact = RigidBodyDynamics::CalcBodyToBaseCoordinates(*model, q_virtual_, id, Contact_position, false);
 
+    mtx_rbdl.unlock();
     // Jac_Contact.block<3,MODEL_DOF+6>(0,0)=fj_.block<3,MODEL_DOF+6>(3,0)*E_T_;
     // Jac_Contact.block<3,MODEL_DOF+6>(3,0)=fj_.block<3,MODEL_DOF+6>(0,0)*E_T_;
     Jac_Contact.block<3, MODEL_DOF + 6>(0, 0) = j_temp.block<3, MODEL_DOF + 6>(3, 0);
     Jac_Contact.block<3, MODEL_DOF + 6>(3, 0) = j_temp.block<3, MODEL_DOF + 6>(0, 0);
 
-    for (int i = 0; i < 3; i++)
-    {
-        if (!(j_temp(i, 3 + i) == 1))
-        {
-            std::cout << name << std::endl;
-            std::cout << i << ", " << i << " is not 1" << std::endl;
-        }
-    }
-    for (int i = 0; i < 3; i++)
-    {
-        if (!(j_temp(3 + i, i) == 1))
-        {
-            std::cout << name << std::endl;
-            std::cout << i << ", " << i << " is not 1" << std::endl;
-        }
-    }
     // Jac_Contact.block<3,3>(0,3)= -
     // DyrosMath::skm(RigidBodyDynamics::CalcBodyToBaseCoordinates(model_,q_virtual_,id,Contact_position,false)
     // - link_[0].xpos);

@@ -4,6 +4,7 @@
 
 Tui::Tui(DataContainer &dc_global) : dc(dc_global)
 {
+    mtx_terminal.lock();
     initscr();
     nodelay(stdscr, TRUE);
     noecho();
@@ -11,66 +12,72 @@ Tui::Tui(DataContainer &dc_global) : dc(dc_global)
     keypad(stdscr, TRUE);
     start_color();
 
-    ncurse_ = true;
-    dc.ncurse_mode = true;
-
     init_pair(1, -1, -1);
     init_pair(2, COLOR_BLACK, COLOR_WHITE);
+    mtx_terminal.unlock();
 }
 
 void Tui::tuiThread()
 { //100hz
-    while (!dc.shutdown)
-    {
-        for (int i = 0; i < 40; i++)
-        {
-            if (dc.Tq_[i].update && dc.ncurse_mode)
-            {
-                mtx.lock();
-                mvprintw(dc.Tq_[i].x, dc.Tq_[i].y, dc.Tq_[i].text);
-                dc.Tq_[i].update = false;
-                mtx.unlock();
-            }
-            else if (dc.Tq_[i].update && (!dc.ncurse_mode))
-            {
-                std::cout << dc.Tq_[i].text << std::endl;
-                dc.Tq_[i].update = false;
-            }
-        }
-        if (getch() == 'q')
-        {
-            dc.shutdown = true;
-        }
-        endwin();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
 }
 
-void tui_addQue(DataContainer &dc_q, int y, int x, const char *str, ...)
+std::string Tui::menu(int y_start, int x_start, int y_dis, int x_dis, int y_length, int x_length, std::string cs[10][10])
 {
-    mtx.lock();
-    va_list lst;
-    va_start(lst, str);
-    //char buff[1024];
-    for (int i = 0; i < 50; i++)
-    {
 
-        if (!dc_q.Tq_[i].update)
+    int cp[2] = {0, 0};
+
+    int getch;
+    while (true)
+    {
+        getch = getch();
+        if (getch == KEY_DOWN)
         {
-            dc_q.Tq_[i].update = true;
-            dc_q.Tq_[i].y = y;
-            dc_q.Tq_[i].x = x;
-            sprintf(dc_q.Tq_[i].text, str, lst);
-            break;
+            cp[0]++;
+            if (cp[0] > y_length - 1)
+                cp[0] = 0;
         }
+        else if (getch == KEY_UP)
+        {
+            cp[0]--;
+            if (cp[0] < 0)
+                cp[0] = y_length - 1;
+        }
+        else if (getch == KEY_LEFT)
+        {
+            cp[1]--;
+            if (cp[1] < 0)
+                cp[1] = x_length - 1;
+        }
+        else if (getch == KEY_RIGHT)
+        {
+            cp[1]++;
+            if (cp[1] > x_length - 1)
+                cp[1] = 0;
+        }
+
+        for (int i = 0; i < y_length; i++)
+        {
+            for (int j = 0; j < x_length; j++)
+            {
+                if ((cp[0] == i) && (cp[1] == j))
+                    attron(COLOR_PAIR(2));
+                mvprintw(y_start + y_dis * i, x_start + x_dis * j, cs[i][j].c_str());
+                if ((cp[0] == i) && (cp[1] == j))
+                    attroff(COLOR_PAIR(2));
+            }
+        }
+
+        if (getch == 10)
+        {
+            return cs[cp[0]][cp[1]];
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
-    va_end(lst);
-    mtx.unlock();
 }
 
 void rprint(DataContainer &dc_q, int y, int x, const char *str, ...)
 {
-    mtx.lock();
     va_list lst;
     va_start(lst, str);
     //char buff[1024];
@@ -79,24 +86,22 @@ void rprint(DataContainer &dc_q, int y, int x, const char *str, ...)
 
         if (!dc_q.Tq_[i].update)
         {
+            mtx_terminal.lock();
             dc_q.Tq_[i].update = true;
             dc_q.Tq_[i].y = y;
             dc_q.Tq_[i].x = x;
-            //sprintf(dc_q.Tq_[i].text, str, lst);
             vsnprintf(dc_q.Tq_[i].text, 255, str, lst);
-            //vfprintf(dc_q.Tq_[i].text, str, lst);
             dc_q.Tq_[i].clr_line = false;
+            mtx_terminal.unlock();
             break;
         }
     }
     va_end(lst);
-    mtx.unlock();
 }
 
 void rprint(DataContainer &dc_q, bool clr_line, int y, int x, const char *str, ...)
 {
 
-    mtx.lock();
     va_list lst;
     va_start(lst, str);
     //char buff[1024];
@@ -105,57 +110,45 @@ void rprint(DataContainer &dc_q, bool clr_line, int y, int x, const char *str, .
 
         if (!dc_q.Tq_[i].update)
         {
+            mtx_terminal.lock();
             dc_q.Tq_[i].update = true;
             dc_q.Tq_[i].y = y;
             dc_q.Tq_[i].x = x;
-            sprintf(dc_q.Tq_[i].text, str, lst);
+            vsnprintf(dc_q.Tq_[i].text, 255, str, lst);
             dc_q.Tq_[i].clr_line = clr_line;
+            mtx_terminal.unlock();
             break;
         }
     }
     va_end(lst);
-
-    mtx.unlock();
 }
-/*
-void tui_addQue(DataContainer &dc_g, int y, int x, std::string text)
-{
-    mtx.lock();
-    for (int i = 0; i < 100; i++)
-    {
-        if (!dc_g.Tq_[i].update)
-        {
-            dc_g.Tq_[i].update = true;
-            dc_g.Tq_[i].y = y;
-            dc_g.Tq_[i].x = x;
-            dc_g.Tq_[i].text = text;
-            break;
-        }
-    }
-    mtx.unlock();
-}*/
 
-void Tui::addQue(int y, int x, std::string text)
+void rprint_sol(bool ncurse, int y, int x, const char *str, ...)
 {
-    mtx.lock();
-    for (int i = 0; i < 40; i++)
+    va_list lst;
+    va_start(lst, str);
+    //char buff[1024];
+
+    char text[256];
+    vsnprintf(text, 255, str, lst);
+    if (ncurse)
     {
-        if (!dc.Tq_[i].update)
-        {
-            dc.Tq_[i].update = true;
-            dc.Tq_[i].y = y;
-            dc.Tq_[i].x = x;
-            //dc.Tq_[i].text = text.c_str();
-            break;
-        }
+        mtx_terminal.lock();
+        mvprintw(y, x, text);
+        refresh();
+        mtx_terminal.unlock();
     }
-    mtx.unlock();
+    else
+    {
+        std::cout << text << std::endl;
+    }
+    va_end(lst);
 }
 
 void Tui::ReadAndPrint(int y, int x, std::string buff)
 {
 
-    if (ncurse_)
+    if (dc.ncurse_mode)
     {
         std::string desc_package_path = ros::package::getPath("dyros_red_controller");
         std::string text_path = desc_package_path + "/ascii/" + buff;
@@ -176,17 +169,6 @@ void Tui::ReadAndPrint(int y, int x, std::string buff)
 void Tui::endTui()
 {
     endwin();
-}
-
-void tui_start()
-{
-    initscr();
-    nodelay(stdscr, TRUE);
-    noecho();
-    curs_set(0);
-    keypad(stdscr, TRUE);
-    start_color();
-    //printw(welcome.c_str());
 }
 
 void wait_for_keypress()

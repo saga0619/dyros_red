@@ -9,21 +9,30 @@ int main(int argc, char **argv)
 
     std::string mode;
 
-    dc.nh.param<std::string>("run_mode", mode, "default");
+    dc.nh.param<std::string>("/dyros_red_controller/run_mode", mode, "default");
+    dc.nh.param("/dyros_red_controller/ncurse", dc.ncurse_mode, true);
+
     Tui tui(dc);
+    std::string cs[10][10];
     tui.ReadAndPrint(3, 0, "ascii0");
+
+    cs[0][0] = "SIMULATION";
+    cs[1][0] = "REALROBOT";
+    cs[2][0] = "TEST";
+    cs[3][0] = "EXIT";
+    std::string menu_slcc;
 
     if (mode == "simulation")
     {
-        mvprintw(20, 30, " :: SIMULATION MODE :: ");
-        refresh();
-        wait_for_ms(1000);
+        //mvprintw(20, 30, " :: SIMULATION MODE :: ");
+        //refresh();
+        //wait_for_ms(1000);
     }
     else if (mode == "realrobot")
     {
-        mvprintw(20, 30, " :: REAL ROBOT MODE :: ");
-        refresh();
-        wait_for_ms(1000);
+        //mvprintw(20, 30, " :: REAL ROBOT MODE :: ");
+        //refresh();
+        //wait_for_ms(1000);
     }
     else if (mode == "default")
     {
@@ -31,103 +40,42 @@ int main(int argc, char **argv)
         erase();
         tui.ReadAndPrint(0, 0, "red");
         refresh();
+
+        menu_slcc = tui.menu(3, 35, 2, 0, 4, 1, cs);
+
+        if (menu_slcc == "SIMULATION")
+        {
+            mvprintw(16, 10, "SIMULATION MODE! ");
+            mode = "simulation";
+        }
+        else if (menu_slcc == "REALROBOT")
+        {
+            mvprintw(16, 10, "REAL ROBOT IS NOT READY");
+            mode = "realrobot";
+        }
+        else if (menu_slcc == "TEST")
+        {
+            mvprintw(16, 10, "TEST MODE !");
+            mode = "testmode";
+        }
+        else if (menu_slcc == "EXIT")
+        {
+            erase();
+            endwin();
+            return 0;
+        }
     }
     else
     {
-        mvprintw(20, 10, " !! SOMETHING WRONG :: Unidentified ROS Param! Press Any Key to End");
-        refresh();
+        rprint_sol(dc.ncurse_mode, 20, 10, " !! SOMETHING WRONG :: Unidentified ROS Param! Press Any Key to End");
         wait_for_keypress();
         endwin();
         return 0;
     }
 
-    int menu_slc = 0;
-    while (mode == "default")
-    {
-        if (menu_slc == 0)
-        {
-            attron(COLOR_PAIR(2));
-            mvprintw(3, 35, "SIMULATION");
-            attroff(COLOR_PAIR(2));
-            mvprintw(5, 35, "REALROBOT");
-            mvprintw(7, 35, "TEST");
-            mvprintw(9, 35, "EXIT");
-        }
-        else if (menu_slc == 1)
-        {
-            mvprintw(3, 35, "SIMULATION");
-            attron(COLOR_PAIR(2));
-            mvprintw(5, 35, "REALROBOT");
-            attroff(COLOR_PAIR(2));
-            mvprintw(7, 35, "TEST");
-            mvprintw(9, 35, "EXIT");
-        }
-        else if (menu_slc == 2)
-        {
-            mvprintw(3, 35, "SIMULATION");
-            mvprintw(5, 35, "REALROBOT");
-            attron(COLOR_PAIR(2));
-            mvprintw(7, 35, "TEST");
-            attroff(COLOR_PAIR(2));
-            mvprintw(9, 35, "EXIT");
-        }
-        else if (menu_slc == 3)
-        {
-            mvprintw(3, 35, "SIMULATION");
-            mvprintw(5, 35, "REALROBOT");
-            mvprintw(7, 35, "TEST");
-            attron(COLOR_PAIR(2));
-            mvprintw(9, 35, "EXIT");
-            attroff(COLOR_PAIR(2));
-        }
-
-        int ch = getch();
-        if (ch == 10)
-        {
-            if (menu_slc == 0)
-            {
-                mvprintw(16, 10, "SIMULATION MODE! ");
-                mode = "simulation";
-            }
-            else if (menu_slc == 1)
-            {
-                mvprintw(16, 10, "REAL ROBOT IS NOT READY");
-                mode = "realrobot";
-            }
-            else if (menu_slc == 2)
-            {
-                mvprintw(16, 10, "TEST MODE !");
-                mode = "testmode";
-            }
-            else if (menu_slc == 3)
-            {
-                erase();
-                endwin();
-                return 0;
-            }
-            break;
-        }
-        else if (ch == KEY_DOWN)
-        {
-            menu_slc++;
-            if (menu_slc > 3)
-                menu_slc = 0;
-        }
-        else if (ch == KEY_UP)
-        {
-            menu_slc--;
-            if (menu_slc < 0)
-                menu_slc = 3;
-        }
-
-        wait_for_ms(10);
-        refresh();
-    }
     erase();
     tui.ReadAndPrint(0, 0, "red");
     refresh();
-
-    dc.ncurse_mode = false;
 
     if (!dc.ncurse_mode)
         endwin();
@@ -149,34 +97,11 @@ int main(int argc, char **argv)
         thread[1] = std::thread(&RedController::dynamicsThreadHigh, &rc);
         thread[2] = std::thread(&RedController::dynamicsThreadLow, &rc);
         thread[3] = std::thread(&RedController::tuiThread, &rc);
-        bool tj[4];
-        while (ros::ok())
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            for (int i = 0; i < 4; i++)
-            {
-                if (thread[i].joinable())
-                {
-                    if (dc.ncurse_mode)
-                    {
-                        mvprintw(3 + 2 * i, 35, "Thread %d End", i);
-                        refresh();
-                    }
-                    else
-                    {
-                        std::cout << "Thread " << i << " End!" << std::endl;
-                    }
-                }
-            }
-            if (thread[0].joinable() && thread[1].joinable() && thread[2].joinable() && thread[3].joinable())
-            {
-                break;
-            }
-        }
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 3; i++)
         {
             thread[i].join();
+            rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
         }
     }
     else if (mode == "realrobot")
@@ -191,11 +116,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < 3; i++)
         {
             thread[i].join();
-            if (dc.ncurse_mode)
-            {
-                mvprintw(3 + 2 * i, 35, "Thread %d End", i);
-                refresh();
-            }
+            rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
         }
     }
 
