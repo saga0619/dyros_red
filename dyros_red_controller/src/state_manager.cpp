@@ -158,7 +158,7 @@ void StateManager::sendCommand(Eigen::VectorQd command, double simt)
 void StateManager::initialize()
 {
     A_.setZero();
-    A_temp_.setZero(37, 37);
+    A_temp_.setZero(MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL);
     q_.setZero();
     q_dot_.setZero();
 
@@ -183,6 +183,7 @@ void StateManager::storeState()
 
     dc.yaw_radian = yaw_radian;
     dc.A_ = A_;
+    dc.A_inv = A_inv;
 }
 
 void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eigen::VectorXd &q_dot_virtual, const Eigen::VectorXd &q_ddot_virtual)
@@ -207,6 +208,8 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     yaw_radian = yaw;
 
     A_ = A_temp_;
+    A_inv = A_.inverse();
+
     for (int i = 0; i < MODEL_DOF + 1; i++)
     {
         link_[i].pos_Update(model_, q_virtual_);

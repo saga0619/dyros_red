@@ -216,9 +216,26 @@ void RedController::getState()
     q_ddot_virtual_ = dc.q_ddot_virtual_;
     torque_ = dc.torque_;
 
+    static bool first_run = true;
+    if (first_run)
+    {
+        for (int i = 0; i < LINK_NUMBER + 1; i++)
+        {
+            link_[i] = dc.link_[i];
+        }
+    }
+
     for (int i = 0; i < LINK_NUMBER + 1; i++)
     {
+        link_[i].xpos = dc.link_[i].xpos;
+        link_[i].xipos = dc.link_[i].xipos;
+        link_[i].Rotm = dc.link_[i].Rotm;
+        link_[i].Jac = dc.link_[i].Jac;
+        link_[i].Jac_COM = dc.link_[i].Jac_COM;
+        link_[i].Jac_COM_p = dc.link_[i].Jac_COM_p;
+        link_[i].Jac_COM_r = dc.link_[i].Jac_COM_r;
         link_[i].COM_position = dc.link_[i].COM_position;
+        link_[i].xpos_contact = dc.link_[i].xpos_contact;
     }
     yaw_radian = dc.yaw_radian;
     A_ = dc.A_;

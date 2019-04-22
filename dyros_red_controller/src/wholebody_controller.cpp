@@ -6,14 +6,10 @@
 // Params params;
 // Workspace work;
 // Settings settings;
-
-Wholebody_controller::Wholebody_controller(DyrosRedModel &model, const VectorQd &current_q, const double hz, const double &control_time, const double &d_time) : total_dof_(DyrosRedModel::MODEL_DOF), model_(model),
-                                                                                                                                                                 current_q_(current_q), hz_(hz), control_time_(control_time), d_time_(d_time),
-                                                                                                                                                                 start_time_{}, end_time_{}, target_arrived_{true, true, true, true}
+Wholebody_controller::Wholebody_controller(DataContainer &dc);
 {
     Grav_ref.setZero(3);
     Grav_ref(2) = -9.81;
-    //bool reset
 }
 
 void Wholebody_controller::update_dynamics(Eigen::MatrixXd A_)
@@ -27,20 +23,20 @@ void Wholebody_controller::update_dynamics(Eigen::MatrixXd A_)
 
 void Wholebody_controller::contact_set(int contact_number, int link_id[])
 {
-    J_C.setZero(contact_number * 6, total_dof_ + 6);
+    J_C.setZero(contact_number * 6, MODEL_DOF + 6);
     for (int i = 0; i < contact_number; i++)
     {
         link_[link_id[i]];
         model_.Link_Set_Contact(link_id[i], model_.link_[link_id[i]].contact_point);
-        J_C.block(i * 6, 0, 6, total_dof_ + 6) = model_.link_[link_id[i]].Jac_Contact;
+        J_C.block(i * 6, 0, 6, MODEL_DOF + 6) = model_.link_[link_id[i]].Jac_Contact;
     }
     Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
     J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
-    N_C.setZero(total_dof_ + 6, total_dof_ + 6);
-    I37.setIdentity(total_dof_ + 6, total_dof_ + 6);
+    N_C.setZero(MODEL_DOF + 6, MODEL_DOF + 6);
+    I37.setIdentity(MODEL_DOF + 6, MODEL_DOF + 6);
     N_C = I37 - J_C.transpose() * J_C_INV_T;
-    Slc_k.setZero(total_dof_, total_dof_ + 6);
-    Slc_k.block(0, 6, total_dof_, total_dof_).setIdentity();
+    Slc_k.setZero(MODEL_DOF, MODEL_DOF + 6);
+    Slc_k.block(0, 6, MODEL_DOF, MODEL_DOF).setIdentity();
     Slc_k_T = Slc_k.transpose();
     //W = Slc_k * N_C.transpose() * A_matrix_inverse * N_C * Slc_k_T;
     W = Slc_k * A_matrix_inverse * N_C * Slc_k_T; //2 types for w matrix
@@ -691,18 +687,18 @@ Vector6d Wholebody_controller::zmp_controller(Vector2d ZMP, double height)
 VectorQd Wholebody_controller::gravity_compensation_torque()
 {
     ROS_DEBUG_ONCE("gravity torque calc start ");
-    G.setZero(total_dof_ + 6);
+    G.setZero(MODEL_DOF + 6);
 
-    for (int i = 0; i < total_dof_ + 1; i++)
+    for (int i = 0; i < MODEL_DOF + 1; i++)
     {
         G -= model_.link_[i].Jac_COM_p.transpose() * model_.link_[i].Mass * Grav_ref;
     }
 
     Eigen::MatrixXd J_g;
-    J_g.setZero(total_dof_, total_dof_ + 6);
-    J_g.block(0, 6, total_dof_, total_dof_).setIdentity();
+    J_g.setZero(MODEL_DOF, MODEL_DOF + 6);
+    J_g.block(0, 6, MODEL_DOF, MODEL_DOF).setIdentity();
 
-    Eigen::VectorXd torque_grav(total_dof_);
+    Eigen::VectorXd torque_grav(MODEL_DOF);
     Eigen::MatrixXd aa = J_g * A_matrix_inverse * N_C * J_g.transpose();
     /*
   double epsilon = 1e-7;
@@ -730,7 +726,7 @@ VectorQd Wholebody_controller::task_control_torque(MatrixXd J_task, VectorXd f_s
     task_dof = J_task.rows();
 
     //Task Control Torque;
-    J_task_T.resize(total_dof_ + 6, task_dof);
+    J_task_T.resize(MODEL_DOF + 6, task_dof);
     J_task_T.setZero();
     lambda_inv.resize(task_dof, task_dof);
     lambda_inv.setZero();
@@ -841,7 +837,7 @@ VectorQd Wholebody_controller::task_control_torque_custom_force(MatrixXd J_task,
   task_dof = J_task.rows();
 
   //Task Control Torque;
-  J_task_T.resize(total_dof_ + 6, task_dof);
+  J_task_T.resize(MODEL_DOF + 6, task_dof);
   J_task_T.setZero();
   lambda_inv.resize(task_dof, task_dof);
   lambda_inv.setZero();
@@ -895,7 +891,7 @@ VectorQd Wholebody_controller::task_control_torque_custom_force_feedback(MatrixX
   task_dof = J_task.rows();
 
   //Task Control Torque;
-  J_task_T.resize(total_dof_ + 6, task_dof);
+  J_task_T.resize(MODEL_DOF + 6, task_dof);
   J_task_T.setZero();
   lambda_inv.resize(task_dof, task_dof);
   lambda_inv.setZero();
@@ -1089,8 +1085,8 @@ VectorQd Wholebody_controller::contact_force_custom(VectorQd command_torque, Eig
 
     int singular_dof = 6;
     int contact_dof = J_C.rows();
-    V2.setZero(total_dof_, contact_dof - singular_dof);
-    V2 = svd_U.block(0, total_dof_ - contact_dof + singular_dof, total_dof_, contact_dof - singular_dof);
+    V2.setZero(MODEL_DOF, contact_dof - singular_dof);
+    V2 = svd_U.block(0, MODEL_DOF - contact_dof + singular_dof, MODEL_DOF, contact_dof - singular_dof);
 
     MatrixXd Scf_;
     Scf_.setZero(contact_dof - singular_dof, contact_dof);
@@ -1184,8 +1180,8 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
         int singular_dof = 6;
         int contact_dof = J_C.rows();
 
-        V2.setZero(total_dof_, singular_dof);
-        V2 = svd_U.block(0, total_dof_ - contact_dof + 6, total_dof_, contact_dof - 6);
+        V2.setZero(MODEL_DOF, singular_dof);
+        V2 = svd_U.block(0, MODEL_DOF - contact_dof + 6, MODEL_DOF, contact_dof - 6);
 
         Vector12d desired_force;
 

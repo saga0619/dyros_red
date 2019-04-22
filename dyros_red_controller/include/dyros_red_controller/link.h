@@ -9,17 +9,6 @@
 
 extern std::mutex mtx_rbdl;
 
-const int Pelvis = 0;
-const int Upper_Body = 3;
-
-const int Left_Foot = 9;
-const int Right_Foot = 15;
-
-const int Left_Hand = 23;
-const int Right_Hand = 31;
-
-const int COM_id = 32;
-
 struct Com
 {
   double mass;
@@ -70,18 +59,18 @@ public:
   // set link initial position and rotation. initial position for task control.
   void Set_initpos();
 
+  //constant variables
   int id;
   double Mass;
   std::string name;
-
-  RigidBodyDynamics::Model *model;
-
   //local COM position of body
   Eigen::Vector3d COM_position;
-
   //inertial matrix
   Eigen::Matrix3d inertia;
+  //local contact point
+  Eigen::Vector3d contact_point;
 
+  //changing variables
   //rotation matrix
   Eigen::Matrix3d Rotm;
 
@@ -91,10 +80,8 @@ public:
   //global COM position of body
   Eigen::Vector3d xipos;
 
+  //global position of contact point at body
   Eigen::Vector3d xpos_contact;
-
-  //local contact point
-  Eigen::Vector3d contact_point;
 
   //cartesian velocity of body
   Eigen::Vector3d v;
@@ -108,9 +95,6 @@ public:
   Eigen::Matrix3Vd Jac_COM_p;
   Eigen::Matrix3Vd Jac_COM_r;
   Eigen::Matrix6Vd Jac_Contact;
-
-  Eigen::MatrixXd j_temp;
-  Eigen::MatrixXd j_temp2;
 
   //realtime traj of cartesian & orientation.
   //)) traj is outcome of cubic or quintic function, which will be used to make fstar!
@@ -128,6 +112,11 @@ public:
   Eigen::Vector3d x_init;
   Eigen::Vector3d v_init;
   Eigen::Matrix3d rot_init;
+
+private:
+  Eigen::MatrixXd j_temp;
+  Eigen::MatrixXd j_temp2;
+  RigidBodyDynamics::Model *model;
 };
 
 std::ostream &operator<<(std::ostream &out, const Link &link);

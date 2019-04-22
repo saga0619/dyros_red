@@ -47,7 +47,8 @@ public:
 
   double yaw_radian;
 
-  Eigen::Matrix37d A_;
+  Eigen::MatrixVVd A_;
+  Eigen::MatrixVVd A_inv;
   Eigen::MatrixXd A_temp_;
 
   Eigen::Vector3d gravity_;

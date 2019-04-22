@@ -1,5 +1,6 @@
 #include "dyros_red_controller/dynamics_manager.h"
 #include "dyros_red_controller/mujoco_interface.h"
+#include "dyros_red_controller/wholebody_controller.h"
 
 class RedController
 {
@@ -36,7 +37,7 @@ private:
   //Kinematics Information :
   Link link_[LINK_NUMBER + 1];
   double yaw_radian;
-  Eigen::Matrix37d A_;
-  Eigen::Matrix37d A_inv_;
+  Eigen::MatrixVVd A_;
+  Eigen::MatrixVVd A_inv_;
   Com com_;
 };

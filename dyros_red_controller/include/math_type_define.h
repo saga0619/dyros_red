@@ -31,9 +31,9 @@ EIGEN_MAKE_TYPEDEFS(rScalar, d, 5, 5)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 6, 6)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 7, 7)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 8, 8)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 31, 31)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 37, 37)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 38, 38)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF, MODEL_DOF)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF_QVIRTUAL, MODEL_DOF_QVIRTUAL)
 
 // typedef Transform<rScalar, 3, Eigen::Isometry> HTransform;  // typedef Transform< double, 3, Isometry > 	Eigen::Isometry3d
 
@@ -46,6 +46,10 @@ typedef Matrix<rScalar, 8, 4> Matrix8x4d;
 typedef Matrix<rScalar, -1, 1, 0, MAX_DOF, 1> VectorJXd;
 typedef Matrix<rScalar, -1, 1, 0, 12, 1> VectorLXd; //Leg IK
 typedef Matrix<rScalar, -1, -1, 0, MAX_DOF, MAX_DOF> MatrixJXd;
+
+typedef Matrix<rScalar, MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL> MatrixVVd;
+
+typedef Matrix<rScalar, 12, 1> Vector12d;
 
 typedef Matrix<rScalar, MODEL_DOF, 1> VectorQd;
 typedef Matrix<rScalar, MODEL_DOF_VIRTUAL, 1> VectorVQd;
