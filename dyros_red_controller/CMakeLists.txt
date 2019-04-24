@@ -37,7 +37,7 @@ file(GLOB AD_SRC
     "src/red_controller.cpp"
     "src/terminal.cpp"
     "src/qp.cpp"
-    "src/ascii"
+    "src/realrobot_interface.cpp"
     )
 
 add_library(dyros_red_controller_lib

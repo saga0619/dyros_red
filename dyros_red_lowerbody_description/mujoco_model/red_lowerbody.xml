@@ -57,7 +57,7 @@
             <joint name="virtual" type="free" />
             <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="Pelvis_Link" />
             <body name="HipRoll_R_Link" pos="0 -0.1025 -0.1225">
-                <inertial pos="-0.06477 0 0.05149" quat="-4.55125e-06 0.706109 4.5641e-06 0.708103" mass="2.679" diaginertia="0.114073 0.114073 0.114073" />
+                <inertial pos="-0.06477 0 0.im" quat="-4.55125e-06 0.706109 4.5641e-06 0.708103" mass="2.679" diaginertia="0.114073 0.114073 0.114073" />
                 <joint name="HipRoll_R_Joint" pos="0 0 0" axis="0 0 1" limited="true" range="-0.2618 0.2618" />
                 <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="HipRoll_R_Link" class="viz" />
                 <geom size="0.045 0.04" pos="-0.1 0 0" quat="0.707107 0 0.707107 0" type="cylinder" class="cls" />

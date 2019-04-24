@@ -12,6 +12,7 @@
 #include <mujoco_ros_msgs/SensorState.h>
 #include <mujoco_ros_msgs/JointSet.h>
 #include <sensor_msgs/JointState.h>
+#include <sensor_msgs/Imu.h>
 #include <ncurses.h>
 #include "dyros_red_controller/link.h"
 
