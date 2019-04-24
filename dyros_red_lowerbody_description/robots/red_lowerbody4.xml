@@ -1,0 +1,86 @@
+<mujoco model="red_robot">
+    <compiler angle="radian" meshdir="../meshes/" />
+    <size njmax="500" nconmax="100" />
+    <asset>
+        <mesh name="Pelvis_link" file="Pelvis_link.stl" />
+        <mesh name="HipRoll_L_Link" file="HipRoll_L_Link.stl" />
+        <mesh name="HipCenter_L_Link" file="HipCenter_L_Link.stl" />
+        <mesh name="Thigh_L_Link" file="Thigh_L_Link.stl" />
+        <mesh name="Knee_L_Link" file="Knee_L_Link.stl" />
+        <mesh name="AnkleCenter_L_Link" file="AnkleCenter_L_Link.stl" />
+        <mesh name="AnkleRoll_L_Link" file="AnkleRoll_L_Link.stl" />
+        <mesh name="HipRoll_R_link" file="HipRoll_R_link.stl" />
+        <mesh name="HipCenter_R_Link" file="HipCenter_R_Link.stl" />
+        <mesh name="Thigh_R_Link" file="Thigh_R_Link.stl" />
+        <mesh name="Knee_R_Link" file="Knee_R_Link.stl" />
+        <mesh name="AnkleCenter_R_Link" file="AnkleCenter_R_Link.stl" />
+        <mesh name="AnkleRoll_R_Link" file="AnkleRoll_R_Link.stl" />
+    </asset>
+    <worldbody>
+        <body name="Pelvis_link" pos="0 0 0">
+            <inertial pos="0.0119 0 0.328" quat="0.707107 0.707107 0 0" mass="52.5" diaginertia="0.794 0.5955 0.5657" />
+            <joint name="virtual" type="free" />
+            <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="Pelvis_link" />
+            <body name="HipRoll_L_Link" pos="0 0.1025 -0.1225">
+                <inertial pos="-0.06477 0 0.05149" quat="-4.55125e-06 0.706109 4.5641e-06 0.708103" mass="2.679" diaginertia="0.114073 0.114073 0.114073" />
+                <joint name="HipRoll_L_Joint" pos="0 0 0" axis="0 0 -1" limited="true" range="-0.2618 0.2618" damping="10" />
+                <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="HipRoll_L_Link" />
+                <body name="HipCenter_L_Link" pos="0 0 0">
+                    <inertial pos="-0.04801 0.0022 2e-05" quat="0.999982 -0.00595644 4.6683e-06 -2.7807e-08" mass="2.67" diaginertia="0.124407 0.124407 0.124407" />
+                    <joint name="HipCenter_L_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.2618 0.5236" damping="10" />
+                    <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="HipCenter_L_Link" />
+                    <body name="Thigh_L_Link" pos="0 0 0">
+                        <inertial pos="-0.00042 0.00032 -0.18904" quat="0.707068 0.00145661 -0.000977354 0.707144" mass="5.366" diaginertia="0.339107 0.339107 0.339107" />
+                        <joint name="Thigh_L_Joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-1.6581 0.4014" damping="10" />
+                        <geom type="mesh" rgba="0.85938 0.07813 0.23438 1" mesh="Thigh_L_Link" />
+                        <body name="Knee_L_Link" pos="0 0 -0.35">
+                            <inertial pos="0.00429 -0.00214 -0.1428" quat="0.707067 0.00548297 0.00738884 0.707087" mass="3.883" diaginertia="0.23895 0.23895 0.23895" />
+                            <joint name="Knee_L_Joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.0218 1.9722" damping="10" />
+                            <geom type="mesh" rgba="0.85938 0.07813 0.23438 1" mesh="Knee_L_Link" />
+                            <body name="AnkleCenter_L_Link" pos="0 0 -0.35">
+                                <inertial pos="-0.00419 0.0018 -0.0003" quat="0.498858 0.50114 0.501134 0.498863" mass="2.51" diaginertia="0.139901 0.139901 0.139901" />
+                                <joint name="AnkleCenter_L_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.5149 1.7505" damping="10" />
+                                <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="AnkleCenter_L_Link" />
+                                <body name="AnkleRoll_L_Link" pos="0 0 0">
+                                    <inertial pos="-0.00802 0 -0.08535" quat="0.999815 -0.000353889 0.0192239 9.30274e-05" mass="3.464" diaginertia="0.07616 0.07616 0.07616" />
+                                    <joint name="AnkleRoll_L_Joint" pos="0 0 0" axis="-1 0 0" limited="true" range="-0.3491 0.3491" damping="10" />
+                                    <geom type="mesh" rgba="0.85938 0.07813 0.23438 1" mesh="AnkleRoll_L_Link" />
+                                </body>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+            <body name="HipRoll_R_link" pos="0 -0.1025 -0.1225">
+                <inertial pos="-0.06477 0 0.05149" quat="-4.55125e-06 0.706109 4.5641e-06 0.708103" mass="2.679" diaginertia="0.114073 0.114073 0.114073" />
+                <joint name="HipRoll_R_Joint" pos="0 0 0" axis="0 0 -1" limited="true" range="-0.2618 0.2618" damping="10" />
+                <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="HipRoll_R_link" />
+                <body name="HipCenter_R_Link" pos="0 0 0">
+                    <inertial pos="-0.04801 -0.0022 2e-05" quat="0.999982 -0.00595644 4.6683e-06 -2.7807e-08" mass="2.67" diaginertia="0.124407 0.124407 0.124407" />
+                    <joint name="HipCenter_R_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.5236 0.2618" damping="10" />
+                    <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="HipCenter_R_Link" />
+                    <body name="Thigh_R_Link" pos="0 0 0">
+                        <inertial pos="-0.00042 -0.00032 -0.18904" quat="0.707068 0.00145661 -0.000977354 0.707144" mass="5.366" diaginertia="0.339107 0.339107 0.339107" />
+                        <joint name="Thigh_R_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.6581 0.4014" damping="10" />
+                        <geom type="mesh" rgba="0.85938 0.07813 0.23438 1" mesh="Thigh_R_Link" />
+                        <body name="Knee_R_Link" pos="0 0 -0.35">
+                            <inertial pos="0.00429 0.00214 -0.1428" quat="0.707067 0.00548297 0.00738884 0.707087" mass="3.883" diaginertia="0.23895 0.23895 0.23895" />
+                            <joint name="Knee_R_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.0218 1.9722" damping="10" />
+                            <geom type="mesh" rgba="0.85938 0.07813 0.23438 1" mesh="Knee_R_Link" />
+                            <body name="AnkleCenter_R_Link" pos="0 0 -0.35">
+                                <inertial pos="-0.00419 -0.0018 -0.0003" quat="0.498858 0.50114 0.501134 0.498863" mass="2.51" diaginertia="0.139901 0.139901 0.139901" />
+                                <joint name="AnkleCenter_R_Joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-1.5149 1.7505" damping="10" />
+                                <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="AnkleCenter_R_Link" />
+                                <body name="AnkleRoll_R_Link" pos="0 0 0">
+                                    <inertial pos="-0.00802 0 -0.08535" quat="0.999815 -0.000353889 0.0192239 9.30274e-05" mass="3.464" diaginertia="0.07616 0.07616 0.07616" />
+                                    <joint name="AnkleRoll_R_Joint" pos="0 0 0" axis="-1 0 0" limited="true" range="-0.3491 0.3491" damping="10" />
+                                    <geom type="mesh" rgba="0.85938 0.07813 0.23438 1" mesh="AnkleRoll_R_Link" />
+                                </body>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

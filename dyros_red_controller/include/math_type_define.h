@@ -12,10 +12,12 @@
 #define MAX_DOF 50U
 #define RAD2DEG 1 / DEG2RAD
 
-#define MODEL_DOF 31
-#define LINK_NUMBER 32
-#define MODEL_DOF_VIRTUAL 37
-#define MODEL_DOF_QVIRTUAL 38
+//Degree of Freedom of Model
+#define MODEL_DOF 12
+
+#define LINK_NUMBER 13
+#define MODEL_DOF_VIRTUAL 18
+#define MODEL_DOF_QVIRTUAL 19
 
 namespace Eigen
 {

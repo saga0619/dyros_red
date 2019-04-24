@@ -11,10 +11,10 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     gravity_(2) = GRAVITY;
 
     initialize();
-    bool verbose = false;
+    bool verbose = true;
 
-    std::string desc_package_path = ros::package::getPath("dyros_red_description");
-    std::string urdf_path = desc_package_path + "/robots/dyros_red_robot.urdf";
+    std::string desc_package_path = ros::package::getPath("dyros_red_lowerbody_description");
+    std::string urdf_path = desc_package_path + "/robots/red_robot_lowerbody.urdf";
 
     ROS_INFO_COND(verbose, "Loading DYROS JET description from = %s", urdf_path.c_str());
 
@@ -35,6 +35,10 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         for (int i = 0; i < MODEL_DOF + 1; i++)
         {
             link_id_[i] = model_.GetBodyId(RED::LINK_NAME[i]);
+            if (!model_.IsBodyId(link_id_[i]))
+            {
+                ROS_INFO_COND(verbose, "Failed to get body id at link %d : %s", i, RED::LINK_NAME[i]);
+            }
             // ROS_INFO("%s: \t\t id = %d \t parent link = %d",LINK_NAME[i],
             // link_id_[i],model_.GetParentBodyId(link_id_[i]));
             // ROS_INFO("%dth parent
@@ -42,6 +46,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
             // std::cout << model_.mBodies[link_id_[i]].mCenterOfMass << std::endl;
             // //joint_name_map_[JOINT_NAME[i]] = i;
         }
+
         for (int i = 0; i < MODEL_DOF + 1; i++)
         {
             link_[i].initialize(model_, link_id_[i], RED::LINK_NAME[i], model_.mBodies[link_id_[i]].mMass, model_.mBodies[link_id_[i]].mCenterOfMass);
@@ -50,17 +55,15 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         Eigen::Vector3d lf_c, rf_c, lh_c, rh_c;
         lf_c << 0.0317, 0, -0.1368;
         rf_c << 0.0317, 0, -0.1368;
-        rh_c << 0, -0.092, 0;
-        lh_c << 0, 0.092, 0;
         link_[Right_Foot].contact_point = rf_c;
         link_[Left_Foot].contact_point = lf_c;
-        link_[Right_Hand].contact_point = rh_c;
-        link_[Left_Hand].contact_point = lh_c;
 
         // RigidBodyDynamics::Joint J_temp;
         // J_temp=RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeEulerXYZ);
         // model_.mJoints[2] = J_temp;
     }
+
+    ROS_INFO_COND(verbose, "State manager Init complete");
 }
 
 void StateManager::stateThread(void)
