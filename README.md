@@ -65,6 +65,10 @@ add_compile_options(-fPIC)
 Download 1.0 version from release list. [1.0 release](https://github.com/saga0619/dyros_red/releases)
 Unzip at ros worksapce (ex:catkin_ws)
 
+## ncurse Setup
+```sh 
+sudo apt-get install libncurses5-dev
+```
 
 ## Mujoco setup
 
