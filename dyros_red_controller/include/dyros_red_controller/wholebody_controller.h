@@ -12,6 +12,7 @@ using namespace Eigen;
 using namespace std;
 using namespace qpOASES;
 
+
 namespace dyros_red_controller
 {
 

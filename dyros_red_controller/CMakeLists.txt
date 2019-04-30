@@ -25,6 +25,7 @@ catkin_package(
 )
 
 include_directories(
+  /usr/local/include/soem
   include
   ${catkin_INCLUDE_DIRS}
 )
@@ -54,6 +55,7 @@ target_link_libraries(dyros_red_controller_lib
    -lrt
    -lqpOASES
    -lncurses
+   -lsoem
  )
 
  target_link_libraries(dyros_red_controller

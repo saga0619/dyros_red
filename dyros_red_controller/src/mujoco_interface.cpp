@@ -64,7 +64,7 @@ void MujocoInterface::sendCommand(Eigen::VectorQd command, double simt)
     mujoco_sim_last_time = mujoco_sim_time;
 }
 
-bool MujocoInterface::connect()
+void MujocoInterface::connect()
 {
     //std::cout << "________________________________________________________________________________\n\n";
 
@@ -147,7 +147,7 @@ bool MujocoInterface::connect()
         rprint(dc, 13, 31, "::::");
         rprint(dc, 13, 36, "Connected");
         dc.connected = true;
-        return 1;
+        //return 1;
         //std::cout << "\tConnected! \n"                  << std::flush;
     }
 }

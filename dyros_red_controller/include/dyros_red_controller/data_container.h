@@ -4,7 +4,7 @@
 #include <chrono>
 #include <Eigen/Dense>
 #include <ros/ros.h>
-#include <thread>
+#include <pthread.h>
 #include <mutex>
 #include <future>
 #include <std_msgs/String.h>
@@ -18,6 +18,10 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //robot definition variables here
+
+
+
+
 
 namespace RED
 {
@@ -72,6 +76,11 @@ public:
 
   bool ncurse_mode = false;
 
+
+  bool statemanager_ready = false;
+
+
+
   //Tui Var..
   bool state_end;
   bool dynamics_end;
@@ -109,6 +118,19 @@ public:
   Com com_;
 
   //Model var
+
+
+
+  //For real robot 
+  std::string ifname;
+  int ctime;
+
+  Eigen::VectorQd q_init_;
+  Eigen::VectorQd q_elmo_;
+  Eigen::VectorQd q_dot_elmo_;
+
+  int elmo_cnt;
+
 };
 
 #endif

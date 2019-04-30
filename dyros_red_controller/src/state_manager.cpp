@@ -11,7 +11,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     gravity_(2) = GRAVITY;
 
     initialize();
-    bool verbose = true;
+    bool verbose = false;
 
     std::string desc_package_path = ros::package::getPath("dyros_red_lowerbody_description");
     std::string urdf_path = desc_package_path + "/robots/red_robot_lowerbody.urdf";
@@ -144,7 +144,7 @@ void StateManager::testThread()
         ThreadCount++;
     }
 }
-bool StateManager::connect()
+void StateManager::connect()
 {
     //overrid
 }

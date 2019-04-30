@@ -1,3 +1,6 @@
+#ifndef STATE_MANAGER_H
+#define STATE_MANAGER_H
+
 #include "dyros_red_controller/data_container.h"
 #include "dyros_red_controller/terminal.h"
 
@@ -8,10 +11,10 @@ extern std::mutex mtx_dc;
 class StateManager
 {
 public:
-  DataContainer &dc;
   StateManager(DataContainer &dc_global);
-
-  virtual bool connect();
+  virtual ~StateManager() {}
+  DataContainer &dc;
+  virtual void connect();
   virtual void stateThread(); //main thread managing state
   virtual void updateState();
   //virtual void sendCommand(Eigen::VectorQd command);
@@ -38,6 +41,7 @@ public:
   double sim_time_;
 
   Eigen::VectorQd q_;
+  Eigen::VectorQd q_init_;
   Eigen::VectorQVQd q_virtual_;
   Eigen::VectorQd q_dot_;
   Eigen::VectorVQd q_dot_virtual_;
@@ -58,3 +62,5 @@ public:
   Link link_[LINK_NUMBER + 1];
   Com com_;
 };
+
+#endif

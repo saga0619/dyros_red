@@ -9,6 +9,12 @@ This controller can be simulated through [mujoco_ros](https://github.com/saga061
 * faster communication between mujoco and controller at ubuntu 18.04 (lag of mujoco or controller due to graphical problem?? 18.04 is faster anyway :) )
 * there are qpOASES installation problem at 18.04, can be solved with adding compile option
 
+## SOEM Setup
+ * installed at april,29,2019.
+ * soem is required to install in shared library
+
+### Installing 
+
 
 ## RBDL Setup 
 

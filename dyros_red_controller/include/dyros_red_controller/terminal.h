@@ -9,6 +9,7 @@ extern std::mutex mtx_dc;
 extern std::mutex mtx_terminal;
 extern std::mutex mtx_ncurse;
 
+
 class Tui
 {
 public:

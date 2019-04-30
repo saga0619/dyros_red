@@ -1,5 +1,6 @@
 #include "dyros_red_controller/dynamics_manager.h"
 #include "dyros_red_controller/mujoco_interface.h"
+#include "dyros_red_controller/realrobot_interface.h"
 #include "dyros_red_controller/wholebody_controller.h"
 
 class RedController

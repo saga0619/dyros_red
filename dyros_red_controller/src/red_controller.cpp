@@ -9,6 +9,8 @@ std::mutex mtx_dc;
 std::mutex mtx_terminal;
 std::mutex mtx_ncurse;
 
+
+
 RedController::RedController(DataContainer &dc_global, StateManager &sm, DynamicsManager &dm) : dc(dc_global), s_(sm), d_(dm)
 {
     initialize();
@@ -35,7 +37,9 @@ void RedController::dynamicsThreadHigh()
     while (!dc.shutdown && ros::ok())
     {
         mtx.lock();
-        //s_.sendCommand(torque_desired);
+        torque_desired.setZero();
+        torque_desired(0)= 10.0;
+        s_.sendCommand(torque_desired,0.0);
         mtx.unlock();
         r.sleep();
     }
@@ -86,6 +90,7 @@ void RedController::dynamicsThreadLow()
     N_C.setZero(total_dof_ + 6, total_dof_ + 6);
     bool first = true;
 
+/*
     while (!dc.shutdown && ros::ok())
     {
         getState();
@@ -154,7 +159,7 @@ void RedController::dynamicsThreadLow()
             break;
 
         first = false;
-    }
+    }*/
 }
 
 void RedController::tuiThread()

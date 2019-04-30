@@ -11,6 +11,8 @@ int main(int argc, char **argv)
 
     dc.nh.param<std::string>("/dyros_red_controller/run_mode", mode, "default");
     dc.nh.param("/dyros_red_controller/ncurse", dc.ncurse_mode, true);
+    dc.nh.param<std::string>("/dyros_red_controller/ifname", dc.ifname, "enp0s31f6");
+    dc.nh.param("/dyros_red_controller/ctime", dc.ctime, 250);
 
     Tui tui(dc);
     std::string cs[10][10];
@@ -86,13 +88,16 @@ int main(int argc, char **argv)
     dc.dym_timestep = std::chrono::microseconds((int)(1000000 / dc.dym_hz));
     dc.stm_timestep = std::chrono::microseconds((int)(1000000 / dc.stm_hz));
 
-    MujocoInterface stm(dc);
-    DynamicsManager dym(dc);
-    RedController rc(dc, stm, dym);
-
     std::thread thread[4];
+
+    pthread_t pthr[4];
+
     if (mode == "simulation")
     {
+        MujocoInterface stm(dc);
+        DynamicsManager dym(dc);
+        RedController rc(dc, stm, dym);
+
         thread[0] = std::thread(&RedController::stateThread, &rc);
         thread[1] = std::thread(&RedController::dynamicsThreadHigh, &rc);
         thread[2] = std::thread(&RedController::dynamicsThreadLow, &rc);
@@ -106,9 +111,29 @@ int main(int argc, char **argv)
     }
     else if (mode == "realrobot")
     {
+        RealRobotInterface rtm(dc);
+        DynamicsManager dym(dc);
+        RedController rc(dc, rtm, dym);
+
+        osal_thread_create(&pthr[0], NULL, (void *)&RealRobotInterface::connect, &rtm);
+        osal_thread_create_rt(&pthr[1], NULL, (void *)&RealRobotInterface::stateThread, &rtm);
+
+        thread[1] = std::thread(&RedController::dynamicsThreadHigh, &rc);
+        thread[2] = std::thread(&RedController::dynamicsThreadLow, &rc);
+        thread[3] = std::thread(&RedController::tuiThread, &rc);
+
+        pthread_join(pthr[1], NULL);
+        for (int i = 1; i < 3; i++)
+        {
+            thread[i].join();
+            rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
+        }
     }
     else if (mode == "testmode")
     {
+        MujocoInterface stm(dc);
+        DynamicsManager dym(dc);
+        RedController rc(dc, stm, dym);
         thread[0] = std::thread(&StateManager::testThread, &stm);
         thread[1] = std::thread(&DynamicsManager::testThread, &dym);
         thread[2] = std::thread(&RedController::tuiThread, &rc);

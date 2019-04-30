@@ -17,7 +17,7 @@ public:
   virtual void sendCommand(Eigen::VectorQd command, double sim_time) override;
 
   //connect to Mujoco_ros
-  virtual bool connect() override;
+  virtual void connect() override;
 
   //Toggle play
   void playMujoco();
