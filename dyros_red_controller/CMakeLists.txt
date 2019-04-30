@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(dyros_red_controller)
 
-add_compile_options(-std=c++11 -Ofast)
+add_compile_options(-std=c++11 -fPIC -Ofast)
 
 find_package(catkin REQUIRED COMPONENTS
   dyros_red_msgs
@@ -25,8 +25,8 @@ catkin_package(
 )
 
 include_directories(
-  /usr/local/include/soem
   include
+  /usr/local/include/soem
   ${catkin_INCLUDE_DIRS}
 )
 

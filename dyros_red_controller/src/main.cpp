@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include "dyros_red_controller/red_controller.h"
 #include "dyros_red_controller/terminal.h"
+#include <osal.h>
 
 int main(int argc, char **argv)
 {

@@ -1,0 +1,18 @@
+<launch>
+  <arg name="debug" default="false"/>
+  <arg name="rviz" default="false"/>
+  <arg name="controller" default="true" />
+  <arg name="gui" default="false"/>
+  <arg name="run_mode" default="realrobot"/>
+  <arg name="ncurse" default="false"/>
+
+  <group if="$(arg controller)">
+    <node name="dyros_red_controller" pkg="dyros_red_controller" type="dyros_red_controller" output="screen">
+      <param name="run_mode" value="$(arg run_mode)"/>
+      <param name="debug" value="$(arg debug)" />
+      <param name="rviz_pub" value="$(arg rviz)"/>
+      <param name="ncurse" value="$(arg ncurse)"/>
+    </node>
+  </group>
+</launch>
+

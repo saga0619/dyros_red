@@ -132,7 +132,7 @@ void RealRobotInterface::stateThread()
                 prev = begin.tv_sec;
                 prev += begin.tv_nsec / 1000000000.0;
 
-                while (!dc.shutdown)
+                while (!dc.shutdown && ros::ok())
                 {
                     /* wait to cycle start */
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL);
@@ -203,7 +203,8 @@ void RealRobotInterface::stateThread()
 
                                     txPDO[slave - 1]->modeOfOperation = EtherCAT_Elmo::CyclicSynchronousTorquemode;
                                     txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1];
-                                    txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1]);
+                                    //txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1] * Dr[slave - 1]);
+                                    txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
                                     //txPDO[slave - 1]->targetTorque = (int)20;
                                     txPDO[slave - 1]->maxTorque = (uint16)50; // originaly 1000
 
@@ -220,7 +221,7 @@ void RealRobotInterface::stateThread()
                             }
 
                             updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
-                            
+
                             mtx_dc.lock();
                             storeState();
                             mtx_dc.unlock();

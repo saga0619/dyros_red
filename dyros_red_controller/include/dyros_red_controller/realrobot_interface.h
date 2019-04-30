@@ -21,6 +21,8 @@
 #include <sys/mman.h>
 #include <Eigen/Dense>
 
+
+
 #include "ethercattype.h"
 #include "nicdrv.h"
 #include "ethercatbase.h"
@@ -128,6 +130,10 @@ const double Kv[DOF] =
         Kv_Pitch3,
         Kv_Roll2};
 
+const double Dr[DOF] =
+    {-1, 1, 1, 1, 1, 1,
+     -1, 1, -1, -1, -1, 1};
+
 using namespace std;
 
 namespace EtherCAT_Elmo
@@ -188,7 +194,6 @@ class RealRobotInterface : public StateManager
     virtual void connect() override;
 
     //void getCommand();
-    
 
     bool controlWordGenerate(const uint16_t statusWord, uint16_t &controlWord);
 

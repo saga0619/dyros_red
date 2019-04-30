@@ -34,11 +34,14 @@ void RedController::dynamicsThreadHigh()
     {
         r.sleep();
     }
+
+
+    std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
+
     while (!dc.shutdown && ros::ok())
     {
         mtx.lock();
         torque_desired.setZero();
-        torque_desired(0)= 10.0;
         s_.sendCommand(torque_desired,0.0);
         mtx.unlock();
         r.sleep();
