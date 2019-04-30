@@ -10,7 +10,7 @@ This controller can be simulated through [mujoco_ros](https://github.com/saga061
 * there are qpOASES installation problem at 18.04, can be solved with adding compile option
 
 ## SOEM Setup
- * install [SOEM](https:github.com/saga0619/SOEM)
+ * install [SOEM](https://github.com/saga0619/SOEM)
 
 ### Installing 
 
