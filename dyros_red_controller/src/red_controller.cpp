@@ -9,8 +9,6 @@ std::mutex mtx_dc;
 std::mutex mtx_terminal;
 std::mutex mtx_ncurse;
 
-
-
 RedController::RedController(DataContainer &dc_global, StateManager &sm, DynamicsManager &dm) : dc(dc_global), s_(sm), d_(dm)
 {
     initialize();
@@ -37,13 +35,33 @@ void RedController::dynamicsThreadHigh()
 
 
     std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
+    int cnt = 0;
 
     while (!dc.shutdown && ros::ok())
     {
         mtx.lock();
         torque_desired.setZero();
+        if(cnt == 4000)
+        {
+            printf("t(5) = 10 activate !\n");
+        }
+        if(cnt == 6000)
+        {
+            printf("torque zero\n");
+        }
+        if(cnt>4000 && cnt<5000)
+        {
+            torque_desired(0)=40;
+        }
         s_.sendCommand(torque_desired,0.0);
         mtx.unlock();
+
+        cnt++;
+        if(cnt%200==0)
+        {
+            printf("%f \n",dc.q_(0));
+        }
+        
         r.sleep();
     }
 }

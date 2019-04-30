@@ -42,11 +42,31 @@ void RealRobotInterface::stateThread()
     struct sched_param schedp;
     memset(&schedp, 0, sizeof(schedp));
     schedp.sched_priority = 49;
-    if (sched_setscheduler(0, SCHED_FIFO, &schedp) == -1)
+
+    pid_t pid = getpid();
+    printf("Process ID : %d \n", pid);
+
+    if (sched_setscheduler(pid, SCHED_FIFO, &schedp) == -1)
     {
+        perror("sched_setscheduler(SCHED_FIFO)");
+        if (errno == EINVAL)
+        {
+            printf("einval !\n");
+        }
+        else if (errno == EPERM)
+        {
+
+            printf("eperm !\n");
+        }
+        else if (errno == ESRCH)
+        {
+            printf("esrch!\n");
+        }
+        printf("Scheduler set error !\n");
         exit(EXIT_FAILURE);
     }
 
+    printf("Hello ethercat.\n");
     const char *ifname = dc.ifname.c_str();
 
     if (ec_init(ifname))
@@ -114,7 +134,7 @@ void RealRobotInterface::stateThread()
                 rprint(dc, 15, 5, "Operational state reached for all slaves.");
                 wkc_count = 0;
                 inOP = TRUE;
-
+                dc.connected = true;
                 /* cyclic loop */
                 for (int slave = 1; slave <= ec_slavecount; slave++)
                 {
@@ -157,14 +177,14 @@ void RealRobotInterface::stateThread()
                             for (int slave = 1; slave <= ec_slavecount; slave++)
                             {
 
-                                dc.q_init_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1];
-                                dc.q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1];
+                                dc.q_init_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1]* Dr[slave - 1];
+                                dc.q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
                                 dc.q_dot_(slave - 1) =
                                     (((int32_t)ec_slave[slave].inputs[14]) +
                                      ((int32_t)ec_slave[slave].inputs[15] << 8) +
                                      ((int32_t)ec_slave[slave].inputs[16] << 16) +
                                      ((int32_t)ec_slave[slave].inputs[17] << 24)) *
-                                    CNT2RAD[slave - 1];
+                                    CNT2RAD[slave - 1]* Dr[slave - 1];
                                 dc.elmo_cnt = 0;
                             }
 
@@ -186,17 +206,17 @@ void RealRobotInterface::stateThread()
                             {
                                 if (reachedInitial[slave - 1])
                                 {
-                                    q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1];
+                                    q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1]* Dr[slave - 1];
                                     q_dot_(slave - 1) =
                                         (((int32_t)ec_slave[slave].inputs[14]) +
                                          ((int32_t)ec_slave[slave].inputs[15] << 8) +
                                          ((int32_t)ec_slave[slave].inputs[16] << 16) +
                                          ((int32_t)ec_slave[slave].inputs[17] << 24)) *
-                                        CNT2RAD[slave - 1];
+                                        CNT2RAD[slave - 1]* Dr[slave - 1];
                                     torqueDemandElmo(slave - 1) =
                                         (int16_t)((ec_slave[slave].inputs[18]) +
-                                                  (ec_slave[slave].inputs[19] << 8));
-                                    torqueElmo(slave - 1) = rxPDO[slave - 1]->torqueActualValue;
+                                                  (ec_slave[slave].inputs[19] << 8))* Dr[slave - 1];
+                                    torqueElmo(slave - 1) = rxPDO[slave - 1]->torqueActualValue* Dr[slave - 1];
 
                                     //_WalkingCtrl.Init_walking_pose(positionDesiredElmo, velocityDesiredElmo, slave-1);
                                     //torqueDesiredElmo(slave-1) = (Kp[slave-1]*(positionDesiredElmo(slave-1) - positionElmo(slave-1))) + (Kv[slave-1]*(0 - velocityElmo(slave-1))) ;

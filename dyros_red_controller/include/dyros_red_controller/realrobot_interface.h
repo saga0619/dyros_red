@@ -131,8 +131,8 @@ const double Kv[DOF] =
         Kv_Roll2};
 
 const double Dr[DOF] =
-    {-1, 1, 1, 1, 1, 1,
-     -1, 1, -1, -1, -1, 1};
+    {-1, 1, -1, -1, 1, -1,
+     -1, 1, 1, 1, -1, -1};
 
 using namespace std;
 
