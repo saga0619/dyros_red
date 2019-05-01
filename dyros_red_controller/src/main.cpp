@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "dyros_red_controller");
     DataContainer dc;
-
+    system("beep");
     std::string mode;
 
     dc.nh.param<std::string>("/dyros_red_controller/run_mode", mode, "default");

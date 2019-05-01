@@ -21,8 +21,6 @@
 #include <sys/mman.h>
 #include <Eigen/Dense>
 
-
-
 #include "ethercattype.h"
 #include "nicdrv.h"
 #include "ethercatbase.h"
@@ -53,9 +51,8 @@
 #define Kv_Roll2 5000  //Ankle
 
 #define EC_TIMEOUTMON 500
-#define DOF 12
 
-const double CNT2RAD[DOF] =
+const double CNT2RAD[MODEL_DOF] =
     {
         CNT_TO_RAD_46,
         CNT_TO_RAD_46,
@@ -70,7 +67,7 @@ const double CNT2RAD[DOF] =
         CNT_TO_RAD_46,
         CNT_TO_RAD_46};
 
-const double RAD2CNT[DOF] =
+const double RAD2CNT[MODEL_DOF] =
     {
         RAD_TO_CNT_46,
         RAD_TO_CNT_46,
@@ -85,7 +82,7 @@ const double RAD2CNT[DOF] =
         RAD_TO_CNT_46,
         RAD_TO_CNT_46};
 
-const double NM2CNT[DOF] =
+const double NM2CNT[MODEL_DOF] =
     {
         0.1724,
         0.2307,
@@ -100,7 +97,22 @@ const double NM2CNT[DOF] =
         0.2834,
         0.0811};
 
-const double Kp[DOF] =
+const double MOTORCONTSTANT[MODEL_DOF] =
+    {
+        0.11495,
+        0.1748,
+        0.14915,
+        0.14915,
+        0.14915,
+        0.05795,
+        0.11495,
+        0.1748,
+        0.14915,
+        0.14915,
+        0.14915,
+        0.05795};
+
+const double Kp[MODEL_DOF] =
     {
         Kp_Yaw1,
         Kp_Roll1,
@@ -115,7 +127,7 @@ const double Kp[DOF] =
         Kp_Pitch3,
         Kp_Roll2};
 
-const double Kv[DOF] =
+const double Kv[MODEL_DOF] =
     {
         Kv_Yaw1,
         Kv_Roll1,
@@ -130,7 +142,7 @@ const double Kv[DOF] =
         Kv_Pitch3,
         Kv_Roll2};
 
-const double Dr[DOF] =
+const double Dr[MODEL_DOF] =
     {-1, 1, -1, -1, 1, -1,
      -1, 1, 1, 1, -1, -1};
 
@@ -223,8 +235,8 @@ class RealRobotInterface : public StateManager
 
     Eigen::VectorQd torqueDesiredController;
 
-    EtherCAT_Elmo::ElmoGoldDevice::elmo_gold_rx *rxPDO[DOF];
-    EtherCAT_Elmo::ElmoGoldDevice::elmo_gold_tx *txPDO[DOF];
+    EtherCAT_Elmo::ElmoGoldDevice::elmo_gold_rx *rxPDO[MODEL_DOF];
+    EtherCAT_Elmo::ElmoGoldDevice::elmo_gold_tx *txPDO[MODEL_DOF];
 
   private:
     DataContainer &dc;

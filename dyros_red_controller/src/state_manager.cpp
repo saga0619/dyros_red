@@ -84,14 +84,9 @@ void StateManager::stateThread(void)
 
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
-        mtx_dc.lock();
         storeState();
 
-        if (!dc.firstcalc)
-        {
-            dc.firstcalc = true;
-        }
-        mtx_dc.unlock();
+        dc.firstcalc = true;
 
         std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
 
@@ -125,9 +120,7 @@ void StateManager::testThread()
         updateState();
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
-        mtx_dc.lock();
         storeState();
-        mtx_dc.unlock();
 
         //std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
         if ((ThreadCount % 2000) == 0)
@@ -172,12 +165,16 @@ void StateManager::initialize()
 
 void StateManager::storeState()
 {
+    mtx_dc.lock();
+
     for (int i = 0; i < LINK_NUMBER; i++)
     {
         dc.link_[i] = link_[i];
     }
     dc.com_ = com_;
+    dc.time = control_time_;
     dc.sim_time = sim_time_;
+
     dc.q_ = q_;
     dc.q_dot_ = q_dot_;
     dc.q_dot_virtual_ = q_dot_virtual_;
@@ -187,6 +184,8 @@ void StateManager::storeState()
     dc.yaw_radian = yaw_radian;
     dc.A_ = A_;
     dc.A_inv = A_inv;
+
+    mtx_dc.unlock();
 }
 
 void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eigen::VectorXd &q_dot_virtual, const Eigen::VectorXd &q_ddot_virtual)

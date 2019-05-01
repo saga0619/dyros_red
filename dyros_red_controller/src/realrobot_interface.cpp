@@ -37,7 +37,7 @@ void RealRobotInterface::stateThread()
     double elapsed_min = 210000000.0, elapsed_max = 0.0;
     double time_mem[10000] = {0.0};
 
-    bool reachedInitial[DOF] = {false};
+    bool reachedInitial[MODEL_DOF] = {false};
 
     struct sched_param schedp;
     memset(&schedp, 0, sizeof(schedp));
@@ -157,6 +157,8 @@ void RealRobotInterface::stateThread()
                     /* wait to cycle start */
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL);
 
+                    ros::spinOnce();
+
                     /** PDO I/O refresh */
                     ec_send_processdata();
                     wkc = ec_receive_processdata(250);
@@ -177,22 +179,23 @@ void RealRobotInterface::stateThread()
                             for (int slave = 1; slave <= ec_slavecount; slave++)
                             {
 
-                                dc.q_init_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1]* Dr[slave - 1];
-                                dc.q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
-                                dc.q_dot_(slave - 1) =
+                                q_init_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
+                                q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
+                                q_virtual_(slave + 5) = q_(slave - 1);
+                                q_dot_(slave - 1) =
                                     (((int32_t)ec_slave[slave].inputs[14]) +
                                      ((int32_t)ec_slave[slave].inputs[15] << 8) +
                                      ((int32_t)ec_slave[slave].inputs[16] << 16) +
                                      ((int32_t)ec_slave[slave].inputs[17] << 24)) *
-                                    CNT2RAD[slave - 1]* Dr[slave - 1];
+                                    CNT2RAD[slave - 1] * Dr[slave - 1];
+                                q_dot_virtual_(slave + 5) = q_dot_(slave - 1);
                                 dc.elmo_cnt = 0;
                             }
 
                             updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_); //Update kinematis information.
-                            mtx_dc.lock();
+
                             storeState();        //Send calculated state data to DataContainer.
                             dc.firstcalc = true; //Enable Dynamics loop
-                            mtx_dc.unlock();
 
                             Walking_State = 1;
                         }
@@ -206,17 +209,22 @@ void RealRobotInterface::stateThread()
                             {
                                 if (reachedInitial[slave - 1])
                                 {
-                                    q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1]* Dr[slave - 1];
+                                    q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
                                     q_dot_(slave - 1) =
                                         (((int32_t)ec_slave[slave].inputs[14]) +
                                          ((int32_t)ec_slave[slave].inputs[15] << 8) +
                                          ((int32_t)ec_slave[slave].inputs[16] << 16) +
                                          ((int32_t)ec_slave[slave].inputs[17] << 24)) *
-                                        CNT2RAD[slave - 1]* Dr[slave - 1];
+                                        CNT2RAD[slave - 1] * Dr[slave - 1];
+
+                                    q_virtual_(slave + 5) = q_(slave - 1);
+                                    q_dot_virtual_(slave + 5) = q_(slave - 1);
+
                                     torqueDemandElmo(slave - 1) =
                                         (int16_t)((ec_slave[slave].inputs[18]) +
-                                                  (ec_slave[slave].inputs[19] << 8))* Dr[slave - 1];
-                                    torqueElmo(slave - 1) = rxPDO[slave - 1]->torqueActualValue* Dr[slave - 1];
+                                                  (ec_slave[slave].inputs[19] << 8)) *
+                                        Dr[slave - 1];
+                                    torqueElmo(slave - 1) = rxPDO[slave - 1]->torqueActualValue * Dr[slave - 1];
 
                                     //_WalkingCtrl.Init_walking_pose(positionDesiredElmo, velocityDesiredElmo, slave-1);
                                     //torqueDesiredElmo(slave-1) = (Kp[slave-1]*(positionDesiredElmo(slave-1) - positionElmo(slave-1))) + (Kv[slave-1]*(0 - velocityElmo(slave-1))) ;
@@ -224,11 +232,11 @@ void RealRobotInterface::stateThread()
                                     txPDO[slave - 1]->modeOfOperation = EtherCAT_Elmo::CyclicSynchronousTorquemode;
                                     txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1];
                                     //txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1] * Dr[slave - 1]);
-                                    txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
+                                    txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
                                     //txPDO[slave - 1]->targetTorque = (int)20;
-                                    txPDO[slave - 1]->maxTorque = (uint16)50; // originaly 1000
+                                    txPDO[slave - 1]->maxTorque = (uint16)500; // originaly 1000
 
-                                    if (dc.elmo_cnt >= 12.0 * dc.stm_hz)
+                                    if (dc.elmo_cnt >= 100.0 * dc.stm_hz)
                                     {
                                         for (int init = 1; init <= ec_slavecount; init++)
                                         {
@@ -240,17 +248,18 @@ void RealRobotInterface::stateThread()
                                 }
                             }
 
-                            updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
+                            updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_); //Update Kinematics Information
 
-                            mtx_dc.lock();
                             storeState();
-                            mtx_dc.unlock();
                         }
                         dc.elmo_cnt++;
                         needlf = TRUE;
                     }
                     clock_gettime(CLOCK_MONOTONIC, &time);
                     now = time.tv_sec;
+
+                    control_time_ = (time.tv_nsec - begin.tv_nsec) / 1000000000.0;
+
                     now += time.tv_nsec / 1000000000.0;
                     elapsed_time[elapsed_cnt] = now - prev;
                     prev = now;
@@ -323,6 +332,7 @@ void RealRobotInterface::stateThread()
 
 void RealRobotInterface::updateState()
 {
+    //State is updated by main state loop of realrobot interface !
 }
 
 void RealRobotInterface::sendCommand(Eigen::VectorQd command, double sim_time)
@@ -417,7 +427,15 @@ void RealRobotInterface::connect()
 
 void RealRobotInterface::ImuCallback(const sensor_msgs::ImuConstPtr &msg)
 {
-    //msg->orientation;
+    q_virtual_(3) = msg->orientation.x;
+    q_virtual_(4) = msg->orientation.y;
+    q_virtual_(5) = msg->orientation.z;
+
+    q_virtual_(MODEL_DOF_VIRTUAL) = msg->orientation.w;
+
+    q_dot_virtual_(3) = msg->angular_velocity.x;
+    q_dot_virtual_(4) = msg->angular_velocity.y;
+    q_dot_virtual_(5) = msg->angular_velocity.z;
 
     //62.8hz lowpass velocity
 }

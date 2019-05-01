@@ -33,35 +33,44 @@ void RedController::dynamicsThreadHigh()
         r.sleep();
     }
 
-
+    std::cout << "DynamicsThreadHigh : READY" << std::endl;
     std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
     int cnt = 0;
 
+    std::chrono::duration<double> time_now = std::chrono::high_resolution_clock::now() - start_time;
+
+    double ratio;
+
     while (!dc.shutdown && ros::ok())
     {
+        time_now = std::chrono::high_resolution_clock::now() - start_time;
+
         mtx.lock();
-        torque_desired.setZero();
-        if(cnt == 4000)
+
+        ratio = time_now.count() / 4.0;
+        if (cnt == 2000 * 4)
+            system("beep");
+            
+        if (time_now.count() > 30.0)
         {
-            printf("t(5) = 10 activate !\n");
+            ratio = 1.0 - (time_now.count() - 30.0) / 4.0;
         }
-        if(cnt == 6000)
-        {
-            printf("torque zero\n");
-        }
-        if(cnt>4000 && cnt<5000)
-        {
-            torque_desired(0)=40;
-        }
-        s_.sendCommand(torque_desired,0.0);
+        if (cnt == 2000 * 30)
+            system("beep");
+
+        if (ratio > 1)
+            ratio = 1.0;
+        else if (ratio < 0)
+            ratio = 0.0;
+
+        s_.sendCommand(torque_desired * ratio, 0.0);
         mtx.unlock();
 
         cnt++;
-        if(cnt%200==0)
+        if (cnt % 200 == 0)
         {
-            printf("%f \n",dc.q_(0));
+            printf("%f \n", time_now.count());
         }
-        
         r.sleep();
     }
 }
@@ -81,6 +90,7 @@ void RedController::dynamicsThreadLow()
     {
         r.sleep();
     }
+    std::cout << "DynamicsThreadLow : READY" << std::endl;
 
     std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
     std::chrono::seconds sec1(1);
@@ -111,7 +121,6 @@ void RedController::dynamicsThreadLow()
     N_C.setZero(total_dof_ + 6, total_dof_ + 6);
     bool first = true;
 
-/*
     while (!dc.shutdown && ros::ok())
     {
         getState();
@@ -172,15 +181,13 @@ void RedController::dynamicsThreadLow()
         tg_temp = ppinv * J_g * A_matrix_inverse * N_C;
         torque_grav = tg_temp * G;
 
-        mtx.lock();
         torque_desired = torque_grav;
-        s_.sendCommand(torque_desired, sim_time);
-        mtx.unlock();
+
         if (dc.shutdown)
             break;
 
         first = false;
-    }*/
+    }
 }
 
 void RedController::tuiThread()
