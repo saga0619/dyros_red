@@ -7,6 +7,10 @@
 
 StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
 {
+    gui_command = dc.nh.subscribe("/dyros_red/command", 100, &StateManager::CommandCallback, this);
+    joint_states_pub = dc.nh.advertise<sensor_msgs::JointState>("/dyros_red/jointstates", 1);
+    time_pub = dc.nh.advertise<std_msgs::Float32>("/dyros_red/time", 1);
+
     gravity_.setZero();
     gravity_(2) = GRAVITY;
 
@@ -63,6 +67,10 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         // model_.mJoints[2] = J_temp;
     }
 
+    joint_state_msg.position.resize(MODEL_DOF);
+    joint_state_msg.velocity.resize(MODEL_DOF);
+    joint_state_msg.effort.resize(MODEL_DOF);
+
     ROS_INFO_COND(verbose, "State manager Init complete");
 }
 
@@ -101,6 +109,31 @@ void StateManager::stateThread(void)
             rprint(dc, 0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
             i++;
         }*/
+
+        if ((ThreadCount % (int)(dc.stm_hz / 30)) == 0)
+        {
+            joint_state_msg.header.stamp = ros::Time::now();
+            for (int i = 0; i < MODEL_DOF; i++)
+            {
+                joint_state_msg.position[i] = q_[i];
+                joint_state_msg.velocity[i] = q_dot_[i];
+                if (dc.mode == "realrobot")
+                {
+                    joint_state_msg.effort[i] = dc.torqueElmo[i];
+                }
+                else if (dc.mode == "simulation")
+                {
+                    joint_state_msg.effort[i] = torque_desired[i];
+                }
+            }
+            joint_states_pub.publish(joint_state_msg);
+            if (dc.mode == "realrobot")
+                time_msg.data = e_s.count();
+            else if (dc.mode == "simulation")
+                time_msg.data = control_time_;
+            time_pub.publish(time_msg);
+        }
+
         ThreadCount++;
     }
 }
@@ -161,6 +194,10 @@ void StateManager::initialize()
     q_virtual_.setZero();
     q_dot_virtual_.setZero();
     q_ddot_virtual_.setZero();
+
+    torque_desired.setZero();
+
+    dc.torqueElmo.setZero();
 }
 
 void StateManager::storeState()
@@ -289,4 +326,19 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     //link_[Left_Hand].Set_Contact(model_, q_virtual_, link_[Left_Hand].contact_point);
 
     //ROS_INFO_ONCE("CONTROLLER : MODEL : updatekinematics end ");
+}
+
+void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
+{
+    //std::cout << "msg from gui : " << msg->data << std::endl;
+    dc.command = msg->data;
+
+    if (msg->data == "torqueon")
+        dc.torqueOn = true;
+    else if (msg->data == "positioncontrol")
+        dc.positionControl = true;
+    else if (msg->data == "torqueoff")
+        dc.torqueOn = false;
+    else if (msg->data == "gravity")
+        dc.gravityMode = true;
 }

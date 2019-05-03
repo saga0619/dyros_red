@@ -15,6 +15,8 @@ int main(int argc, char **argv)
     dc.nh.param<std::string>("/dyros_red_controller/ifname", dc.ifname, "enp0s31f6");
     dc.nh.param("/dyros_red_controller/ctime", dc.ctime, 250);
 
+    dc.mode = mode;
+
     Tui tui(dc);
     std::string cs[10][10];
     tui.ReadAndPrint(3, 0, "ascii0");
@@ -116,11 +118,16 @@ int main(int argc, char **argv)
         DynamicsManager dym(dc);
         RedController rc(dc, rtm, dym);
 
-        osal_thread_create(&pthr[0], NULL, (void *)&RealRobotInterface::connect, &rtm);
-        osal_thread_create_rt(&pthr[1], NULL, (void *)&RealRobotInterface::stateThread, &rtm);
+        //EthercatElmo Management Thread
+        osal_thread_create(&pthr[0], NULL, (void *)&RealRobotInterface::ethercatCheck, &rtm);
+        osal_thread_create_rt(&pthr[1], NULL, (void *)&RealRobotInterface::ethercatThread, &rtm);
 
+        //Robot Controller Thread
+        thread[0] = std::thread(&RedController::stateThread, &rc);
         thread[1] = std::thread(&RedController::dynamicsThreadHigh, &rc);
         thread[2] = std::thread(&RedController::dynamicsThreadLow, &rc);
+
+        //For Additional functions ..
         thread[3] = std::thread(&RedController::tuiThread, &rc);
 
         pthread_join(pthr[1], NULL);

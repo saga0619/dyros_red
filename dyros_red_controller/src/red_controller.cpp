@@ -39,38 +39,43 @@ void RedController::dynamicsThreadHigh()
 
     std::chrono::duration<double> time_now = std::chrono::high_resolution_clock::now() - start_time;
 
-    double ratio;
+    double ratio = 1.0;
 
     while (!dc.shutdown && ros::ok())
     {
         time_now = std::chrono::high_resolution_clock::now() - start_time;
 
-        mtx.lock();
-
-        ratio = time_now.count() / 4.0;
-        if (cnt == 2000 * 4)
-            system("beep");
-            
-        if (time_now.count() > 30.0)
+        if (dc.mode == "simulation")
         {
-            ratio = 1.0 - (time_now.count() - 30.0) / 4.0;
         }
-        if (cnt == 2000 * 30)
-            system("beep");
+        else if (dc.mode == "realrobot")
+        {
+            ratio = time_now.count() / 4.0;
+            if (cnt == 2000 * 4)
+                system("beep");
 
-        if (ratio > 1)
-            ratio = 1.0;
-        else if (ratio < 0)
-            ratio = 0.0;
+            if (time_now.count() > 30.0)
+            {
+                ratio = 1.0 - (time_now.count() - 30.0) / 4.0;
+            }
+            if (cnt == 2000 * 30)
+                system("beep");
 
-        s_.sendCommand(torque_desired * ratio, 0.0);
+            if (ratio > 1)
+                ratio = 1.0;
+            else if (ratio < 0)
+                ratio = 0.0;
+            cnt++;
+            if (cnt % 200 == 0)
+            {
+                //printf("%f \n", time_now.count());
+            }
+        }
+
+        mtx.lock();
+        s_.sendCommand(torque_desired * ratio, sim_time);
         mtx.unlock();
 
-        cnt++;
-        if (cnt % 200 == 0)
-        {
-            printf("%f \n", time_now.count());
-        }
         r.sleep();
     }
 }
@@ -121,9 +126,16 @@ void RedController::dynamicsThreadLow()
     N_C.setZero(total_dof_ + 6, total_dof_ + 6);
     bool first = true;
 
+    VectorQd TorqueDesiredLocal;
+    TorqueDesiredLocal.setZero();
+
     while (!dc.shutdown && ros::ok())
     {
         getState();
+
+        ///////////////////////////////////////////////////////////////////////////////////////
+        /////////////              Controller Code Here !                     /////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////
 
         A_matrix_inverse = A_.inverse();
         link_id[0] = Right_Foot;
@@ -181,11 +193,24 @@ void RedController::dynamicsThreadLow()
         tg_temp = ppinv * J_g * A_matrix_inverse * N_C;
         torque_grav = tg_temp * G;
 
-        torque_desired = torque_grav;
+        double ratio;
+
+        if (dc.command == "jointcontrol")
+        {
+            //hold current joint position!
+        }
+        TorqueDesiredLocal = torque_grav;
+
+        ///////////////////////////////////////////////////////////////////////////////////////
+        //////////////////              Controller Code End             ///////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////
+
+        mtx.lock();
+        torque_desired = TorqueDesiredLocal;
+        mtx.unlock();
 
         if (dc.shutdown)
             break;
-
         first = false;
     }
 }

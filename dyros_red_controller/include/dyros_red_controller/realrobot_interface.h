@@ -189,23 +189,20 @@ struct ElmoGoldDevice
 
 class RealRobotInterface : public StateManager
 {
-  public:
+public:
     RealRobotInterface(DataContainer &dc_global);
     virtual ~RealRobotInterface() {}
 
     //update state of Robot from mujoco
     virtual void updateState() override;
 
-    virtual void stateThread() override;
-
-    //Send command to Mujoco
-    //virtual void sendCommand(Eigen::VectorQd command) override;
     virtual void sendCommand(Eigen::VectorQd command, double sim_time) override;
 
     //connect to ethercat
-    virtual void connect() override;
+    //virtual void connect() override;
 
-    //void getCommand();
+    void ethercatCheck();
+    void ethercatThread();
 
     bool controlWordGenerate(const uint16_t statusWord, uint16_t &controlWord);
 
@@ -232,15 +229,17 @@ class RealRobotInterface : public StateManager
     Eigen::VectorQd positionDesiredElmo;
     Eigen::VectorQd velocityDesiredElmo;
     Eigen::VectorQd torqueDesiredElmo;
-
     Eigen::VectorQd torqueDesiredController;
 
     EtherCAT_Elmo::ElmoGoldDevice::elmo_gold_rx *rxPDO[MODEL_DOF];
     EtherCAT_Elmo::ElmoGoldDevice::elmo_gold_tx *txPDO[MODEL_DOF];
 
-  private:
+    bool ElmoConnected = false;
+
+private:
     DataContainer &dc;
 
+    Eigen::VectorQd getCommand();
     void ImuCallback(const sensor_msgs::ImuConstPtr &msg);
     void add_timespec(struct timespec *ts, int64 addtime);
 

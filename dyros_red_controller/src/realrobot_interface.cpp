@@ -1,13 +1,13 @@
 #include "dyros_red_controller/realrobot_interface.h"
 
-std::mutex mtx_rri;
+std::mutex mtx_torque_command;
+std::mutex mtx_q;
 
 RealRobotInterface::RealRobotInterface(DataContainer &dc_global) : dc(dc_global), StateManager(dc_global)
 {
     imuSubscriber = dc.nh.subscribe("/imu/data", 1, &RealRobotInterface::ImuCallback, this);
 
     printf("Starting red ethercat master\n");
-    //rprint(dc,)
 
     torque_desired.setZero();
 
@@ -22,7 +22,7 @@ RealRobotInterface::RealRobotInterface(DataContainer &dc_global) : dc(dc_global)
     torqueDesiredController.setZero();
 }
 
-void RealRobotInterface::stateThread()
+void RealRobotInterface::ethercatThread()
 {
     char IOmap[4096];
 
@@ -44,31 +44,12 @@ void RealRobotInterface::stateThread()
     schedp.sched_priority = 49;
 
     pid_t pid = getpid();
-    printf("Process ID : %d \n", pid);
-
     if (sched_setscheduler(pid, SCHED_FIFO, &schedp) == -1)
     {
         perror("sched_setscheduler(SCHED_FIFO)");
-        if (errno == EINVAL)
-        {
-            printf("einval !\n");
-        }
-        else if (errno == EPERM)
-        {
-
-            printf("eperm !\n");
-        }
-        else if (errno == ESRCH)
-        {
-            printf("esrch!\n");
-        }
-        printf("Scheduler set error !\n");
         exit(EXIT_FAILURE);
     }
-
-    printf("Hello ethercat.\n");
     const char *ifname = dc.ifname.c_str();
-
     if (ec_init(ifname))
     {
         printf("ec_init on %s succeeded.\n", ifname);
@@ -157,8 +138,6 @@ void RealRobotInterface::stateThread()
                     /* wait to cycle start */
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL);
 
-                    ros::spinOnce();
-
                     /** PDO I/O refresh */
                     ec_send_processdata();
                     wkc = ec_receive_processdata(250);
@@ -173,52 +152,42 @@ void RealRobotInterface::stateThread()
                                 reachedInitial[slave - 1] = true;
                             }
                         }
-
                         if (Walking_State == 0)
                         {
+                            mtx_q.lock();
                             for (int slave = 1; slave <= ec_slavecount; slave++)
                             {
-
                                 q_init_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
-                                q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
-                                q_virtual_(slave + 5) = q_(slave - 1);
-                                q_dot_(slave - 1) =
+                                positionElmo(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
+                                velocityElmo(slave - 1) =
                                     (((int32_t)ec_slave[slave].inputs[14]) +
                                      ((int32_t)ec_slave[slave].inputs[15] << 8) +
                                      ((int32_t)ec_slave[slave].inputs[16] << 16) +
                                      ((int32_t)ec_slave[slave].inputs[17] << 24)) *
                                     CNT2RAD[slave - 1] * Dr[slave - 1];
-                                q_dot_virtual_(slave + 5) = q_dot_(slave - 1);
                                 dc.elmo_cnt = 0;
                             }
-
-                            updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_); //Update kinematis information.
-
-                            storeState();        //Send calculated state data to DataContainer.
-                            dc.firstcalc = true; //Enable Dynamics loop
-
+                            mtx_q.unlock();
+                            ElmoConnected = true;
                             Walking_State = 1;
                         }
                         else if (Walking_State == 1)
                         {
-                            mtx_rri.lock();
-                            torqueDesiredElmo = torqueDesiredController;
-                            mtx_rri.unlock();
+                            torqueDesiredElmo = getCommand();
+                            positionDesiredElmo = q_init_;
 
+                            mtx_q.lock();
                             for (int slave = 1; slave <= ec_slavecount; slave++)
                             {
                                 if (reachedInitial[slave - 1])
                                 {
-                                    q_(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
-                                    q_dot_(slave - 1) =
+                                    positionElmo(slave - 1) = rxPDO[slave - 1]->positionActualValue * CNT2RAD[slave - 1] * Dr[slave - 1];
+                                    velocityElmo(slave - 1) =
                                         (((int32_t)ec_slave[slave].inputs[14]) +
                                          ((int32_t)ec_slave[slave].inputs[15] << 8) +
                                          ((int32_t)ec_slave[slave].inputs[16] << 16) +
                                          ((int32_t)ec_slave[slave].inputs[17] << 24)) *
                                         CNT2RAD[slave - 1] * Dr[slave - 1];
-
-                                    q_virtual_(slave + 5) = q_(slave - 1);
-                                    q_dot_virtual_(slave + 5) = q_(slave - 1);
 
                                     torqueDemandElmo(slave - 1) =
                                         (int16_t)((ec_slave[slave].inputs[18]) +
@@ -226,38 +195,49 @@ void RealRobotInterface::stateThread()
                                         Dr[slave - 1];
                                     torqueElmo(slave - 1) = rxPDO[slave - 1]->torqueActualValue * Dr[slave - 1];
 
+                                    dc.torqueElmo = torqueElmo;
+                                    dc.torqueDemandElmo = torqueDemandElmo;
+
                                     //_WalkingCtrl.Init_walking_pose(positionDesiredElmo, velocityDesiredElmo, slave-1);
-                                    //torqueDesiredElmo(slave-1) = (Kp[slave-1]*(positionDesiredElmo(slave-1) - positionElmo(slave-1))) + (Kv[slave-1]*(0 - velocityElmo(slave-1))) ;
 
                                     txPDO[slave - 1]->modeOfOperation = EtherCAT_Elmo::CyclicSynchronousTorquemode;
                                     txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1];
                                     //txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1] * Dr[slave - 1]);
-                                    txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
+
+                                    if (dc.torqueOn)
+                                    {
+                                        if (dc.positionControl)
+                                        {
+                                            torqueDesiredElmo(slave - 1) = (Kp[slave - 1] * (positionDesiredElmo(slave - 1) - positionElmo(slave - 1))) + (Kv[slave - 1] * (0 - velocityElmo(slave - 1)));
+                                            txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
+                                        }
+                                        else
+                                        {
+                                            txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        txPDO[slave - 1]->targetTorque = 0;
+                                    }
+
                                     //txPDO[slave - 1]->targetTorque = (int)20;
                                     txPDO[slave - 1]->maxTorque = (uint16)500; // originaly 1000
 
                                     if (dc.elmo_cnt >= 100.0 * dc.stm_hz)
                                     {
-                                        for (int init = 1; init <= ec_slavecount; init++)
-                                        {
-                                            //_WalkingCtrl._init_q(init - 1) = positionDesiredElmo(init - 1);
-                                        }
                                         Walking_State = 2;
                                         dc.elmo_cnt = 0;
                                     }
                                 }
                             }
-
-                            updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_); //Update Kinematics Information
-
-                            storeState();
+                            mtx_q.unlock();
                         }
                         dc.elmo_cnt++;
                         needlf = TRUE;
                     }
                     clock_gettime(CLOCK_MONOTONIC, &time);
                     now = time.tv_sec;
-
                     control_time_ = (time.tv_nsec - begin.tv_nsec) / 1000000000.0;
 
                     now += time.tv_nsec / 1000000000.0;
@@ -333,16 +313,33 @@ void RealRobotInterface::stateThread()
 void RealRobotInterface::updateState()
 {
     //State is updated by main state loop of realrobot interface !
+    ros::spinOnce();
+
+    mtx_q.lock();
+    q_ = positionElmo;
+    q_dot_ = velocityElmo;
+    mtx_q.unlock();
+
+    q_virtual_.segment(6, MODEL_DOF) = q_;
+    q_dot_virtual_.segment(6, MODEL_DOF) = q_dot_;
+}
+
+Eigen::VectorQd RealRobotInterface::getCommand()
+{
+    mtx_torque_command.lock();
+    Eigen::VectorQd ttemp = torqueDesiredController;
+    mtx_torque_command.unlock();
+    return ttemp;
 }
 
 void RealRobotInterface::sendCommand(Eigen::VectorQd command, double sim_time)
 {
-    mtx_rri.lock();
+    mtx_torque_command.lock();
     torqueDesiredController = command;
-    mtx_rri.unlock();
+    mtx_torque_command.unlock();
 }
 
-void RealRobotInterface::connect()
+void RealRobotInterface::ethercatCheck()
 {
     int expectedWKC;
     boolean needlf;

@@ -19,10 +19,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //robot definition variables here
 
-
-
-
-
 namespace RED
 {
 const std::string JOINT_NAME[MODEL_DOF] = {
@@ -76,10 +72,9 @@ public:
 
   bool ncurse_mode = false;
 
-
   bool statemanager_ready = false;
 
-
+  std::string mode;
 
   //Tui Var..
   bool state_end;
@@ -119,18 +114,23 @@ public:
 
   //Model var
 
-
-
-  //For real robot 
+  //For real robot
   std::string ifname;
   int ctime;
 
   Eigen::VectorQd q_init_;
   Eigen::VectorQd q_elmo_;
-  Eigen::VectorQd q_dot_elmo_;
+  Eigen::VectorQd torqueElmo;
+  Eigen::VectorQd torqueDemandElmo;
 
   int elmo_cnt;
 
+  //Gui Command
+  std::string command;
+
+  bool torqueOn = false;
+  bool positionControl = false;
+  bool gravityMode = false;
 };
 
 #endif

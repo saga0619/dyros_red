@@ -61,6 +61,16 @@ public:
 
   Link link_[LINK_NUMBER + 1];
   Com com_;
+
+  //Communication Subscriber!
+
+  ros::Subscriber gui_command;
+  ros::Publisher joint_states_pub;
+  ros::Publisher time_pub;
+  sensor_msgs::JointState joint_state_msg;
+  std_msgs::Float32 time_msg;
+
+  void CommandCallback(const std_msgs::StringConstPtr &msg);
 };
 
 #endif
