@@ -61,6 +61,7 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.com_send_button.pressed.connect(self.com_command_sender)
 
         self._widget.torqueon_button.pressed.connect(self.torqueon_button)
+        self._widget.emergencyoff_button.pressed.connect(self.emergencyoff_button)
         self._widget.torqueoff_button.pressed.connect(self.torqueoff_button)
         # self._widget.pause_button.pressed.connect(self.pause_button)
         # self._widget.slowmotion_button.pressed.connect(self.slowmotion_button)
@@ -171,6 +172,9 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.data_button.setEnabled(True)
         self._widget.torqueoff_button.setEnabled(True)
         self._widget.torqueon_button.setEnabled(False)
+
+    def emergencyoff_button(self):
+        self.send_msg("emergencyoff")
 
     def torqueoff_button(self):
         self.send_msg("torqueoff")

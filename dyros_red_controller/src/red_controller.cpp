@@ -39,8 +39,6 @@ void RedController::dynamicsThreadHigh()
 
     std::chrono::duration<double> time_now = std::chrono::high_resolution_clock::now() - start_time;
 
-    double ratio = 1.0;
-
     while (!dc.shutdown && ros::ok())
     {
         time_now = std::chrono::high_resolution_clock::now() - start_time;
@@ -50,30 +48,10 @@ void RedController::dynamicsThreadHigh()
         }
         else if (dc.mode == "realrobot")
         {
-            ratio = time_now.count() / 4.0;
-            if (cnt == 2000 * 4)
-                system("beep");
-
-            if (time_now.count() > 30.0)
-            {
-                ratio = 1.0 - (time_now.count() - 30.0) / 4.0;
-            }
-            if (cnt == 2000 * 30)
-                system("beep");
-
-            if (ratio > 1)
-                ratio = 1.0;
-            else if (ratio < 0)
-                ratio = 0.0;
-            cnt++;
-            if (cnt % 200 == 0)
-            {
-                //printf("%f \n", time_now.count());
-            }
         }
-
+        cnt++;
         mtx.lock();
-        s_.sendCommand(torque_desired * ratio, sim_time);
+        s_.sendCommand(torque_desired, sim_time);
         mtx.unlock();
 
         r.sleep();
@@ -219,6 +197,7 @@ void RedController::tuiThread()
 {
     while (!dc.shutdown && ros::ok())
     {
+
         mtx_terminal.lock();
         if (dc.ncurse_mode)
             mvprintw(4, 30, "I'm alive : %f", ros::Time::now().toSec());

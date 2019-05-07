@@ -128,9 +128,16 @@ public:
   //Gui Command
   std::string command;
 
+  double commandTime = 0.0;
+  double commandTimeLock = -1.0;
+
   bool torqueOn = false;
+  bool torqueOff = false;
+  bool torqueOnTime = 0.0;
+  bool torqueOffTime = 0.0;
   bool positionControl = false;
   bool gravityMode = false;
+  bool emergencyoff = false;
 };
 
 #endif

@@ -324,7 +324,6 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     //link_[Left_Foot].Set_Contact(model_, q_virtual_, link_[Left_Foot].contact_point);
     //link_[Right_Hand].Set_Contact(model_, q_virtual_, link_[Right_Hand].contact_point);
     //link_[Left_Hand].Set_Contact(model_, q_virtual_, link_[Left_Hand].contact_point);
-
     //ROS_INFO_ONCE("CONTROLLER : MODEL : updatekinematics end ");
 }
 
@@ -334,11 +333,28 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     dc.command = msg->data;
 
     if (msg->data == "torqueon")
+    {
+        dc.torqueOnTime = control_time_;
         dc.torqueOn = true;
+    }
     else if (msg->data == "positioncontrol")
+    {
+        dc.commandTime = control_time_;
         dc.positionControl = true;
+    }
     else if (msg->data == "torqueoff")
+    {
+        dc.torqueOffTime = control_time_;
         dc.torqueOn = false;
+        dc.torqueOff = true;
+    }
     else if (msg->data == "gravity")
+    {
+        dc.commandTime = control_time_;
         dc.gravityMode = true;
+    }
+    else if (msg->data == "emergencyoff")
+    {
+        dc.emergencyoff = true;
+    }
 }

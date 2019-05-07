@@ -543,5 +543,13 @@ static Eigen::Vector3d QuinticSpline(
   return result;
 }
 
+static double minmax_cut(double val, double min_, double max_)
+{
+  if (val < min_)
+    return min_;
+  else if (val > max_)
+    return max_;
+}
+
 } // namespace DyrosMath
 #endif

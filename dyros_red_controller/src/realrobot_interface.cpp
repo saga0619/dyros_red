@@ -3,6 +3,8 @@
 std::mutex mtx_torque_command;
 std::mutex mtx_q;
 
+double rising_time = 3.0;
+
 RealRobotInterface::RealRobotInterface(DataContainer &dc_global) : dc(dc_global), StateManager(dc_global)
 {
     imuSubscriber = dc.nh.subscribe("/imu/data", 1, &RealRobotInterface::ImuCallback, this);
@@ -133,6 +135,8 @@ void RealRobotInterface::ethercatThread()
                 prev = begin.tv_sec;
                 prev += begin.tv_nsec / 1000000000.0;
 
+                double to_ratio;
+
                 while (!dc.shutdown && ros::ok())
                 {
                     /* wait to cycle start */
@@ -201,22 +205,44 @@ void RealRobotInterface::ethercatThread()
                                     //_WalkingCtrl.Init_walking_pose(positionDesiredElmo, velocityDesiredElmo, slave-1);
 
                                     txPDO[slave - 1]->modeOfOperation = EtherCAT_Elmo::CyclicSynchronousTorquemode;
-                                    txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1];
+                                    txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1]* Dr[slave - 1]);
                                     //txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1] * Dr[slave - 1]);
 
                                     if (dc.torqueOn)
                                     {
+                                        to_ratio = minmax_cut((control_time_ - dc.torqueOnTime) / rising_time, 0.0, 1.0);
+
                                         if (dc.positionControl)
                                         {
                                             torqueDesiredElmo(slave - 1) = (Kp[slave - 1] * (positionDesiredElmo(slave - 1) - positionElmo(slave - 1))) + (Kv[slave - 1] * (0 - velocityElmo(slave - 1)));
-                                            txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
+                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
                                         }
                                         else
                                         {
-                                            txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
+                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
                                         }
                                     }
-                                    else
+                                    else if (dc.torqueOff)
+                                    {
+                                        to_ratio = minmax_cut(1.0 - (control_time_ - dc.torqueOffTime) / rising_time, 0.0, 1.0);
+
+                                        if (dc.positionControl)
+                                        {
+                                            torqueDesiredElmo(slave - 1) = (Kp[slave - 1] * (positionDesiredElmo(slave - 1) - positionElmo(slave - 1))) + (Kv[slave - 1] * (0 - velocityElmo(slave - 1)));
+                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
+                                        }
+                                        else
+                                        {
+                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
+                                        }
+
+                                        if (control_time_ - dc.torqueOffTime > rising_time)
+                                        {
+                                            dc.torqueOff = false;
+                                            dc.emergencyoff = true;
+                                        }
+                                    }
+                                    else if (dc.emergencyoff)
                                     {
                                         txPDO[slave - 1]->targetTorque = 0;
                                     }
@@ -238,7 +264,8 @@ void RealRobotInterface::ethercatThread()
                     }
                     clock_gettime(CLOCK_MONOTONIC, &time);
                     now = time.tv_sec;
-                    control_time_ = (time.tv_nsec - begin.tv_nsec) / 1000000000.0;
+
+                    control_time_ = (time.tv_sec - begin.tv_sec) + (time.tv_nsec - begin.tv_nsec) / 1000000000.0;
 
                     now += time.tv_nsec / 1000000000.0;
                     elapsed_time[elapsed_cnt] = now - prev;
