@@ -205,12 +205,12 @@ void RealRobotInterface::ethercatThread()
                                     //_WalkingCtrl.Init_walking_pose(positionDesiredElmo, velocityDesiredElmo, slave-1);
 
                                     txPDO[slave - 1]->modeOfOperation = EtherCAT_Elmo::CyclicSynchronousTorquemode;
-                                    txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1]* Dr[slave - 1]);
+                                    txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1] * Dr[slave - 1];
                                     //txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1] * Dr[slave - 1]);
 
                                     if (dc.torqueOn)
                                     {
-                                        to_ratio = minmax_cut((control_time_ - dc.torqueOnTime) / rising_time, 0.0, 1.0);
+                                        to_ratio = DyrosMath::minmax_cut((control_time_ - dc.torqueOnTime) / rising_time, 0.0, 1.0);
 
                                         if (dc.positionControl)
                                         {
@@ -224,7 +224,7 @@ void RealRobotInterface::ethercatThread()
                                     }
                                     else if (dc.torqueOff)
                                     {
-                                        to_ratio = minmax_cut(1.0 - (control_time_ - dc.torqueOffTime) / rising_time, 0.0, 1.0);
+                                        to_ratio = DyrosMath::minmax_cut(1.0 - (control_time_ - dc.torqueOffTime) / rising_time, 0.0, 1.0);
 
                                         if (dc.positionControl)
                                         {

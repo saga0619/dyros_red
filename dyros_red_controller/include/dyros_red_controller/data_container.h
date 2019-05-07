@@ -68,7 +68,7 @@ public:
   bool simulation = true;
   bool shutdown = false;
   bool connected = false;
-  bool firstcalc = false;
+  bool firstcalcdone = false;
 
   bool ncurse_mode = false;
 
@@ -133,11 +133,12 @@ public:
 
   bool torqueOn = false;
   bool torqueOff = false;
-  bool torqueOnTime = 0.0;
-  bool torqueOffTime = 0.0;
   bool positionControl = false;
   bool gravityMode = false;
   bool emergencyoff = false;
+
+  double torqueOnTime = 0.0;
+  double torqueOffTime = 0.0;
 };
 
 #endif

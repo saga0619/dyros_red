@@ -28,7 +28,7 @@ void RedController::dynamicsThreadHigh()
     {
         r.sleep();
     }
-    while ((!dc.firstcalc) && (!dc.shutdown) && ros::ok())
+    while ((!dc.firstcalcdone) && (!dc.shutdown) && ros::ok())
     {
         r.sleep();
     }
@@ -39,6 +39,7 @@ void RedController::dynamicsThreadHigh()
 
     std::chrono::duration<double> time_now = std::chrono::high_resolution_clock::now() - start_time;
 
+    bool set_q_init = true;
     while (!dc.shutdown && ros::ok())
     {
         time_now = std::chrono::high_resolution_clock::now() - start_time;
@@ -48,6 +49,24 @@ void RedController::dynamicsThreadHigh()
         }
         else if (dc.mode == "realrobot")
         {
+        }
+
+        if (dc.positionControl)
+        {
+            if (set_q_init)
+            {
+                q_desired_ = q_;
+                set_q_init = false;
+            }
+            for (int i = 0; i < MODEL_DOF; i++)
+            {
+                torque_desired(i) = Kps[i] * (q_desired_(i) - q_(i)) - Kvs[i] * (q_dot_(i));
+            }
+        }
+
+        if (dc.emergencyoff)
+        {
+            torque_desired.setZero();
         }
         cnt++;
         mtx.lock();
@@ -69,7 +88,7 @@ void RedController::dynamicsThreadLow()
     {
         r.sleep();
     }
-    while ((!dc.firstcalc) && (!dc.shutdown) && ros::ok())
+    while ((!dc.firstcalcdone) && (!dc.shutdown) && ros::ok())
     {
         r.sleep();
     }

@@ -3,6 +3,50 @@
 #include "dyros_red_controller/realrobot_interface.h"
 #include "dyros_red_controller/wholebody_controller.h"
 
+#define Kp_Yaw1s 1500   //Hip
+#define Kp_Roll1s 5000  //Hip
+#define Kp_Pitch1s 5000 //Hip
+#define Kp_Pitch2s 5000 //Knee
+#define Kp_Pitch3s 5000 //Ankle
+#define Kp_Roll2s 6500  //Ankle
+
+#define Kv_Yaw1s 50   //Hip
+#define Kv_Roll1s 50  //Hip
+#define Kv_Pitch1s 50 //Hip
+#define Kv_Pitch2s 40 //Knee
+#define Kv_Pitch3s 30 //Ankle
+#define Kv_Roll2s 60  //Ankle
+
+const double Kps[MODEL_DOF] =
+    {
+        Kp_Yaw1s,
+        Kp_Roll1s,
+        Kp_Pitch1s,
+        Kp_Pitch2s,
+        Kp_Pitch3s,
+        Kp_Roll2s,
+        Kp_Yaw1s,
+        Kp_Roll1s,
+        Kp_Pitch1s,
+        Kp_Pitch2s,
+        Kp_Pitch3s,
+        Kp_Roll2s};
+
+const double Kvs[MODEL_DOF] =
+    {
+        Kv_Yaw1s,
+        Kv_Roll1s,
+        Kv_Pitch1s,
+        Kv_Pitch2s,
+        Kv_Pitch3s,
+        Kv_Roll2s,
+        Kv_Yaw1s,
+        Kv_Roll1s,
+        Kv_Pitch1s,
+        Kv_Pitch2s,
+        Kv_Pitch3s,
+        Kv_Roll2s};
+
 class RedController
 {
 public:
@@ -32,6 +76,7 @@ private:
   Eigen::VectorQd q_dot_;
   Eigen::VectorVQd q_dot_virtual_;
   Eigen::VectorVQd q_ddot_virtual_;
+  Eigen::VectorQd q_desired_;
   Eigen::VectorQd torque_;
   //Command Var
   Eigen::VectorQd torque_desired;

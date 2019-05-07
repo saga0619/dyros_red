@@ -354,7 +354,7 @@
      <item>
       <widget class="QPushButton" name="task_button">
        <property name="text">
-        <string>JointControl</string>
+        <string>PositionControl</string>
        </property>
       </widget>
      </item>

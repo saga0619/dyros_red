@@ -94,7 +94,7 @@ void StateManager::stateThread(void)
 
         storeState();
 
-        dc.firstcalc = true;
+        dc.firstcalcdone = true;
 
         std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
 
