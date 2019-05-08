@@ -35,20 +35,29 @@
 
 #define CNT_TO_RAD_46 (3.141592 * 2 / 819200) //819200
 #define RAD_TO_CNT_46 (1 / (CNT_TO_RAD_46))
+/*
+#define Kp_Yaw1 150000/3   //Hip
+#define Kp_Roll1 500000/3  //Hip
+#define Kp_Pitch1 500000/3 //Hip
+#define Kp_Pitch2 500000/3 //Knee
+#define Kp_Pitch3 500000/3 //Ankle
+#define Kp_Roll2 650000/3  //Ankle
+*/
 
-#define Kp_Yaw1 150000   //Hip
-#define Kp_Roll1 500000  //Hip
-#define Kp_Pitch1 500000 //Hip
-#define Kp_Pitch2 500000 //Knee
-#define Kp_Pitch3 500000 //Ankle
-#define Kp_Roll2 650000  //Ankle
 
-#define Kv_Yaw1 3000   //Hip
-#define Kv_Roll1 3000  //Hip
-#define Kv_Pitch1 3000 //Hip
-#define Kv_Pitch2 2000 //Knee
-#define Kv_Pitch3 3000 //Ankle
-#define Kv_Roll2 5000  //Ankle
+#define Kp_Yaw1 5000   //Hip
+#define Kp_Roll1 15000  //Hip
+#define Kp_Pitch1 15000 //Hip
+#define Kp_Pitch2 15000 //Knee
+#define Kp_Pitch3 15000 //Ankle
+#define Kp_Roll2 20000  //Ankle
+
+#define Kv_Yaw1 100   //Hip
+#define Kv_Roll1 100  //Hip
+#define Kv_Pitch1 100 //Hip
+#define Kv_Pitch2 70 //Knee
+#define Kv_Pitch3 100 //Ankle
+#define Kv_Roll2 150  //Ankle
 
 #define EC_TIMEOUTMON 500
 
@@ -86,15 +95,15 @@ const double NM2CNT[MODEL_DOF] =
     {
         0.1724,
         0.2307,
-        0.2834,
-        0.2834,
-        0.2834,
+        0.2897,
+        0.3035,
+        0.3035,
         0.0811,
         0.1724,
         0.2307,
-        0.2834,
-        0.2834,
-        0.2834,
+        0.2897,
+        0.3035,
+        0.3035,
         0.0811};
 
 const double MOTORCONTSTANT[MODEL_DOF] =

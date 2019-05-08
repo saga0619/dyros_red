@@ -135,13 +135,13 @@ void RealRobotInterface::ethercatThread()
                 prev = begin.tv_sec;
                 prev += begin.tv_nsec / 1000000000.0;
 
-                double to_ratio;
+                double to_ratio, to_calib;
 
                 while (!dc.shutdown && ros::ok())
                 {
                     /* wait to cycle start */
                     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL);
-
+                    //std::cout<<"control time : " << control_time_<< std::endl;
                     /** PDO I/O refresh */
                     ec_send_processdata();
                     wkc = ec_receive_processdata(250);
@@ -179,7 +179,6 @@ void RealRobotInterface::ethercatThread()
                         {
                             torqueDesiredElmo = getCommand();
                             positionDesiredElmo = q_init_;
-
                             mtx_q.lock();
                             for (int slave = 1; slave <= ec_slavecount; slave++)
                             {
@@ -208,56 +207,72 @@ void RealRobotInterface::ethercatThread()
                                     txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1] * Dr[slave - 1];
                                     //txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1] * Dr[slave - 1]);
 
-                                    if (dc.torqueOn)
-                                    {
-                                        to_ratio = DyrosMath::minmax_cut((control_time_ - dc.torqueOnTime) / rising_time, 0.0, 1.0);
-
-                                        if (dc.positionControl)
-                                        {
-                                            torqueDesiredElmo(slave - 1) = (Kp[slave - 1] * (positionDesiredElmo(slave - 1) - positionElmo(slave - 1))) + (Kv[slave - 1] * (0 - velocityElmo(slave - 1)));
-                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
-                                        }
-                                        else
-                                        {
-                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
-                                        }
-                                    }
-                                    else if (dc.torqueOff)
-                                    {
-                                        to_ratio = DyrosMath::minmax_cut(1.0 - (control_time_ - dc.torqueOffTime) / rising_time, 0.0, 1.0);
-
-                                        if (dc.positionControl)
-                                        {
-                                            torqueDesiredElmo(slave - 1) = (Kp[slave - 1] * (positionDesiredElmo(slave - 1) - positionElmo(slave - 1))) + (Kv[slave - 1] * (0 - velocityElmo(slave - 1)));
-                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
-                                        }
-                                        else
-                                        {
-                                            txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
-                                        }
-
-                                        if (control_time_ - dc.torqueOffTime > rising_time)
-                                        {
-                                            dc.torqueOff = false;
-                                            dc.emergencyoff = true;
-                                        }
-                                    }
-                                    else if (dc.emergencyoff)
+                                    if (dc.emergencyoff)
                                     {
                                         txPDO[slave - 1]->targetTorque = 0;
+                                        Walking_State = 2;
+                                        if (Walking_State == 1)
+                                        {
+                                            std::cout << "!!!!!! TORQUE TERMINATE !!!!!!" << std::endl;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (dc.torqueOn)
+                                        {
+                                            to_ratio = DyrosMath::minmax_cut((control_time_ - dc.torqueOnTime) / rising_time, 0.0, 1.0);
+
+                                            std::cout << "to_r : " << to_ratio << " control time : " << control_time_ << std::endl;
+                                            if (dc.positionControl)
+                                            {
+                                                torqueDesiredElmo(slave - 1) = (Kp[slave - 1] * (positionDesiredElmo(slave - 1) - positionElmo(slave - 1))) + (Kv[slave - 1] * (0 - velocityElmo(slave - 1)));
+                                                txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
+                                            }
+                                            else
+                                            {
+                                                txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
+                                            }
+                                        }
+                                        else if (dc.torqueOff)
+                                        {
+
+                                            if (dc.torqueOnTime + rising_time > dc.torqueOffTime)
+                                            {
+                                                to_calib = (dc.torqueOffTime - dc.torqueOnTime) / rising_time;
+                                            }
+                                            else
+                                            {
+                                                to_calib = 0.0;
+                                            }
+                                            to_ratio = DyrosMath::minmax_cut(1.0 - to_calib - (control_time_ - dc.torqueOffTime) / rising_time, 0.0, 1.0);
+                                            std::cout << "to_r : " << to_ratio << " control time : " << control_time_ << std::endl;
+                                            if (dc.positionControl)
+                                            {
+                                                torqueDesiredElmo(slave - 1) = (Kp[slave - 1] * (positionDesiredElmo(slave - 1) - positionElmo(slave - 1))) + (Kv[slave - 1] * (0 - velocityElmo(slave - 1)));
+                                                txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) * Dr[slave - 1]);
+                                            }
+                                            else
+                                            {
+                                                txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
+                                            }
+
+                                            if (control_time_ - dc.torqueOffTime > rising_time)
+                                            {
+                                                dc.torqueOff = false;
+                                                dc.emergencyoff = true;
+                                            }
+                                        }
                                     }
 
                                     //txPDO[slave - 1]->targetTorque = (int)20;
                                     txPDO[slave - 1]->maxTorque = (uint16)500; // originaly 1000
-
-                                    if (dc.elmo_cnt >= 100.0 * dc.stm_hz)
-                                    {
-                                        Walking_State = 2;
-                                        dc.elmo_cnt = 0;
-                                    }
                                 }
                             }
                             mtx_q.unlock();
+                        }
+                        else if (Walking_State == 2)
+                        {
+                            //std::cout<<""
                         }
                         dc.elmo_cnt++;
                         needlf = TRUE;
@@ -341,14 +356,14 @@ void RealRobotInterface::updateState()
 {
     //State is updated by main state loop of realrobot interface !
     ros::spinOnce();
-
-    mtx_q.lock();
-    q_ = positionElmo;
-    q_dot_ = velocityElmo;
-    mtx_q.unlock();
-
-    q_virtual_.segment(6, MODEL_DOF) = q_;
-    q_dot_virtual_.segment(6, MODEL_DOF) = q_dot_;
+    if (mtx_q.try_lock())
+    {
+        q_ = positionElmo;
+        q_dot_ = velocityElmo;
+        mtx_q.unlock();
+        q_virtual_.segment(6, MODEL_DOF) = q_;
+        q_dot_virtual_.segment(6, MODEL_DOF) = q_dot_;
+    }
 }
 
 Eigen::VectorQd RealRobotInterface::getCommand()
@@ -361,9 +376,11 @@ Eigen::VectorQd RealRobotInterface::getCommand()
 
 void RealRobotInterface::sendCommand(Eigen::VectorQd command, double sim_time)
 {
-    mtx_torque_command.lock();
-    torqueDesiredController = command;
-    mtx_torque_command.unlock();
+    if (mtx_torque_command.try_lock())
+    {
+        torqueDesiredController = command;
+        mtx_torque_command.unlock();
+    }
 }
 
 void RealRobotInterface::ethercatCheck()
@@ -374,7 +391,7 @@ void RealRobotInterface::ethercatCheck()
     boolean inOP;
     uint8 currentgroup = 0;
     printf("S\n");
-    while (1)
+    while (ros::ok())
     {
         if (inOP && ((wkc < expectedWKC) || ec_group[currentgroup].docheckstate))
         {

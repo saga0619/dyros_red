@@ -88,12 +88,16 @@ void StateManager::stateThread(void)
     while (ros::ok())
     {
 
+        //std::cout << ThreadCount<<" : update state, ";
         updateState();
 
+        //std::cout << "update rbdl, ";
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
+        //std::cout << "store states, ";
         storeState();
 
+        //std::cout << "store states complete !" <<std::endl;
         dc.firstcalcdone = true;
 
         std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
@@ -119,7 +123,7 @@ void StateManager::stateThread(void)
                 joint_state_msg.velocity[i] = q_dot_[i];
                 if (dc.mode == "realrobot")
                 {
-                    joint_state_msg.effort[i] = dc.torqueElmo[i];
+                    joint_state_msg.effort[i] = dc.torqueDemandElmo[i];
                 }
                 else if (dc.mode == "simulation")
                 {
@@ -128,7 +132,7 @@ void StateManager::stateThread(void)
             }
             joint_states_pub.publish(joint_state_msg);
             if (dc.mode == "realrobot")
-                time_msg.data = e_s.count();
+                time_msg.data = control_time_;
             else if (dc.mode == "simulation")
                 time_msg.data = control_time_;
             time_pub.publish(time_msg);
@@ -356,5 +360,7 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     else if (msg->data == "emergencyoff")
     {
         dc.emergencyoff = true;
+        dc.torqueOn = false;
+        dc.torqueOff = true;
     }
 }

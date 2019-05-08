@@ -549,6 +549,8 @@ static double minmax_cut(double val, double min_, double max_)
     return min_;
   else if (val > max_)
     return max_;
+  else
+    return val;
 }
 
 } // namespace DyrosMath

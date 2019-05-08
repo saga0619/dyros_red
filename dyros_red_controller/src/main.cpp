@@ -8,14 +8,11 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "dyros_red_controller");
     DataContainer dc;
     system("beep");
-    std::string mode;
 
-    dc.nh.param<std::string>("/dyros_red_controller/run_mode", mode, "default");
+    dc.nh.param<std::string>("/dyros_red_controller/run_mode", dc.mode, "default");
     dc.nh.param("/dyros_red_controller/ncurse", dc.ncurse_mode, true);
     dc.nh.param<std::string>("/dyros_red_controller/ifname", dc.ifname, "enp0s31f6");
     dc.nh.param("/dyros_red_controller/ctime", dc.ctime, 250);
-
-    dc.mode = mode;
 
     Tui tui(dc);
     std::string cs[10][10];
@@ -27,19 +24,19 @@ int main(int argc, char **argv)
     cs[3][0] = "EXIT";
     std::string menu_slcc;
 
-    if (mode == "simulation")
+    if (dc.mode == "simulation")
     {
         //mvprintw(20, 30, " :: SIMULATION MODE :: ");
         //refresh();
         //wait_for_ms(1000);
     }
-    else if (mode == "realrobot")
+    else if (dc.mode == "realrobot")
     {
         //mvprintw(20, 30, " :: REAL ROBOT MODE :: ");
         //refresh();
         //wait_for_ms(1000);
     }
-    else if (mode == "default")
+    else if (dc.mode == "default")
     {
         wait_for_keypress();
         erase();
@@ -51,17 +48,17 @@ int main(int argc, char **argv)
         if (menu_slcc == "SIMULATION")
         {
             mvprintw(16, 10, "SIMULATION MODE! ");
-            mode = "simulation";
+            dc.mode = "simulation";
         }
         else if (menu_slcc == "REALROBOT")
         {
             mvprintw(16, 10, "REAL ROBOT IS NOT READY");
-            mode = "realrobot";
+            dc.mode = "realrobot";
         }
         else if (menu_slcc == "TEST")
         {
             mvprintw(16, 10, "TEST MODE !");
-            mode = "testmode";
+            dc.mode = "testmode";
         }
         else if (menu_slcc == "EXIT")
         {
@@ -95,7 +92,7 @@ int main(int argc, char **argv)
 
     pthread_t pthr[4];
 
-    if (mode == "simulation")
+    if (dc.mode == "simulation")
     {
         MujocoInterface stm(dc);
         DynamicsManager dym(dc);
@@ -112,7 +109,7 @@ int main(int argc, char **argv)
             rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
         }
     }
-    else if (mode == "realrobot")
+    else if (dc.mode == "realrobot")
     {
         RealRobotInterface rtm(dc);
         DynamicsManager dym(dc);
@@ -137,7 +134,7 @@ int main(int argc, char **argv)
             rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
         }
     }
-    else if (mode == "testmode")
+    else if (dc.mode == "testmode")
     {
         MujocoInterface stm(dc);
         DynamicsManager dym(dc);

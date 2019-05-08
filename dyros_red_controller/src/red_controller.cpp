@@ -50,7 +50,6 @@ void RedController::dynamicsThreadHigh()
         else if (dc.mode == "realrobot")
         {
         }
-
         if (dc.positionControl)
         {
             if (set_q_init)
@@ -128,8 +127,13 @@ void RedController::dynamicsThreadLow()
 
     while (!dc.shutdown && ros::ok())
     {
-        getState();
 
+        getState();
+        sec = std::chrono::high_resolution_clock::now() - start_time;
+        if (sec.count() - control_time_ > 0.01)
+        {
+           // std::cout << "diff ::" << sec.count() - control_time_ << std::endl; //<<" dyn_low current time : " << control_time_ << "   chrono : " << sec.count() << std::endl;
+        }
         ///////////////////////////////////////////////////////////////////////////////////////
         /////////////              Controller Code Here !                     /////////////////
         ///////////////////////////////////////////////////////////////////////////////////////
@@ -260,6 +264,7 @@ void RedController::getState()
 {
     mtx_dc.lock();
     time = dc.time;
+    control_time_ = dc.time;
     sim_time = dc.sim_time;
 
     dym_hz = dc.dym_hz;

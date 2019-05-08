@@ -69,6 +69,8 @@ private:
   //sim variables
   double time;
   double sim_time;
+  double control_time_;
+  
   int dym_hz, stm_hz;
 
   Eigen::VectorQd q_;
