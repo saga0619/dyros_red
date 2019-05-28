@@ -1,16 +1,12 @@
 <launch>
   <!--arg name="model" /-->
   <!--arg name="gui" default="False" /-->
-  <param name="robot_description"
-    textfile="$(find dyros_red_lowerbody_description)/robots/red_robot_lowerbody.urdf" />
+  <param name="robot_description" textfile="$(find dyros_red_lowerbody_description)/robots/red_robot_lowerbody.urdf" />
 
-  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
-    <param name="/use_gui" value="true" />
-  </node>
-
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" >
-    <!--remap from="/joint_states" to="/mujoco_ros_interface/joint_states"/-->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher">
+    <remap from="/joint_states" to="/dyros_red/jointstates"/>
   </node>
   <!--node name="high_noon" pkg="eye_of_dragon" type="high_noon" /-->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dyros_red_description)/urdf.rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dyros_red_lowerbody_description)/urdf.rviz" />
+  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 1 0 0 0 1 base_link Pelvis_Link 100" />
 </launch>

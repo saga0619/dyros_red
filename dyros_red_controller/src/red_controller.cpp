@@ -104,6 +104,7 @@ void RedController::dynamicsThreadLow()
     int link_id[contact_number];
     int total_dof_ = MODEL_DOF;
     Eigen::MatrixXd Lambda_c, J_C_INV_T, N_C, I37, Slc_k, Slc_k_T, W, W_inv;
+    Eigen::MatrixXd P_c;
     Eigen::VectorXd Grav_ref;
     Eigen::VectorXd G;
     Eigen::MatrixXd J_g;
@@ -122,9 +123,13 @@ void RedController::dynamicsThreadLow()
     N_C.setZero(total_dof_ + 6, total_dof_ + 6);
     bool first = true;
 
+    acceleration_estimated_before.setZero();
+    q_dot_before_.setZero();
+
     VectorQd TorqueDesiredLocal;
     TorqueDesiredLocal.setZero();
 
+    std::cout << "DynamicsThreadLow : START" << std::endl;
     while (!dc.shutdown && ros::ok())
     {
 
@@ -132,7 +137,7 @@ void RedController::dynamicsThreadLow()
         sec = std::chrono::high_resolution_clock::now() - start_time;
         if (sec.count() - control_time_ > 0.01)
         {
-           // std::cout << "diff ::" << sec.count() - control_time_ << std::endl; //<<" dyn_low current time : " << control_time_ << "   chrono : " << sec.count() << std::endl;
+            // std::cout << "diff ::" << sec.count() - control_time_ << std::endl; //<<" dyn_low current time : " << control_time_ << "   chrono : " << sec.count() << std::endl;
         }
         ///////////////////////////////////////////////////////////////////////////////////////
         /////////////              Controller Code Here !                     /////////////////
@@ -202,12 +207,26 @@ void RedController::dynamicsThreadLow()
         }
         TorqueDesiredLocal = torque_grav;
 
+        acceleration_estimated = (A_matrix_inverse * N_C * Slc_k_T * (TorqueDesiredLocal - torque_grav)).segment(6, MODEL_DOF);
+
+        acceleration_observed = q_dot_ - q_dot_before_;
+
+        q_dot_before_ = q_dot_;
+
+        std::cout << "acceleration_observed : " << std::endl;
+        std::cout << acceleration_observed << std::endl;
+        acceleration_differance = acceleration_observed - acceleration_estimated_before;
+
+        acceleration_estimated_before = acceleration_estimated;
+
         ///////////////////////////////////////////////////////////////////////////////////////
         //////////////////              Controller Code End             ///////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////
 
         mtx.lock();
         torque_desired = TorqueDesiredLocal;
+        dc.accel_dif = acceleration_differance;
+        dc.accel_obsrvd = acceleration_observed;
         mtx.unlock();
 
         if (dc.shutdown)

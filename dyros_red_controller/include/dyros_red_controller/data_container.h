@@ -123,6 +123,9 @@ public:
   Eigen::VectorQd torqueElmo;
   Eigen::VectorQd torqueDemandElmo;
 
+  Eigen::VectorQd accel_dif;
+  Eigen::VectorQd accel_obsrvd;
+
   int elmo_cnt;
 
   //Gui Command
@@ -136,9 +139,12 @@ public:
   bool positionControl = false;
   bool gravityMode = false;
   bool emergencyoff = false;
+  bool customGain = false;
 
   double torqueOnTime = 0.0;
   double torqueOffTime = 0.0;
+
+  Eigen::Vector6d CConsMotor;
 };
 
 #endif

@@ -70,7 +70,7 @@ private:
   double time;
   double sim_time;
   double control_time_;
-  
+
   int dym_hz, stm_hz;
 
   Eigen::VectorQd q_;
@@ -82,6 +82,14 @@ private:
   Eigen::VectorQd torque_;
   //Command Var
   Eigen::VectorQd torque_desired;
+
+  //accel estim
+  Eigen::VectorQd acceleration_estimated;
+  Eigen::VectorQd acceleration_observed;
+  Eigen::VectorQd acceleration_differance;
+  Eigen::VectorQd q_dot_before_;
+  Eigen::VectorQd acceleration_estimated_before;
+
   //Kinematics Information :
   Link link_[LINK_NUMBER + 1];
   double yaw_radian;

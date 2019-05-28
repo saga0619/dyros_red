@@ -3,6 +3,7 @@
 
 #include "dyros_red_controller/data_container.h"
 #include "dyros_red_controller/terminal.h"
+#include "dyros_red_msgs/MotorInfo.h"
 
 extern std::mutex mtx;
 extern std::mutex mtx_rbdl;
@@ -67,8 +68,13 @@ public:
   ros::Subscriber gui_command;
   ros::Publisher joint_states_pub;
   ros::Publisher time_pub;
+  ros::Publisher motor_info_pub;
+  ros::Publisher motor_acc_dif_info_pub;
+
   sensor_msgs::JointState joint_state_msg;
   std_msgs::Float32 time_msg;
+  dyros_red_msgs::MotorInfo motor_info_msg;
+  dyros_red_msgs::MotorInfo acc_dif_info_msg;
 
   void CommandCallback(const std_msgs::StringConstPtr &msg);
 };

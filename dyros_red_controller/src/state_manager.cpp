@@ -8,14 +8,28 @@
 StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
 {
     gui_command = dc.nh.subscribe("/dyros_red/command", 100, &StateManager::CommandCallback, this);
+
     joint_states_pub = dc.nh.advertise<sensor_msgs::JointState>("/dyros_red/jointstates", 1);
     time_pub = dc.nh.advertise<std_msgs::Float32>("/dyros_red/time", 1);
+    motor_acc_dif_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/accdifinfo", 1);
+    if (dc.mode == "realrobot")
+    {
+        motor_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/motorinfo", 1);
+        motor_info_msg.motorinfo1.resize(MODEL_DOF);
+        motor_info_msg.motorinfo2.resize(MODEL_DOF);
+    }
+    acc_dif_info_msg.motorinfo1.resize(MODEL_DOF);
+    acc_dif_info_msg.motorinfo2.resize(MODEL_DOF);
+
+    joint_state_msg.position.resize(MODEL_DOF);
+    joint_state_msg.velocity.resize(MODEL_DOF);
+    joint_state_msg.effort.resize(MODEL_DOF);
 
     gravity_.setZero();
     gravity_(2) = GRAVITY;
 
     initialize();
-    bool verbose = false;
+    bool verbose = false; //set verbose true for State Manager initialization info
 
     std::string desc_package_path = ros::package::getPath("dyros_red_lowerbody_description");
     std::string urdf_path = desc_package_path + "/robots/red_robot_lowerbody.urdf";
@@ -62,14 +76,15 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         link_[Right_Foot].contact_point = rf_c;
         link_[Left_Foot].contact_point = lf_c;
 
+        joint_state_msg.name.resize(MODEL_DOF);
+        for (int i = 0; i < MODEL_DOF; i++)
+        {
+            joint_state_msg.name[i] = RED::JOINT_NAME[i];
+        }
         // RigidBodyDynamics::Joint J_temp;
         // J_temp=RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeEulerXYZ);
         // model_.mJoints[2] = J_temp;
     }
-
-    joint_state_msg.position.resize(MODEL_DOF);
-    joint_state_msg.velocity.resize(MODEL_DOF);
-    joint_state_msg.effort.resize(MODEL_DOF);
 
     ROS_INFO_COND(verbose, "State manager Init complete");
 }
@@ -114,29 +129,38 @@ void StateManager::stateThread(void)
             i++;
         }*/
 
-        if ((ThreadCount % (int)(dc.stm_hz / 30)) == 0)
+        if ((ThreadCount % (int)(dc.stm_hz / 60)) == 0)
         {
             joint_state_msg.header.stamp = ros::Time::now();
+
             for (int i = 0; i < MODEL_DOF; i++)
             {
                 joint_state_msg.position[i] = q_[i];
                 joint_state_msg.velocity[i] = q_dot_[i];
-                if (dc.mode == "realrobot")
-                {
-                    joint_state_msg.effort[i] = dc.torqueDemandElmo[i];
-                }
-                else if (dc.mode == "simulation")
-                {
-                    joint_state_msg.effort[i] = torque_desired[i];
-                }
+                joint_state_msg.effort[i] = torque_desired[i];
             }
             joint_states_pub.publish(joint_state_msg);
-            if (dc.mode == "realrobot")
-                time_msg.data = control_time_;
-            else if (dc.mode == "simulation")
-                time_msg.data = control_time_;
+            time_msg.data = control_time_;
             time_pub.publish(time_msg);
+            if (dc.mode == "realrobot")
+            {
+                for (int i = 0; i < MODEL_DOF; i++)
+                {
+                    motor_info_msg.motorinfo1[i] = dc.torqueElmo[i];
+                    motor_info_msg.motorinfo2[i] = dc.torqueDemandElmo[i];
+                }
+
+                motor_info_pub.publish(motor_info_msg);
+            }
         }
+
+        for (int i = 0; i < MODEL_DOF; i++)
+        {
+            acc_dif_info_msg.motorinfo1[i] = dc.accel_dif[i];
+            acc_dif_info_msg.motorinfo2[i] = dc.accel_obsrvd[i];
+        }
+
+        motor_acc_dif_info_pub.publish(acc_dif_info_msg);
 
         ThreadCount++;
     }
@@ -362,5 +386,9 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
         dc.emergencyoff = true;
         dc.torqueOn = false;
         dc.torqueOff = true;
+    }
+    else if (msg->data == "tunereset")
+    {
+        dc.customGain = false;
     }
 }
