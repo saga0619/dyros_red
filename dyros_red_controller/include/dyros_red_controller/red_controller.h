@@ -71,6 +71,8 @@ private:
   double sim_time;
   double control_time_;
 
+  bool safetymode;
+
   int dym_hz, stm_hz;
 
   Eigen::VectorQd q_;

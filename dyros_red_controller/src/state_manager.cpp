@@ -99,6 +99,7 @@ void StateManager::stateThread(void)
     //ROS_INFO("START");
     int ThreadCount = 0;
     int i = 1;
+    int dcount = 0;
 
     while (ros::ok())
     {
@@ -152,6 +153,12 @@ void StateManager::stateThread(void)
 
                 motor_info_pub.publish(motor_info_msg);
             }
+        }
+
+        if ((ThreadCount % (int)(dc.stm_hz)) == 0)
+        {
+            //std::cout << "data received : " << data_received_counter_ - dcount << std::endl;
+            dcount = data_received_counter_;
         }
 
         for (int i = 0; i < MODEL_DOF; i++)
@@ -214,6 +221,7 @@ void StateManager::sendCommand(Eigen::VectorQd command, double simt)
 
 void StateManager::initialize()
 {
+    data_received_counter_ = 0;
     A_.setZero();
     A_temp_.setZero(MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL);
     q_.setZero();

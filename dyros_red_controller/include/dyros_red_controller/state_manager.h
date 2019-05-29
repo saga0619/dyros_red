@@ -41,6 +41,8 @@ public:
   double control_time_;
   double sim_time_;
 
+  int data_received_counter_;
+
   Eigen::VectorQd q_;
   Eigen::VectorQd q_init_;
   Eigen::VectorQVQd q_virtual_;

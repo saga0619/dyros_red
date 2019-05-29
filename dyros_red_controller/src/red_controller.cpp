@@ -132,6 +132,7 @@ void RedController::dynamicsThreadLow()
     std::cout << "DynamicsThreadLow : START" << std::endl;
     while (!dc.shutdown && ros::ok())
     {
+        std::chrono::high_resolution_clock::time_point dyn_loop_start = std::chrono::high_resolution_clock::now();
 
         getState();
         sec = std::chrono::high_resolution_clock::now() - start_time;
@@ -213,8 +214,8 @@ void RedController::dynamicsThreadLow()
 
         q_dot_before_ = q_dot_;
 
-        std::cout << "acceleration_observed : " << std::endl;
-        std::cout << acceleration_observed << std::endl;
+        //std::cout << "acceleration_observed : " << std::endl;
+        //std::cout << acceleration_observed << std::endl;
         acceleration_differance = acceleration_observed - acceleration_estimated_before;
 
         acceleration_estimated_before = acceleration_estimated;
@@ -232,6 +233,10 @@ void RedController::dynamicsThreadLow()
         if (dc.shutdown)
             break;
         first = false;
+
+        std::chrono::duration<double> elapsed_time = std::chrono::high_resolution_clock::now() - dyn_loop_start;
+
+        std::cout << "elapsed time : " << elapsed_time.count() << std::endl;
     }
 }
 
@@ -239,7 +244,6 @@ void RedController::tuiThread()
 {
     while (!dc.shutdown && ros::ok())
     {
-
         mtx_terminal.lock();
         if (dc.ncurse_mode)
             mvprintw(4, 30, "I'm alive : %f", ros::Time::now().toSec());
@@ -281,14 +285,27 @@ void RedController::tuiThread()
 
 void RedController::getState()
 {
+    int count = 0;
+    while ((time == dc.time) && ros::ok())
+    {
+        std::this_thread::sleep_for(std::chrono::microseconds(1));
+        count++;
+    }
     mtx_dc.lock();
+    if (time == dc.time)
+    {
+        std::cout << "same time prob ! " << std::endl;
+    }
+    if (count != 0)
+    {
+        //std::cout << "wating count : " << count << std::endl;
+    }
+
     time = dc.time;
     control_time_ = dc.time;
     sim_time = dc.sim_time;
-
     dym_hz = dc.dym_hz;
     stm_hz = dc.stm_hz;
-
     q_ = dc.q_;
     q_virtual_ = dc.q_virtual_;
     q_dot_ = dc.q_dot_;
@@ -304,7 +321,6 @@ void RedController::getState()
             link_[i] = dc.link_[i];
         }
     }
-
     for (int i = 0; i < LINK_NUMBER + 1; i++)
     {
         link_[i].xpos = dc.link_[i].xpos;

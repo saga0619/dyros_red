@@ -176,7 +176,7 @@ void MujocoInterface::jointStateCallback(const sensor_msgs::JointStateConstPtr &
     }
 
     q_virtual_(MODEL_DOF + 6) = msg->position[MODEL_DOF + 6];
-
+    data_received_counter_++;
     //tf::Quaternion q(q_virtual_(3), q_virtual_(4), q_virtual_(5), q_virtual_(total_dof_ + 6));
     //q.normalize();
 }
