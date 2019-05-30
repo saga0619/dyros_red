@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>847</width>
-    <height>530</height>
+    <width>865</width>
+    <height>823</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -49,10 +49,10 @@
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>20</x>
       <y>32</y>
-      <width>261</width>
-      <height>163</height>
+      <width>251</width>
+      <height>171</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
@@ -306,13 +306,23 @@
     <property name="geometry">
      <rect>
       <x>290</x>
-      <y>90</y>
+      <y>70</y>
       <width>71</width>
       <height>41</height>
      </rect>
     </property>
     <property name="text">
      <string>SEND</string>
+    </property>
+   </widget>
+   <widget class="QGraphicsView" name="graphicsView">
+    <property name="geometry">
+     <rect>
+      <x>290</x>
+      <y>140</y>
+      <width>71</width>
+      <height>61</height>
+     </rect>
     </property>
    </widget>
   </widget>
