@@ -141,6 +141,8 @@ public:
   bool emergencyoff = false;
   bool customGain = false;
 
+  double t_gain = 0.0;
+
   double torqueOnTime = 0.0;
   double torqueOffTime = 0.0;
 };

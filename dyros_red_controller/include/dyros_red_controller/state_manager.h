@@ -73,6 +73,9 @@ public:
   ros::Publisher motor_info_pub;
   ros::Publisher motor_acc_dif_info_pub;
 
+  ros::Publisher tgainPublisher;
+  std_msgs::Float32 tgain_p;
+
   sensor_msgs::JointState joint_state_msg;
   std_msgs::Float32 time_msg;
   dyros_red_msgs::MotorInfo motor_info_msg;

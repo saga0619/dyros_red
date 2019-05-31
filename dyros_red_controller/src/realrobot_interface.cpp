@@ -10,7 +10,6 @@ RealRobotInterface::RealRobotInterface(DataContainer &dc_global) : dc(dc_global)
     imuSubscriber = dc.nh.subscribe("/imu/data", 1, &RealRobotInterface::ImuCallback, this);
     gainSubscriber = dc.nh.subscribe("/dyros_red/gain_command", 100, &RealRobotInterface::gainCallbak, this);
 
-    tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
     printf("Starting red ethercat master\n");
 
     torque_desired.setZero();
@@ -225,7 +224,7 @@ void RealRobotInterface::ethercatThread()
                                             //If torqueOn command received, torque will increases slowly, for rising_time, which is currently 3 seconds.
 
                                             to_ratio = DyrosMath::minmax_cut((control_time_ - dc.torqueOnTime) / rising_time, 0.0, 1.0);
-                                            tgain_p.data = to_ratio;
+                                            dc.t_gain = to_ratio;
                                             //std::cout << "to_r : " << to_ratio << " control time : " << control_time_ << std::endl;
                                             if (dc.positionControl)
                                             {
@@ -257,7 +256,8 @@ void RealRobotInterface::ethercatThread()
                                                 to_calib = 0.0;
                                             }
                                             to_ratio = DyrosMath::minmax_cut(1.0 - to_calib - (control_time_ - dc.torqueOffTime) / rising_time, 0.0, 1.0);
-                                            tgain_p.data = to_ratio;
+
+                                            dc.t_gain = to_ratio;
                                             //std::cout << "to_r : " << to_ratio << " control time : " << control_time_ << std::endl;
                                             if (dc.positionControl)
                                             {

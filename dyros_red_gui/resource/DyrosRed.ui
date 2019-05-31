@@ -408,7 +408,7 @@
    <property name="geometry">
     <rect>
      <x>220</x>
-     <y>320</y>
+     <y>340</y>
      <width>181</width>
      <height>41</height>
     </rect>
@@ -511,9 +511,9 @@
    <property name="geometry">
     <rect>
      <x>220</x>
-     <y>380</y>
+     <y>400</y>
      <width>181</width>
-     <height>91</height>
+     <height>71</height>
     </rect>
    </property>
    <property name="font">
@@ -538,8 +538,23 @@ OFF</string>
      <height>491</height>
     </rect>
    </property>
+   <property name="tabPosition">
+    <enum>QTabWidget::North</enum>
+   </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
+   </property>
+   <property name="elideMode">
+    <enum>Qt::ElideNone</enum>
+   </property>
+   <property name="usesScrollButtons">
+    <bool>false</bool>
+   </property>
+   <property name="tabsClosable">
+    <bool>false</bool>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
    </property>
    <widget class="QWidget" name="tab">
     <attribute name="title">
@@ -1380,9 +1395,9 @@ OFF</string>
     <widget class="QPushButton" name="tune_reset_button">
      <property name="geometry">
       <rect>
-       <x>50</x>
+       <x>20</x>
        <y>320</y>
-       <width>97</width>
+       <width>81</width>
        <height>27</height>
       </rect>
      </property>
@@ -1393,9 +1408,9 @@ OFF</string>
     <widget class="QPushButton" name="tune_command_button">
      <property name="geometry">
       <rect>
-       <x>180</x>
+       <x>120</x>
        <y>320</y>
-       <width>97</width>
+       <width>81</width>
        <height>27</height>
       </rect>
      </property>
@@ -1427,6 +1442,19 @@ OFF</string>
      </property>
      <property name="text">
       <string>Current</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="tune_off_button">
+     <property name="geometry">
+      <rect>
+       <x>220</x>
+       <y>320</y>
+       <width>81</width>
+       <height>27</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>tune off</string>
      </property>
     </widget>
    </widget>
@@ -2118,6 +2146,19 @@ OFF</string>
      </property>
     </widget>
    </widget>
+  </widget>
+  <widget class="QProgressBar" name="progressBar">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>310</y>
+     <width>181</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="value">
+    <number>0</number>
+   </property>
   </widget>
  </widget>
  <resources/>

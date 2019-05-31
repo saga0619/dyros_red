@@ -24,6 +24,7 @@ from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtGui import QIcon
 
 run_mode = ''
+control_time = 0.0
 
 
 class DyrosRedGuiPlugin(Plugin):
@@ -74,21 +75,21 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.data_button.pressed.connect(self.data_button)
         self._widget.com_send_button.pressed.connect(self.com_command_sender)
 
-        self._widget.torqueon_button.pressed.connect(self.torqueon_button)
-        self._widget.emergencyoff_button.pressed.connect(self.emergencyoff_button)
-        self._widget.torqueoff_button.pressed.connect(self.torqueoff_button)
-
-        self._widget.tune_reset_button.pressed.connect(self.tune_reset_button)
-
         # self._widget.pause_button.pressed.connect(self.pause_button)
         # self._widget.slowmotion_button.pressed.connect(self.slowmotion_button)
         # self._widget.reset_button.pressed.connect(self.reset_button)
 
+        # torque on/off buttons
+        self._widget.torqueon_button.pressed.connect(self.torqueon_button)
+        self._widget.emergencyoff_button.pressed.connect(self.emergencyoff_button)
+        self._widget.torqueoff_button.pressed.connect(self.torqueoff_button)
         self._widget.torqueoff_button.setEnabled(False)
         self._widget.torqueon_button.setEnabled(False)
 
+        # tune command buttons
         self._widget.tune_command_button.pressed.connect(self.tune_command_button)
         self._widget.tune_reset_button.pressed.connect(self.tune_reset_button)
+        self._widget.tune_off_button.pressed.connect(self.tune_off_button)
 
         self._widget.helpbutton.setShortcut(QKeySequence("h"))
         self._widget.emergencyoff_button.setShortcut(QKeySequence(Qt.Key_Escape))
@@ -124,7 +125,7 @@ class DyrosRedGuiPlugin(Plugin):
         self.sub2 = rospy.Subscriber('/dyros_red/jointstates', sensor_msgs.msg.JointState, self.sub_cb2, queue_size=1)
         self.sub3 = rospy.Subscriber('/dyros_red/time', std_msgs.msg.Float32, self.sub_cb3, queue_size=1)
         self.sub4 = rospy.Subscriber('/dyros_red/motorinfo', dyros_red_msgs.msg.MotorInfo, self.sub_cb4, queue_size=1)
-        # self.sub4 = rospy.Subscriber('/dyros_red/tune_current_val', dyros_red_msgs.msg.)
+        self.sub5 = rospy.Subscriber('/dyros_red/torquegain', std_msgs.msg.Float32, self.sub_cb5, queue_size=1)
 
     def sub_cb(self, msg):
         self._widget.label.setText(str(round(msg.polygon.points[0].x, 6)))
@@ -182,6 +183,8 @@ class DyrosRedGuiPlugin(Plugin):
 
     def sub_cb3(self, msg):
         self._widget.currenttime.setText(str(round(msg.data, 4)))
+        global control_time
+        control_time = msg.data
 
     def sub_cb4(self, msg):
         self._widget.mi0.setText(str(round(msg.motorinfo1[0], 6)))
@@ -210,6 +213,9 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.mi22.setText(str(round(msg.motorinfo2[10], 6)))
         self._widget.mi23.setText(str(round(msg.motorinfo2[11], 6)))
 
+    def sub_cb5(self, msg):
+        self._widget.progressBar.setValue(msg.data*100)
+
     def pause_button(self):
         self.send_msg2("pause")
 
@@ -220,13 +226,22 @@ class DyrosRedGuiPlugin(Plugin):
         self.send_msg2("mjreset")
 
     def tune_reset_button(self):
-        self.send_msg("tunereset")
         self._widget.tnc1.setText('0.1724')
         self._widget.tnc2.setText('0.2307')
         self._widget.tnc3.setText('0.2834')
-        self._widget.tnc4.setText('0.2834')
+        self._widget.tnc4.setText('0.2734')
         self._widget.tnc5.setText('0.2834')
         self._widget.tnc6.setText('0.0811')
+
+        self._widget.tn1.setText('0.1724')
+        self._widget.tn2.setText('0.2307')
+        self._widget.tn3.setText('0.2834')
+        self._widget.tn4.setText('0.2734')
+        self._widget.tn5.setText('0.2834')
+        self._widget.tn6.setText('0.0811')
+
+    def tune_off_button(self):
+        self.send_msg("tunereset")
 
     def com_command_sender(self):
         if self._widget.text_pos.text().replace('.', '', 1).isdigit() and self._widget.text_time.text().replace('.', '', 1).isdigit():
@@ -258,8 +273,6 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.task_button.setEnabled(True)
         self._widget.contact_button.setEnabled(True)
         self._widget.data_button.setEnabled(True)
-        self._widget.torqueoff_button.setEnabled(True)
-        self._widget.torqueon_button.setEnabled(False)
         self._widget.msg_box.setText("Ready to Go !")
 
     def emergencyoff_button(self):
@@ -268,8 +281,6 @@ class DyrosRedGuiPlugin(Plugin):
 
     def torqueoff_button(self):
         self.send_msg("torqueoff")
-        self._widget.torqueoff_button.setEnabled(False)
-        self._widget.torqueon_button.setEnabled(True)
         self._widget.msg_box.setText("Sleep mode")
 
     def data_button(self):
@@ -291,21 +302,18 @@ class DyrosRedGuiPlugin(Plugin):
         self._publisher3.publish(msg)
 
     def tune_command_button(self):
-
         cnt1 = self._widget.tn1.text()
         cnt2 = self._widget.tn2.text()
         cnt3 = self._widget.tn3.text()
         cnt4 = self._widget.tn4.text()
         cnt5 = self._widget.tn5.text()
         cnt6 = self._widget.tn6.text()
-
         self._widget.tnc1.setText(cnt1)
         self._widget.tnc2.setText(cnt2)
         self._widget.tnc3.setText(cnt3)
         self._widget.tnc4.setText(cnt4)
         self._widget.tnc5.setText(cnt5)
         self._widget.tnc6.setText(cnt6)
-
         ctotal = cnt1.replace('.', '', 1)+cnt2.replace('.', '', 1)+cnt3.replace('.', '', 1)+cnt4.replace('.', '', 1)+cnt5.replace('.', '', 1)+cnt6.replace('.', '', 1)
         if ctotal.isdigit():
             cntlist = dyros_red_msgs.msg.GainCommand()
@@ -324,8 +332,6 @@ class DyrosRedGuiPlugin(Plugin):
             msg.setWindowTitle("float warning")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
-
-        # def send_tune_msg(self):
 
     def _unregister_publisher(self):
         if self._publisher is not None:

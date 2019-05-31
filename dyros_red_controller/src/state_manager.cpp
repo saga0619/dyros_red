@@ -12,6 +12,9 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     joint_states_pub = dc.nh.advertise<sensor_msgs::JointState>("/dyros_red/jointstates", 1);
     time_pub = dc.nh.advertise<std_msgs::Float32>("/dyros_red/time", 1);
     motor_acc_dif_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/accdifinfo", 1);
+
+    tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
+
     if (dc.mode == "realrobot")
     {
         motor_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/motorinfo", 1);
@@ -130,10 +133,10 @@ void StateManager::stateThread(void)
             i++;
         }*/
 
+        //Data to GUI
         if ((ThreadCount % (int)(dc.stm_hz / 60)) == 0)
         {
             joint_state_msg.header.stamp = ros::Time::now();
-
             for (int i = 0; i < MODEL_DOF; i++)
             {
                 joint_state_msg.position[i] = q_[i];
@@ -150,11 +153,13 @@ void StateManager::stateThread(void)
                     motor_info_msg.motorinfo1[i] = dc.torqueElmo[i];
                     motor_info_msg.motorinfo2[i] = dc.torqueDemandElmo[i];
                 }
-
                 motor_info_pub.publish(motor_info_msg);
             }
+            tgain_p.data = dc.t_gain;
+            tgainPublisher.publish(tgain_p);
         }
 
+        //every 1 seconds
         if ((ThreadCount % (int)(dc.stm_hz)) == 0)
         {
             //std::cout << "data received : " << data_received_counter_ - dcount << std::endl;
