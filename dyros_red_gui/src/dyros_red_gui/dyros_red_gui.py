@@ -83,8 +83,8 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.torqueon_button.pressed.connect(self.torqueon_button)
         self._widget.emergencyoff_button.pressed.connect(self.emergencyoff_button)
         self._widget.torqueoff_button.pressed.connect(self.torqueoff_button)
-        self._widget.torqueoff_button.setEnabled(False)
-        self._widget.torqueon_button.setEnabled(False)
+        self._widget.torqueoff_button.setEnabled(True)
+        self._widget.torqueon_button.setEnabled(True)
 
         # tune command buttons
         self._widget.tune_command_button.pressed.connect(self.tune_command_button)
@@ -116,7 +116,7 @@ class DyrosRedGuiPlugin(Plugin):
             self._widget.task_button.setEnabled(False)
             self._widget.contact_button.setEnabled(False)
             self._widget.data_button.setEnabled(False)
-            self._widget.torqueoff_button.setEnabled(False)
+            self._widget.torqueoff_button.setEnabled(True)
             self._widget.torqueon_button.setEnabled(True)
             self._widget.tab_2.setEnabled(True)
 
