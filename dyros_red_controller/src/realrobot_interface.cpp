@@ -8,7 +8,9 @@ double rising_time = 3.0;
 RealRobotInterface::RealRobotInterface(DataContainer &dc_global) : dc(dc_global), StateManager(dc_global)
 {
     imuSubscriber = dc.nh.subscribe("/imu/data", 1, &RealRobotInterface::ImuCallback, this);
+    gainSubscriber = dc.nh.subscribe("/dyros_red/gain_command", 100, &RealRobotInterface::gainCallbak, this);
 
+    tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
     printf("Starting red ethercat master\n");
 
     torque_desired.setZero();
@@ -223,7 +225,7 @@ void RealRobotInterface::ethercatThread()
                                             //If torqueOn command received, torque will increases slowly, for rising_time, which is currently 3 seconds.
 
                                             to_ratio = DyrosMath::minmax_cut((control_time_ - dc.torqueOnTime) / rising_time, 0.0, 1.0);
-
+                                            tgain_p.data = to_ratio;
                                             //std::cout << "to_r : " << to_ratio << " control time : " << control_time_ << std::endl;
                                             if (dc.positionControl)
                                             {
@@ -234,7 +236,7 @@ void RealRobotInterface::ethercatThread()
                                             {
                                                 if (dc.customGain)
                                                 {
-                                                    txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / dc.CConsMotor[slave - 1] * Dr[slave - 1]);
+                                                    txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / CustomGain[slave - 1] * Dr[slave - 1]);
                                                 }
                                                 else
                                                 {
@@ -255,6 +257,7 @@ void RealRobotInterface::ethercatThread()
                                                 to_calib = 0.0;
                                             }
                                             to_ratio = DyrosMath::minmax_cut(1.0 - to_calib - (control_time_ - dc.torqueOffTime) / rising_time, 0.0, 1.0);
+                                            tgain_p.data = to_ratio;
                                             //std::cout << "to_r : " << to_ratio << " control time : " << control_time_ << std::endl;
                                             if (dc.positionControl)
                                             {
@@ -264,12 +267,6 @@ void RealRobotInterface::ethercatThread()
                                             else
                                             {
                                                 txPDO[slave - 1]->targetTorque = (int)(to_ratio * torqueDesiredElmo(slave - 1) / NM2CNT[slave - 1] * Dr[slave - 1]);
-                                            }
-
-                                            if (control_time_ - dc.torqueOffTime > rising_time)
-                                            {
-                                                dc.torqueOff = false;
-                                                dc.emergencyoff = true;
                                             }
                                         }
                                     }
@@ -550,6 +547,10 @@ void RealRobotInterface::add_timespec(struct timespec *ts, int64 addtime)
 void RealRobotInterface::gainCallbak(const dyros_red_msgs::GainCommandConstPtr &msg)
 {
     for (int i = 0; i < 6; i++)
-        dc.CConsMotor(i) = msg->gain[i];
+    {
+        CustomGain[i] = msg->gain[i];
+        CustomGain[i + 6] = msg->gain[i];
+    }
+
     dc.customGain = true;
 }

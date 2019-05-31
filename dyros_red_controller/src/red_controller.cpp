@@ -236,7 +236,7 @@ void RedController::dynamicsThreadLow()
 
         std::chrono::duration<double> elapsed_time = std::chrono::high_resolution_clock::now() - dyn_loop_start;
 
-        std::cout << "elapsed time : " << elapsed_time.count() << std::endl;
+        //std::cout << "elapsed time : " << elapsed_time.count() << std::endl;
     }
 }
 

@@ -143,8 +143,6 @@ public:
 
   double torqueOnTime = 0.0;
   double torqueOffTime = 0.0;
-
-  Eigen::Vector6d CConsMotor;
 };
 
 #endif

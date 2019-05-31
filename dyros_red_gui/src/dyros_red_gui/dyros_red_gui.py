@@ -87,6 +87,7 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.torqueon_button.setEnabled(False)
 
         self._widget.tune_command_button.pressed.connect(self.tune_command_button)
+        self._widget.tune_reset_button.pressed.connect(self.tune_reset_button)
 
         self._widget.helpbutton.setShortcut(QKeySequence("h"))
         self._widget.emergencyoff_button.setShortcut(QKeySequence(Qt.Key_Escape))
@@ -121,6 +122,7 @@ class DyrosRedGuiPlugin(Plugin):
         self.sub = rospy.Subscriber('/dyros_red/point', geometry_msgs.msg.PolygonStamped, self.sub_cb, queue_size=1)
         self.sub2 = rospy.Subscriber('/dyros_red/jointstates', sensor_msgs.msg.JointState, self.sub_cb2, queue_size=1)
         self.sub3 = rospy.Subscriber('/dyros_red/time', std_msgs.msg.Float32, self.sub_cb3, queue_size=1)
+        self.sub4 = rospy.Subscriber('/dyros_red/motorinfo', dyros_red_msgs.msg.MotorInfo, self.sub_cb4, queue_size=1)
         # self.sub4 = rospy.Subscriber('/dyros_red/tune_current_val', dyros_red_msgs.msg.)
 
     def sub_cb(self, msg):
@@ -180,6 +182,33 @@ class DyrosRedGuiPlugin(Plugin):
     def sub_cb3(self, msg):
         self._widget.currenttime.setText(str(round(msg.data, 4)))
 
+    def sub_cb4(self, msg):
+        self._widget.mi0.setText(str(round(msg.motorinfo1[0], 6)))
+        self._widget.mi1.setText(str(round(msg.motorinfo1[1], 6)))
+        self._widget.mi2.setText(str(round(msg.motorinfo1[2], 6)))
+        self._widget.mi3.setText(str(round(msg.motorinfo1[3], 6)))
+        self._widget.mi4.setText(str(round(msg.motorinfo1[4], 6)))
+        self._widget.mi5.setText(str(round(msg.motorinfo1[5], 6)))
+        self._widget.mi6.setText(str(round(msg.motorinfo1[6], 6)))
+        self._widget.mi7.setText(str(round(msg.motorinfo1[7], 6)))
+        self._widget.mi8.setText(str(round(msg.motorinfo1[8], 6)))
+        self._widget.mi9.setText(str(round(msg.motorinfo1[9], 6)))
+        self._widget.mi10.setText(str(round(msg.motorinfo1[10], 6)))
+        self._widget.mi11.setText(str(round(msg.motorinfo1[11], 6)))
+
+        self._widget.mi12.setText(str(round(msg.motorinfo2[0], 6)))
+        self._widget.mi13.setText(str(round(msg.motorinfo2[1], 6)))
+        self._widget.mi14.setText(str(round(msg.motorinfo2[2], 6)))
+        self._widget.mi15.setText(str(round(msg.motorinfo2[3], 6)))
+        self._widget.mi16.setText(str(round(msg.motorinfo2[4], 6)))
+        self._widget.mi17.setText(str(round(msg.motorinfo2[5], 6)))
+        self._widget.mi18.setText(str(round(msg.motorinfo2[6], 6)))
+        self._widget.mi19.setText(str(round(msg.motorinfo2[7], 6)))
+        self._widget.mi20.setText(str(round(msg.motorinfo2[8], 6)))
+        self._widget.mi21.setText(str(round(msg.motorinfo2[9], 6)))
+        self._widget.mi22.setText(str(round(msg.motorinfo2[10], 6)))
+        self._widget.mi23.setText(str(round(msg.motorinfo2[11], 6)))
+
     def pause_button(self):
         self.send_msg2("pause")
 
@@ -191,6 +220,12 @@ class DyrosRedGuiPlugin(Plugin):
 
     def tune_reset_button(self):
         self.send_msg("tunereset")
+        self._widget.tnc1.setText('0.1724')
+        self._widget.tnc2.setText('0.2307')
+        self._widget.tnc3.setText('0.2834')
+        self._widget.tnc4.setText('0.2834')
+        self._widget.tnc5.setText('0.2834')
+        self._widget.tnc6.setText('0.0811')
 
     def com_command_sender(self):
         if self._widget.text_pos.text().replace('.', '', 1).isdigit() and self._widget.text_time.text().replace('.', '', 1).isdigit():

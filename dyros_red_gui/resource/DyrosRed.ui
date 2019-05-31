@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>865</width>
-    <height>823</height>
+    <width>847</width>
+    <height>530</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -49,10 +49,10 @@
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>10</x>
       <y>32</y>
-      <width>251</width>
-      <height>171</height>
+      <width>261</width>
+      <height>163</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
@@ -306,23 +306,13 @@
     <property name="geometry">
      <rect>
       <x>290</x>
-      <y>70</y>
+      <y>90</y>
       <width>71</width>
       <height>41</height>
      </rect>
     </property>
     <property name="text">
      <string>SEND</string>
-    </property>
-   </widget>
-   <widget class="QGraphicsView" name="graphicsView">
-    <property name="geometry">
-     <rect>
-      <x>290</x>
-      <y>140</y>
-      <width>71</width>
-      <height>61</height>
-     </rect>
     </property>
    </widget>
   </widget>
@@ -1848,7 +1838,7 @@ OFF</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_18">
       <item>
-       <widget class="QLabel" name="label_59">
+       <widget class="QLabel" name="mi0">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1858,7 +1848,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_60">
+       <widget class="QLabel" name="mi1">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1868,7 +1858,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_61">
+       <widget class="QLabel" name="mi2">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1878,7 +1868,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_62">
+       <widget class="QLabel" name="mi3">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1888,7 +1878,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_63">
+       <widget class="QLabel" name="mi4">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1898,7 +1888,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_64">
+       <widget class="QLabel" name="mi5">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1908,7 +1898,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_65">
+       <widget class="QLabel" name="mi6">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1918,7 +1908,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_66">
+       <widget class="QLabel" name="mi7">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1928,7 +1918,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_69">
+       <widget class="QLabel" name="mi8">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1938,7 +1928,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_70">
+       <widget class="QLabel" name="mi9">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1948,7 +1938,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_71">
+       <widget class="QLabel" name="mi10">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1958,7 +1948,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_72">
+       <widget class="QLabel" name="mi11">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1980,7 +1970,7 @@ OFF</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_19">
       <item>
-       <widget class="QLabel" name="label_73">
+       <widget class="QLabel" name="mi12">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -1990,7 +1980,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_74">
+       <widget class="QLabel" name="mi13">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2000,7 +1990,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_75">
+       <widget class="QLabel" name="mi14">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2010,7 +2000,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_76">
+       <widget class="QLabel" name="mi15">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2020,7 +2010,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_77">
+       <widget class="QLabel" name="mi16">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2030,7 +2020,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_78">
+       <widget class="QLabel" name="mi17">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2040,7 +2030,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_79">
+       <widget class="QLabel" name="mi18">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2050,7 +2040,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_80">
+       <widget class="QLabel" name="mi19">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2060,7 +2050,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_81">
+       <widget class="QLabel" name="mi20">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2070,7 +2060,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_82">
+       <widget class="QLabel" name="mi21">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2080,7 +2070,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_83">
+       <widget class="QLabel" name="mi22">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2090,7 +2080,7 @@ OFF</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label_84">
+       <widget class="QLabel" name="mi23">
         <property name="frameShape">
          <enum>QFrame::StyledPanel</enum>
         </property>
@@ -2100,6 +2090,32 @@ OFF</string>
        </widget>
       </item>
      </layout>
+    </widget>
+    <widget class="QLabel" name="label_39">
+     <property name="geometry">
+      <rect>
+       <x>60</x>
+       <y>10</y>
+       <width>91</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>torque</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_40">
+     <property name="geometry">
+      <rect>
+       <x>160</x>
+       <y>10</y>
+       <width>91</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>torqueDemand</string>
+     </property>
     </widget>
    </widget>
   </widget>

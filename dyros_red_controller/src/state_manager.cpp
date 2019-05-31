@@ -372,6 +372,7 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     {
         dc.torqueOnTime = control_time_;
         dc.torqueOn = true;
+        dc.torqueOff = false;
     }
     else if (msg->data == "positioncontrol")
     {

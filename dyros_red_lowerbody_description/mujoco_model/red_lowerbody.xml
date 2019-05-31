@@ -53,7 +53,7 @@
         <light directional="true" diffuse=".5 .5 .5" pos="10 0 0" dir="-10 0 0"/>
 
         <body name="Pelvis_Link" pos="0 0 0">
-            <inertial pos="0.005 0 0.24" quat="0.707107 0.707107 0 0" mass="52.5" diaginertia="0.794 0.5955 0.5657" />
+            <inertial pos="0.0 0 0.24" quat="0.707107 0.707107 0 0" mass="52.5" diaginertia="0.794 0.5955 0.5657" />
             <joint name="virtual" type="free" />
             <geom type="mesh" rgba="0.20313 0.20313 0.20313 1" mesh="Pelvis_Link" />
             <body name="HipRoll_R_Link" pos="0 -0.1025 -0.1225">

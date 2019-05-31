@@ -249,7 +249,9 @@ private:
 
     ros::Subscriber imuSubscriber;
     ros::Subscriber gainSubscriber;
-
+    ros::Publisher tgainPublisher;
+    std_msgs::Float32 tgain_p;
+    Eigen::VectorQd CustomGain;
     void gainCallbak(const dyros_red_msgs::GainCommandConstPtr &msg);
 
     mujoco_ros_msgs::JointSet mujoco_joint_set_msg_;
