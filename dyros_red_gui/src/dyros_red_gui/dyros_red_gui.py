@@ -21,6 +21,7 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QErrorMessage, QMessageBox
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtGui import QDoubleValidator
+from PyQt5.QtGui import QIcon
 
 run_mode = ''
 
@@ -64,7 +65,7 @@ class DyrosRedGuiPlugin(Plugin):
         if context.serial_number() > 1:
             self._widget.setWindowTitle(
                 self._widget.windowTitle() + (' (%d)' % context.serial_number()))
-            self._widget.setWindowIcon(QtGui.QIcon(icon_file))
+            self._widget.setWindowIcon(QIcon(icon_file))
         # Add widget to the user interface
         context.add_widget(self._widget)
         self._widget.gravity_button.pressed.connect(self.gravity_button)
