@@ -2147,17 +2147,17 @@ OFF</string>
     </widget>
    </widget>
   </widget>
-  <widget class="QProgressBar" name="progressBar">
+  <widget class="QLabel" name="torque_status">
    <property name="geometry">
     <rect>
-     <x>220</x>
+     <x>290</x>
      <y>310</y>
-     <width>181</width>
-     <height>23</height>
+     <width>59</width>
+     <height>14</height>
     </rect>
    </property>
-   <property name="value">
-    <number>0</number>
+   <property name="text">
+    <string>0</string>
    </property>
   </widget>
  </widget>

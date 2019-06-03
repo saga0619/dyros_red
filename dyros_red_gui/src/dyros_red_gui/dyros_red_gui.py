@@ -2,6 +2,7 @@ import os
 import rospy
 import rospkg
 import numpy
+import math
 import std_msgs.msg
 import geometry_msgs.msg
 import dyros_red_msgs.msg
@@ -24,8 +25,8 @@ from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtGui import QIcon
 
 run_mode = ''
+gain_var = 0
 control_time = 0.0
-
 
 class DyrosRedGuiPlugin(Plugin):
 
@@ -181,8 +182,12 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.t10.setText(str(round(msg.effort[10], 6)))
         self._widget.t11.setText(str(round(msg.effort[11], 6)))
 
+        global gain_var
+        self._widget.torque_status.setText(str(round(gain_var, 0)) + '%')
+        global control_time
+        self._widget.currenttime.setText(str(round(control_time, 4)))
+
     def sub_cb3(self, msg):
-        self._widget.currenttime.setText(str(round(msg.data, 4)))
         global control_time
         control_time = msg.data
 
@@ -214,7 +219,8 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.mi23.setText(str(round(msg.motorinfo2[11], 6)))
 
     def sub_cb5(self, msg):
-        self._widget.progressBar.setValue(msg.data*100)
+        global gain_var
+        gain_var = round(msg.data*100,0)
 
     def pause_button(self):
         self.send_msg2("pause")
