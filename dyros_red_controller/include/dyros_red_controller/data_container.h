@@ -122,7 +122,7 @@ public:
   Eigen::VectorQd q_elmo_;
   Eigen::VectorQd torqueElmo;
   Eigen::VectorQd torqueDemandElmo;
-
+  Eigen::VectorQd positionDesired;
   Eigen::VectorQd accel_dif;
   Eigen::VectorQd accel_obsrvd;
 

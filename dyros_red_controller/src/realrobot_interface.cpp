@@ -179,7 +179,7 @@ void RealRobotInterface::ethercatThread()
                         else if (Walking_State == 1)
                         {
                             torqueDesiredElmo = getCommand();
-                            positionDesiredElmo = q_init_;
+                            positionDesiredElmo = dc.positionDesired;
                             mtx_q.lock();
                             for (int slave = 1; slave <= ec_slavecount; slave++)
                             {
@@ -546,10 +546,9 @@ void RealRobotInterface::add_timespec(struct timespec *ts, int64 addtime)
 
 void RealRobotInterface::gainCallbak(const dyros_red_msgs::GainCommandConstPtr &msg)
 {
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < MODEL_DOF; i++)
     {
         CustomGain[i] = msg->gain[i];
-        CustomGain[i + 6] = msg->gain[i];
     }
 
     dc.customGain = true;

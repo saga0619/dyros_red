@@ -381,8 +381,12 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     }
     else if (msg->data == "positioncontrol")
     {
-        dc.commandTime = control_time_;
-        dc.positionControl = true;
+        if (!dc.positionControl)
+        {
+            dc.commandTime = control_time_;
+            dc.positionDesired = q_;
+        }
+        dc.positionControl = !dc.positionControl;
     }
     else if (msg->data == "torqueoff")
     {

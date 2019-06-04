@@ -28,6 +28,7 @@ run_mode = ''
 gain_var = 0
 control_time = 0.0
 
+
 class DyrosRedGuiPlugin(Plugin):
 
     def __init__(self, context):
@@ -99,6 +100,7 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.task_button.setShortcut(QKeySequence("p"))
         torqueon = False
 
+        # Limit QLineEdit input to double.
         dbl_val = QDoubleValidator()
 
         self._widget.tn1.setValidator(dbl_val)
@@ -107,6 +109,14 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.tn4.setValidator(dbl_val)
         self._widget.tn5.setValidator(dbl_val)
         self._widget.tn6.setValidator(dbl_val)
+
+        self._widget.tn7.setValidator(dbl_val)
+        self._widget.tn8.setValidator(dbl_val)
+        self._widget.tn9.setValidator(dbl_val)
+        self._widget.tn10.setValidator(dbl_val)
+        self._widget.tn11.setValidator(dbl_val)
+        self._widget.tn12.setValidator(dbl_val)
+
         self._widget.text_angle.setValidator(dbl_val)
         self._widget.text_height.setValidator(dbl_val)
         self._widget.text_pos.setValidator(dbl_val)
@@ -220,7 +230,7 @@ class DyrosRedGuiPlugin(Plugin):
 
     def sub_cb5(self, msg):
         global gain_var
-        gain_var = round(msg.data*100,0)
+        gain_var = round(msg.data*100, 0)
 
     def pause_button(self):
         self.send_msg2("pause")
@@ -245,6 +255,13 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.tn4.setText('0.2734')
         self._widget.tn5.setText('0.2834')
         self._widget.tn6.setText('0.0811')
+
+        self._widget.tn7.setText('0.1724')
+        self._widget.tn8.setText('0.2307')
+        self._widget.tn9.setText('0.2834')
+        self._widget.tn10.setText('0.2734')
+        self._widget.tn11.setText('0.2834')
+        self._widget.tn12.setText('0.0811')
 
     def tune_off_button(self):
         self.send_msg("tunereset")
@@ -314,13 +331,30 @@ class DyrosRedGuiPlugin(Plugin):
         cnt4 = self._widget.tn4.text()
         cnt5 = self._widget.tn5.text()
         cnt6 = self._widget.tn6.text()
+
+        cnt7 = self._widget.tn7.text()
+        cnt8 = self._widget.tn8.text()
+        cnt9 = self._widget.tn9.text()
+        cnt10 = self._widget.tn10.text()
+        cnt11 = self._widget.tn11.text()
+        cnt12 = self._widget.tn12.text()
+
         self._widget.tnc1.setText(cnt1)
         self._widget.tnc2.setText(cnt2)
         self._widget.tnc3.setText(cnt3)
         self._widget.tnc4.setText(cnt4)
         self._widget.tnc5.setText(cnt5)
         self._widget.tnc6.setText(cnt6)
-        ctotal = cnt1.replace('.', '', 1)+cnt2.replace('.', '', 1)+cnt3.replace('.', '', 1)+cnt4.replace('.', '', 1)+cnt5.replace('.', '', 1)+cnt6.replace('.', '', 1)
+
+        self._widget.tnc1.setText(cnt7)
+        self._widget.tnc2.setText(cnt8)
+        self._widget.tnc3.setText(cnt9)
+        self._widget.tnc4.setText(cnt10)
+        self._widget.tnc5.setText(cnt11)
+        self._widget.tnc6.setText(cnt12)
+
+        ctotal = cnt1.replace('.', '', 1)+cnt2.replace('.', '', 1)+cnt3.replace('.', '', 1)+cnt4.replace('.', '', 1)+cnt5.replace('.', '', 1)+cnt6.replace('.', '', 1) + \
+            cnt7.replace('.', '', 1)+cnt8.replace('.', '', 1)+cnt9.replace('.', '', 1)+cnt10.replace('.', '', 1)+cnt11.replace('.', '', 1)+cnt12.replace('.', '', 1)
         if ctotal.isdigit():
             cntlist = dyros_red_msgs.msg.GainCommand()
             cntlist.gain.append(float(cnt1))
@@ -329,6 +363,11 @@ class DyrosRedGuiPlugin(Plugin):
             cntlist.gain.append(float(cnt4))
             cntlist.gain.append(float(cnt5))
             cntlist.gain.append(float(cnt6))
+            cntlist.gain.append(float(cnt7))
+            cntlist.gain.append(float(cnt8))
+            cntlist.gain.append(float(cnt10))
+            cntlist.gain.append(float(cnt11))
+            cntlist.gain.append(float(cnt12))
             self._publisher4.publish(cntlist)
         else:
             msg = QMessageBox()
