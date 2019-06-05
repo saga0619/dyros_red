@@ -48,7 +48,7 @@ void MujocoInterface::sendCommand(Eigen::VectorQd command, double simt)
 void MujocoInterface::connect()
 {
     //std::cout << "________________________________________________________________________________\n\n";
-    //std::cout << "\tConnecting to Mujoco ..." << std::flush;
+    std::cout << "\tConnecting to Mujoco ..." << std::flush;
 
     int w_y;
 
@@ -95,7 +95,7 @@ void MujocoInterface::connect()
             rprint(dc, 13, 36, "Stopping");
             break;
         }
-        if ((ros::Time::now().toSec() - start_time.toSec()) > 60.0)
+        if ((ros::Time::now().toSec() - start_time.toSec()) > 5.0)
         {
             rprint(dc, 13, 31, "::::");
             rprint(dc, 13, 36, "Stopping");

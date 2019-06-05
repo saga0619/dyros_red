@@ -123,10 +123,10 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.text_time.setValidator(dbl_val)
 
         if run_mode == "realrobot":
-            self._widget.gravity_button.setEnabled(False)
-            self._widget.task_button.setEnabled(False)
-            self._widget.contact_button.setEnabled(False)
-            self._widget.data_button.setEnabled(False)
+            self._widget.gravity_button.setEnabled(True)
+            self._widget.task_button.setEnabled(True)
+            self._widget.contact_button.setEnabled(True)
+            self._widget.data_button.setEnabled(True)
             self._widget.torqueoff_button.setEnabled(True)
             self._widget.torqueon_button.setEnabled(True)
             self._widget.tab_2.setEnabled(True)
@@ -142,15 +142,15 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.label.setText(str(round(msg.polygon.points[0].x, 6)))
         self._widget.label_2.setText(str(round(msg.polygon.points[0].y, 6)))
         self._widget.label_3.setText(str(round(msg.polygon.points[0].z, 6)))
-        self._widget.label_14.setText(str(round(msg.polygon.points[3].x, 6)))
-        self._widget.label_15.setText(str(round(msg.polygon.points[3].y, 6)))
-        self._widget.label_16.setText(str(round(msg.polygon.points[3].z, 6)))
+        #self._widget.label_14.setText(str(round(msg.polygon.points[3].x, 6)))
+        #self._widget.label_15.setText(str(round(msg.polygon.points[3].y, 6)))
+        #self._widget.label_16.setText(str(round(msg.polygon.points[3].z, 6)))
 
-        self._widget.label_22.setText(str(round(msg.polygon.points[4].x, 6)))
-        self._widget.label_23.setText(str(round(msg.polygon.points[4].y, 6)))
+        #self._widget.label_22.setText(str(round(msg.polygon.points[4].x, 6)))
+        #self._widget.label_23.setText(str(round(msg.polygon.points[4].y, 6)))
 
-        self._widget.label_24.setText(str(round(msg.polygon.points[5].x, 6)))
-        self._widget.label_27.setText(str(round(msg.polygon.points[5].y, 6)))
+        #self._widget.label_24.setText(str(round(msg.polygon.points[5].x, 6)))
+        #self._widget.label_27.setText(str(round(msg.polygon.points[5].y, 6)))
 
     def sub_cb2(self, msg):
         self._widget.p0.setText(str(round(msg.position[0], 6)))
@@ -263,6 +263,8 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.tn11.setText('0.2834')
         self._widget.tn12.setText('0.0811')
 
+        self.send_msg("tunecurrent")
+
     def tune_off_button(self):
         self.send_msg("tunereset")
 
@@ -316,7 +318,7 @@ class DyrosRedGuiPlugin(Plugin):
         self.send_msg("positioncontrol")
 
     def contact_button(self):
-        self.send_msg("contact")
+        self.send_msg("fixedgravity")
 
     def send_msg(self, msg):
         self._publisher.publish(msg)
@@ -365,6 +367,7 @@ class DyrosRedGuiPlugin(Plugin):
             cntlist.gain.append(float(cnt6))
             cntlist.gain.append(float(cnt7))
             cntlist.gain.append(float(cnt8))
+            cntlist.gain.append(float(cnt9))
             cntlist.gain.append(float(cnt10))
             cntlist.gain.append(float(cnt11))
             cntlist.gain.append(float(cnt12))

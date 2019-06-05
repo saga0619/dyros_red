@@ -21,7 +21,8 @@ int main(int argc, char **argv)
     cs[0][0] = "SIMULATION";
     cs[1][0] = "REALROBOT";
     cs[2][0] = "TEST";
-    cs[3][0] = "EXIT";
+    cs[3][0] = "TEST2";
+    cs[4][0] = "EXIT";
     std::string menu_slcc;
 
     if (dc.mode == "simulation")
@@ -43,7 +44,7 @@ int main(int argc, char **argv)
         tui.ReadAndPrint(0, 0, "red");
         refresh();
 
-        menu_slcc = tui.menu(3, 35, 2, 0, 4, 1, cs);
+        menu_slcc = tui.menu(1, 35, 2, 0, 5, 1, cs);
 
         if (menu_slcc == "SIMULATION")
         {
@@ -59,6 +60,12 @@ int main(int argc, char **argv)
         {
             mvprintw(16, 10, "TEST MODE !");
             dc.mode = "testmode";
+        }
+        else if (menu_slcc == "TEST2")
+        {
+            mvprintw(16, 10, "TEST MODE 2 !");
+            dc.mode = "testmode2";
+            dc.ncurse_mode = false;
         }
         else if (menu_slcc == "EXIT")
         {
@@ -149,6 +156,29 @@ int main(int argc, char **argv)
             rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
         }
     }
+    else if (dc.mode == "testmode2")
+    {
+        MujocoInterface stm(dc);
+        DynamicsManager dym(dc);
+        RedController rc(dc, stm, dym);
+        //thread[0] = std::thread(&StateManager::testThread, &stm);
+        //thread[1] = std::thread(&DynamicsManager::testThread, &dym);
+        //thread[2] = std::thread(&RedController::tuiThread, &rc);
+
+        dc.connected = true;
+        dc.testmode = true;
+
+        thread[0] = std::thread(&RedController::stateThread, &rc);
+        thread[1] = std::thread(&RedController::dynamicsThreadHigh, &rc);
+        thread[2] = std::thread(&RedController::dynamicsThreadLow, &rc);
+
+        for (int i = 0; i < 3; i++)
+        {
+            thread[i].join();
+            rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
+        }
+    }
+
 
     if (dc.ncurse_mode)
         mvprintw(22, 10, "PRESS ANY KEY TO EXIT ...");

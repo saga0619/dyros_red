@@ -23,6 +23,10 @@ RealRobotInterface::RealRobotInterface(DataContainer &dc_global) : dc(dc_global)
     torqueDesiredElmo.setZero();
 
     torqueDesiredController.setZero();
+    for (int i = 0; i < MODEL_DOF; i++)
+    {
+        dc.currentGain(i) = NM2CNT[i];
+    }
 }
 
 void RealRobotInterface::ethercatThread()
@@ -118,6 +122,7 @@ void RealRobotInterface::ethercatThread()
                 rprint(dc, 15, 5, "Operational state reached for all slaves.");
                 wkc_count = 0;
                 inOP = TRUE;
+                rprint(dc, 16, 5, "Enable red controller threads ... ");
                 dc.connected = true;
                 /* cyclic loop */
                 for (int slave = 1; slave <= ec_slavecount; slave++)
@@ -210,11 +215,10 @@ void RealRobotInterface::ethercatThread()
 
                                     if (dc.emergencyoff)
                                     {
-                                        txPDO[slave - 1]->targetTorque = 0;
-                                        Walking_State = 2;
+                                        txPDO[slave - 1]->targetTorque = 0.0;
                                         if (Walking_State == 1)
                                         {
-                                            std::cout << "!!!!!! TORQUE TERMINATE !!!!!!" << std::endl;
+                                            //std::cout << "!!!!!! TORQUE TERMINATE !!!!!!" << std::endl;
                                         }
                                     }
                                     else
@@ -386,6 +390,7 @@ void RealRobotInterface::sendCommand(Eigen::VectorQd command, double sim_time)
     if (mtx_torque_command.try_lock())
     {
         torqueDesiredController = command;
+        torque_desired = command;
         mtx_torque_command.unlock();
     }
 }
@@ -546,10 +551,13 @@ void RealRobotInterface::add_timespec(struct timespec *ts, int64 addtime)
 
 void RealRobotInterface::gainCallbak(const dyros_red_msgs::GainCommandConstPtr &msg)
 {
+
+    std::cout << "customgain Command received ! " << std::endl;
     for (int i = 0; i < MODEL_DOF; i++)
     {
         CustomGain[i] = msg->gain[i];
+        std::cout << CustomGain[i] << "\t";
     }
-
+    std::cout << std::endl;
     dc.customGain = true;
 }

@@ -12,8 +12,9 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     joint_states_pub = dc.nh.advertise<sensor_msgs::JointState>("/dyros_red/jointstates", 1);
     time_pub = dc.nh.advertise<std_msgs::Float32>("/dyros_red/time", 1);
     motor_acc_dif_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/accdifinfo", 1);
-
     tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
+    point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point", 3);
+    pointpub_msg.polygon.points.resize(3);
 
     if (dc.mode == "realrobot")
     {
@@ -157,6 +158,8 @@ void StateManager::stateThread(void)
             }
             tgain_p.data = dc.t_gain;
             tgainPublisher.publish(tgain_p);
+
+            point_pub.publish(pointpub_msg);
         }
 
         //every 1 seconds
@@ -320,6 +323,36 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     com_.mass = com_mass;
     com_.pos = com_pos;
 
+    pointpub_msg.polygon.points[0].x = com_pos(0);
+    pointpub_msg.polygon.points[0].y = com_pos(1);
+    pointpub_msg.polygon.points[0].z = com_pos(2);
+
+    pointpub_msg.polygon.points[1].x = link_[Right_Foot].xpos(0);
+    pointpub_msg.polygon.points[1].y = link_[Right_Foot].xpos(1);
+    pointpub_msg.polygon.points[1].z = link_[Right_Foot].xpos(2);
+
+    pointpub_msg.polygon.points[2].x = link_[Left_Foot].xpos(0);
+    pointpub_msg.polygon.points[2].y = link_[Left_Foot].xpos(1);
+    pointpub_msg.polygon.points[2].z = link_[Left_Foot].xpos(2);
+
+    if (com_pos(1) < link_[Right_Foot].xpos(1))
+    {
+        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+    }
+    else if (com_pos(1) > link_[Left_Foot].xpos(1))
+    {
+        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+    }
+
+    if (com_pos(1) < link_[Right_Foot].xpos(1))
+    {
+        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+    }
+    else if (com_pos(1) > link_[Left_Foot].xpos(1))
+    {
+        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+    }
+
     Eigen::Vector3d vel_temp;
     vel_temp = com_.vel;
     com_.vel = com_vel;
@@ -375,12 +408,21 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
 
     if (msg->data == "torqueon")
     {
-        dc.torqueOnTime = control_time_;
-        dc.torqueOn = true;
-        dc.torqueOff = false;
+        if (dc.torqueOn)
+        {
+            std::cout << "torque is already enabled, command duplicated, ignoring command!" << std::endl;
+        }
+        else
+        {
+            std::cout << "torque ON !" << std::endl;
+            dc.torqueOnTime = control_time_;
+            dc.torqueOn = true;
+            dc.torqueOff = false;
+        }
     }
     else if (msg->data == "positioncontrol")
     {
+        std::cout << "Joint Position Control Mode is on! Holding current position!" << std::endl;
         if (!dc.positionControl)
         {
             dc.commandTime = control_time_;
@@ -390,23 +432,48 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     }
     else if (msg->data == "torqueoff")
     {
-        dc.torqueOffTime = control_time_;
-        dc.torqueOn = false;
-        dc.torqueOff = true;
+        if (dc.torqueOn)
+        {
+            std::cout << "Torque OFF ! " << std::endl;
+            dc.torqueOffTime = control_time_;
+            dc.torqueOn = false;
+            dc.torqueOff = true;
+        }
+        else if(dc.torqueOff)
+        {
+            std::cout << "Torque is already disabled, command duplicated, ignoring command! "<<std::endl;
+        }
     }
     else if (msg->data == "gravity")
     {
+        std::cout << "gravity compensation mode is on! " << std::endl;
         dc.commandTime = control_time_;
         dc.gravityMode = true;
     }
     else if (msg->data == "emergencyoff")
     {
+        std::cout << "!!!!!! RED DISABLED BY EMERGENCY OFF BUTTON !!!!!!" << std::endl;
         dc.emergencyoff = true;
         dc.torqueOn = false;
         dc.torqueOff = true;
     }
     else if (msg->data == "tunereset")
     {
+        std::cout << "custom gain disabled, defualt gain enabled!" << std::endl;
         dc.customGain = false;
+    }
+    else if (msg->data == "tunecurrent")
+    {
+        std::cout << "default motor gain is : " << std::endl;
+        for (int i = 0; i < MODEL_DOF; i++)
+        {
+            std::cout << dc.currentGain(i) << "\t";
+        }
+        std::cout << std::endl;
+    }
+    else if (msg->data == "fixedgravity")
+    {
+        std::cout << "fixed based gravity compensation mode" << std::endl;
+        dc.fixedgravity = true;
     }
 }

@@ -22,6 +22,7 @@ void RedController::stateThread()
 
 void RedController::dynamicsThreadHigh()
 {
+    std::cout << "DynamicsThreadHigh : READY ?" << std::endl;
     ros::Rate r(2000);
 
     while ((!dc.connected) && (!dc.shutdown) && ros::ok())
@@ -33,7 +34,7 @@ void RedController::dynamicsThreadHigh()
         r.sleep();
     }
 
-    std::cout << "DynamicsThreadHigh : READY" << std::endl;
+    std::cout << "DynamicsThreadHigh : START" << std::endl;
     std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
     int cnt = 0;
 
@@ -78,6 +79,7 @@ void RedController::dynamicsThreadHigh()
 
 void RedController::dynamicsThreadLow()
 {
+    std::cout << "DynamicsThreadLow : READY ?" << std::endl;
     ros::Rate r(2000);
     int calc_count = 0;
     int ThreadCount = 0;
@@ -91,7 +93,6 @@ void RedController::dynamicsThreadLow()
     {
         r.sleep();
     }
-    std::cout << "DynamicsThreadLow : READY" << std::endl;
 
     std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
     std::chrono::seconds sec1(1);
@@ -202,9 +203,10 @@ void RedController::dynamicsThreadLow()
 
         double ratio;
 
-        if (dc.command == "jointcontrol")
+        if (dc.fixedgravity)
         {
-            //hold current joint position!
+            //std::cout<<"fixedgravityMode"<<std::endl;
+            torque_grav = G.segment(6, MODEL_DOF);
         }
         TorqueDesiredLocal = torque_grav;
 
@@ -286,20 +288,15 @@ void RedController::tuiThread()
 void RedController::getState()
 {
     int count = 0;
-    while ((time == dc.time) && ros::ok())
+    if (dc.testmode == false)
     {
-        std::this_thread::sleep_for(std::chrono::microseconds(1));
-        count++;
+        while ((time == dc.time) && ros::ok())
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(1));
+            count++;
+        }
     }
     mtx_dc.lock();
-    if (time == dc.time)
-    {
-        std::cout << "same time prob ! " << std::endl;
-    }
-    if (count != 0)
-    {
-        //std::cout << "wating count : " << count << std::endl;
-    }
 
     time = dc.time;
     control_time_ = dc.time;

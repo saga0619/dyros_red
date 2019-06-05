@@ -37,7 +37,7 @@
 
 #define CNT_TO_RAD_46 (3.141592 * 2 / 819200) //819200
 #define RAD_TO_CNT_46 (1 / (CNT_TO_RAD_46))
-
+/*
 #define Kp_Yaw1 150000   //Hip
 #define Kp_Roll1 500000  //Hip
 #define Kp_Pitch1 500000 //Hip
@@ -51,6 +51,21 @@
 #define Kv_Pitch2 2000 //Knee
 #define Kv_Pitch3 3000 //Ankle
 #define Kv_Roll2 5000  //Ankle
+*/
+#define Kp_Yaw1 1500   //Hip
+#define Kp_Roll1 5000  //Hip
+#define Kp_Pitch1 5000 //Hip
+#define Kp_Pitch2 5000 //Knee
+#define Kp_Pitch3 5000 //Ankle
+#define Kp_Roll2 6500  //Ankle
+
+#define Kv_Yaw1 50   //Hip
+#define Kv_Roll1 50  //Hip
+#define Kv_Pitch1 50 //Hip
+#define Kv_Pitch2 40 //Knee
+#define Kv_Pitch3 30 //Ankle
+#define Kv_Roll2 60  //Ankle
+
 
 #define EC_TIMEOUTMON 500
 
@@ -92,11 +107,10 @@ const double NM2CNT[MODEL_DOF] =
         0.2834,
         0.2834,
         0.0811,
-
         0.1724,
         0.2307,
-        0.2834,
-        0.2834,
+        0.2635,
+        0.2890,
         0.2834,
         0.0811};
 

@@ -125,6 +125,7 @@ public:
   Eigen::VectorQd positionDesired;
   Eigen::VectorQd accel_dif;
   Eigen::VectorQd accel_obsrvd;
+  Eigen::VectorQd currentGain;
 
   int elmo_cnt;
 
@@ -140,7 +141,9 @@ public:
   bool gravityMode = false;
   bool emergencyoff = false;
   bool customGain = false;
-
+  bool fixedgravity = false;
+  bool testmode = false;
+  
   double t_gain = 0.0;
 
   double torqueOnTime = 0.0;

@@ -4,7 +4,7 @@
   </mujoco>
   <link name="Pelvis_Link">
     <inertial>
-      <origin xyz="0.0 0.0 0.24" rpy="0 0 0" />
+      <origin xyz="0.005 0.0 0.24" rpy="0 0 0" />
       <mass value="52.5" />
       <inertia ixx="0.794" ixy="0.0" ixz="0.0" iyy="0.5657" iyz="0.0" izz="0.5955" />
     </inertial>
