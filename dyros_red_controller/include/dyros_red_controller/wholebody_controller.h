@@ -12,33 +12,33 @@ using namespace Eigen;
 using namespace std;
 using namespace qpOASES;
 
-
-namespace dyros_red_controller
-{
-
 class Wholebody_controller
 {
 public:
   //walking_controller();
 
-  Wholebody_controller(DataContainer &dc);
+  Wholebody_controller(DataContainer &dc, KinematicsData &kd_);
   DataContainer &dc;
-  Link link_[MODEL_DOF + 1];
+  KinematicsData &rk_;
 
   // motion time
-  const double hz_;
-  const double &control_time_; // updated by control_base
-  const double &d_time_;
+  //const double hz_;
+  double control_time_; // updated by control_base
+  double d_time_;
+  double yaw_radian;
+
   double start_time_[4];
   double end_time_[4];
   bool target_arrived_[4];
   bool debug;
-  const VectorQd &current_q_; // updated by control_base
+
+  VectorQVQd current_q_;
+  //const VectorQd &current_q_; // updated by control_base
 
   //Main loop wholebody function
 
   //update mass matrix
-  void update_dynamics();
+  void update();
 
   //set contact status of robot. true for contact false for not contact
   void contact_set_multi(bool right_foot, bool left_foot, bool right_hand, bool left_hand);
@@ -52,15 +52,18 @@ public:
   //update gravity compensation torque
   VectorQd gravity_compensation_torque();
 
+  //get gravity compensation torque of fixed base mode
+  VectorQd gravity_compensation_torque(bool fixed);
+
   //get contact redistribution torque with Quadratic programing
   VectorQd contact_torque_calc_from_QP(VectorQd command_torque);
 
   // Get Contact Redistribution Torque with QP. Wall contact mode.
-  VectorQd contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio);
+  //VectorQd contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio);
 
   //Get Contact Redistribution Torque with QP. Wall contact mode.
 
-  VectorQd contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio);
+  //VectorQd contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio);
 
   /*
   * Get Task Control Torque.
@@ -142,7 +145,6 @@ public:
   MatrixVVd I37;
 
   VectorXd contact_force_predict;
-
   Vector3d Grav_ref;
 
   MatrixXd J_task_T, J_task_inv, J_task_inv_T;
@@ -177,7 +179,5 @@ private:
   void ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
   void ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
 };
-
-} // namespace dyros_red_controller
 
 #endif // WALKING_CONTROLLER_H

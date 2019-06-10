@@ -1,6 +1,7 @@
 #include "dyros_red_controller/red_controller.h"
 #include "dyros_red_controller/terminal.h"
 #include "dyros_red_controller/redsvd.h"
+#include "dyros_red_controller/wholebody_controller.h"
 #include <fstream>
 
 std::mutex mtx;
@@ -94,6 +95,8 @@ void RedController::dynamicsThreadLow()
         r.sleep();
     }
 
+    Wholebody_controller wc_(dc, red_);
+
     std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
     std::chrono::seconds sec1(1);
 
@@ -136,6 +139,7 @@ void RedController::dynamicsThreadLow()
         std::chrono::high_resolution_clock::time_point dyn_loop_start = std::chrono::high_resolution_clock::now();
 
         getState();
+        wc_.update();
         sec = std::chrono::high_resolution_clock::now() - start_time;
         if (sec.count() - control_time_ > 0.01)
         {
@@ -145,7 +149,10 @@ void RedController::dynamicsThreadLow()
         /////////////              Controller Code Here !                     /////////////////
         ///////////////////////////////////////////////////////////////////////////////////////
 
-        A_matrix_inverse = A_.inverse();
+        wc_.contact_set_multi(1, 1, 0, 0);
+        //A_matrix_inverse = A_.inverse();
+
+        /*
         link_id[0] = Right_Foot;
         link_id[1] = Left_Foot;
         for (int i = 0; i < contact_number; i++)
@@ -200,7 +207,7 @@ void RedController::dynamicsThreadLow()
 
         tg_temp = ppinv * J_g * A_matrix_inverse * N_C;
         torque_grav = tg_temp * G;
-
+        */
         double ratio;
 
         if (dc.fixedgravity)
@@ -208,19 +215,17 @@ void RedController::dynamicsThreadLow()
             //std::cout<<"fixedgravityMode"<<std::endl;
             torque_grav = G.segment(6, MODEL_DOF);
         }
-        TorqueDesiredLocal = torque_grav;
+        //std::cout << "gravity compensation !" << std::endl;
+        TorqueDesiredLocal = wc_.gravity_compensation_torque();
+        //std::cout << "gravity compensation end!" << std::endl;
 
-        acceleration_estimated = (A_matrix_inverse * N_C * Slc_k_T * (TorqueDesiredLocal - torque_grav)).segment(6, MODEL_DOF);
-
-        acceleration_observed = q_dot_ - q_dot_before_;
-
-        q_dot_before_ = q_dot_;
-
+        //acceleration_estimated = (A_matrix_inverse * N_C * Slc_k_T * (TorqueDesiredLocal - torque_grav)).segment(6, MODEL_DOF);
+        //acceleration_observed = q_dot_ - q_dot_before_;
+        //q_dot_before_ = q_dot_;
         //std::cout << "acceleration_observed : " << std::endl;
         //std::cout << acceleration_observed << std::endl;
-        acceleration_differance = acceleration_observed - acceleration_estimated_before;
-
-        acceleration_estimated_before = acceleration_estimated;
+        //acceleration_differance = acceleration_observed - acceleration_estimated_before;
+        //acceleration_estimated_before = acceleration_estimated;
 
         ///////////////////////////////////////////////////////////////////////////////////////
         //////////////////              Controller Code End             ///////////////////////
@@ -228,8 +233,8 @@ void RedController::dynamicsThreadLow()
 
         mtx.lock();
         torque_desired = TorqueDesiredLocal;
-        dc.accel_dif = acceleration_differance;
-        dc.accel_obsrvd = acceleration_observed;
+        //dc.accel_dif = acceleration_differance;
+        //dc.accel_obsrvd = acceleration_observed;
         mtx.unlock();
 
         if (dc.shutdown)
@@ -310,29 +315,36 @@ void RedController::getState()
     q_ddot_virtual_ = dc.q_ddot_virtual_;
     torque_ = dc.torque_;
 
+    red_.q_ = dc.q_;
+    red_.q_virtual_ = dc.q_virtual_;
+    red_.q_dot_ = dc.q_dot_;
+    red_.q_dot_virtual_ = dc.q_dot_virtual_;
+    red_.q_ddot_virtual_ = dc.q_ddot_virtual_;
+
     static bool first_run = true;
     if (first_run)
     {
         for (int i = 0; i < LINK_NUMBER + 1; i++)
         {
-            link_[i] = dc.link_[i];
+
+            red_.link_[i] = dc.link_[i];
         }
     }
     for (int i = 0; i < LINK_NUMBER + 1; i++)
     {
-        link_[i].xpos = dc.link_[i].xpos;
-        link_[i].xipos = dc.link_[i].xipos;
-        link_[i].Rotm = dc.link_[i].Rotm;
-        link_[i].Jac = dc.link_[i].Jac;
-        link_[i].Jac_COM = dc.link_[i].Jac_COM;
-        link_[i].Jac_COM_p = dc.link_[i].Jac_COM_p;
-        link_[i].Jac_COM_r = dc.link_[i].Jac_COM_r;
-        link_[i].COM_position = dc.link_[i].COM_position;
-        link_[i].xpos_contact = dc.link_[i].xpos_contact;
+        red_.link_[i].xpos = dc.link_[i].xpos;
+        red_.link_[i].xipos = dc.link_[i].xipos;
+        red_.link_[i].Rotm = dc.link_[i].Rotm;
+        red_.link_[i].Jac = dc.link_[i].Jac;
+        red_.link_[i].Jac_COM = dc.link_[i].Jac_COM;
+        red_.link_[i].Jac_COM_p = dc.link_[i].Jac_COM_p;
+        red_.link_[i].Jac_COM_r = dc.link_[i].Jac_COM_r;
+        red_.link_[i].COM_position = dc.link_[i].COM_position;
+        red_.link_[i].xpos_contact = dc.link_[i].xpos_contact;
     }
-    yaw_radian = dc.yaw_radian;
-    A_ = dc.A_;
-    com_ = dc.com_;
+    red_.yaw_radian = dc.yaw_radian;
+    red_.A_ = dc.A_;
+    red_.com_ = dc.com_;
     mtx_dc.unlock();
 }
 

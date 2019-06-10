@@ -103,6 +103,9 @@ public:
   Eigen::VectorQd torque_desired;
 
   //Kinematics Information :
+  //MODEL RED;
+
+  //Kinematics Information :
   Link link_[LINK_NUMBER + 1];
 
   double yaw_radian;
@@ -143,7 +146,7 @@ public:
   bool customGain = false;
   bool fixedgravity = false;
   bool testmode = false;
-  
+
   double t_gain = 0.0;
 
   double torqueOnTime = 0.0;

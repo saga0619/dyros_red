@@ -4,18 +4,19 @@
 
 // Vars vars;
 // Params params;
-// Workspace work;
+// Workspace work;(DataContainer &dc, KinematicsData &kd_);
 // Settings settings;
-Wholebody_controller::Wholebody_controller(DataContainer &dc);
+Wholebody_controller::Wholebody_controller(DataContainer &dc_global, KinematicsData &kd_) : dc(dc_global), rk_(kd_)
 {
     Grav_ref.setZero(3);
     Grav_ref(2) = -9.81;
 }
 
-void Wholebody_controller::update_dynamics(Eigen::MatrixXd A_)
+void Wholebody_controller::update()
 {
-    A_matrix = A_;
-    A_matrix_inverse = A_.inverse();
+    current_q_ = rk_.q_virtual_;
+    A_matrix = rk_.A_;
+    A_matrix_inverse = rk_.A_.inverse();
     task_force_control = false;
     task_force_control_feedback = false;
     zmp_control = false;
@@ -23,12 +24,11 @@ void Wholebody_controller::update_dynamics(Eigen::MatrixXd A_)
 
 void Wholebody_controller::contact_set(int contact_number, int link_id[])
 {
-    J_C.setZero(contact_number * 6, MODEL_DOF + 6);
+    J_C.setZero(contact_number * 6, MODEL_DOF_VIRTUAL);
     for (int i = 0; i < contact_number; i++)
     {
-        link_[link_id[i]];
-        model_.Link_Set_Contact(link_id[i], model_.link_[link_id[i]].contact_point);
-        J_C.block(i * 6, 0, 6, MODEL_DOF + 6) = model_.link_[link_id[i]].Jac_Contact;
+        rk_.link_[link_id[i]].Set_Contact(current_q_, rk_.link_[link_id[i]].contact_point);
+        J_C.block(i * 6, 0, 6, MODEL_DOF_VIRTUAL) = rk_.link_[link_id[i]].Jac_Contact;
     }
     Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
     J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
@@ -49,24 +49,24 @@ void Wholebody_controller::contact_set_multi(bool right_foot, bool left_foot, bo
     contact_index = 0;
     if (right_foot)
     {
-        contact_part[contact_index] = model_.Right_Foot;
+        contact_part[contact_index] = Right_Foot;
         contact_index++;
     }
     if (left_foot)
     {
-        contact_part[contact_index] = model_.Left_Foot;
+        contact_part[contact_index] = Left_Foot;
         contact_index++;
     }
-    if (right_hand)
+    /* if (right_hand)
     {
-        contact_part[contact_index] = model_.Right_Hand;
+        contact_part[contact_index] = Right_Hand;
         contact_index++;
     }
     if (left_hand)
     {
-        contact_part[contact_index] = model_.Left_Hand;
+        contact_part[contact_index] = Left_Hand;
         contact_index++;
-    }
+    }*/
     contact_set(contact_index, contact_part);
 }
 Matrix2d matpower(Matrix2d mat, int i)
@@ -123,9 +123,9 @@ Vector2d Wholebody_controller::getcpref(double task_time, double future_time)
     if ((task_time - (int)task_time) + future_time < 1)
     {
         double b = exp(w_ * left_time);
-        Vector2d zmp_ = 1 / (1 - b) * CP_ref[(int)task_time + 1] - b / (1 - b) * model_.com_.CP;
+        Vector2d zmp_ = 1 / (1 - b) * CP_ref[(int)task_time + 1] - b / (1 - b) * rk_.com_.CP;
 
-        CP_t = exp(w_ * future_time) * model_.com_.CP + (1.0 - exp(w_ * future_time)) * zmp_;
+        CP_t = exp(w_ * future_time) * rk_.com_.CP + (1.0 - exp(w_ * future_time)) * zmp_;
     }
 
     return CP_t;
@@ -198,13 +198,13 @@ Vector2d Wholebody_controller::getcpref(double task_time, double future_time)
 //   std::cout << p_k_1 << std::endl;
 //   std::cout << " cp_ref_t : " << std::endl;
 //   std::cout << cp_ref_t << std::endl;
-//   std::cout << " model_.com_CP : " << model_.com_.CP << std::endl;
+//   std::cout << " com_CP : " << com_.CP << std::endl;
 //   std::cout << " g1 : " << std::endl
-//             << F_p.transpose() * Q * (F_xi * model_.com_.CP.segment(0, 2) - cp_ref_t) << std::endl;
+//             << F_p.transpose() * Q * (F_xi * com_.CP.segment(0, 2) - cp_ref_t) << std::endl;
 //   std::cout << " g2 : " << std::endl
 //             << THETA.transpose() * R * e1 * p_k_1 << std::endl;
 
-//   g = F_p.transpose() * Q * (F_xi * model_.com_.CP.segment(0, 2) - cp_ref_t) - THETA.transpose() * R * e1 * p_k_1;
+//   g = F_p.transpose() * Q * (F_xi * com_.CP.segment(0, 2) - cp_ref_t) - THETA.transpose() * R * e1 * p_k_1;
 
 //   VectorXd r(n_sample * 2);
 //   Vector2d sf[8];
@@ -309,7 +309,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP(VectorQd command_torq
     for (int i = 0; i < contact_index; i++)
     {
         A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
-        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[contact_part[i]].xpos_contact);
+        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(rk_.link_[contact_part[i]].xpos_contact);
     }
 
     for (int i = 0; i < contact_index; i++)
@@ -396,7 +396,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP(VectorQd command_torq
     ROS_INFO("l2");
     return torque_contact_;
 }
-
+/*
 VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio)
 {
     VectorXd ContactForce__ = get_contact_force(command_torque);
@@ -416,7 +416,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall(VectorQd command
     for (int i = 0; i < contact_index; i++)
     {
         A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
-        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[contact_part[i]].xpos_contact - model_.com_.pos);
+        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(link_[contact_part[i]].xpos_contact - com_.pos);
     }
     VectorXd force_res = A.block(0, 0, 6, contact_index * 6) * ContactForce__;
     VectorXd g, lb, ub, lbA, ubA;
@@ -434,45 +434,45 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall(VectorQd command
 
         ubA(6 + i) = 0.0;
         lbA(6 + i) = 0.0;
-        if (contact_part[i] == model_.Right_Foot)
+        if (contact_part[i] == Right_Foot)
         {
             A(6 + i, 2 + 6 * i) = -wall_friction_ratio;
         }
-        if (contact_part[i] == model_.Right_Hand)
+        if (contact_part[i] == Right_Hand)
         {
             A(6 + i, 2 + 6 * i) = -wall_friction_ratio;
         }
-        if (contact_part[i] == model_.Left_Foot)
+        /*if (contact_part[i] == Left_Foot)
         {
             A(6 + i, 2 + 6 * i) = wall_friction_ratio;
         }
-        if (contact_part[i] == model_.Left_Hand)
+        if (contact_part[i] == Left_Hand)
         {
             A(6 + i, 2 + 6 * i) = wall_friction_ratio;
-        }
-    }
-    for (int i = 0; i < contact_index * 6; i++)
-    {
-        lb(i) = -1000;
-        ub(i) = 1000;
-    }
+        } 
+}
+for (int i = 0; i < contact_index * 6; i++)
+{
+    lb(i) = -1000;
+    ub(i) = 1000;
+}
 
-    for (int i = 0; i < contact_index; i++)
-        ub(2 + 6 * i) = 0;
+for (int i = 0; i < contact_index; i++)
+    ub(2 + 6 * i) = 0;
 
-    QP_test.EnableEqualityCondition(0.001);
-    QP_test.UpdateMinProblem(H, g);
-    QP_test.UpdateSubjectToAx(A, lbA, ubA);
-    QP_test.UpdateSubjectToX(lb, ub);
-    VectorXd force_redistribute = QP_test.SolveQPoases(100);
+QP_test.EnableEqualityCondition(0.001);
+QP_test.UpdateMinProblem(H, g);
+QP_test.UpdateSubjectToAx(A, lbA, ubA);
+QP_test.UpdateSubjectToX(lb, ub);
+VectorXd force_redistribute = QP_test.SolveQPoases(100);
 
-    std::cout << "Contact Force now :  " << std::endl;
-    std::cout << ContactForce__ << std::endl;
-    std::cout << "Contact Force Redistribution : " << std::endl;
-    std::cout << force_redistribute << std::endl;
+std::cout << "Contact Force now :  " << std::endl;
+std::cout << ContactForce__ << std::endl;
+std::cout << "Contact Force Redistribution : " << std::endl;
+std::cout << force_redistribute << std::endl;
 
-    VectorQd torque_contact_ = contact_force_custom(command_torque, ContactForce__, force_redistribute);
-    return torque_contact_;
+VectorQd torque_contact_ = contact_force_custom(command_torque, ContactForce__, force_redistribute);
+return torque_contact_;
 }
 
 VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio)
@@ -505,7 +505,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd co
     for (int i = 0; i < contact_index; i++)
     {
         A.block(0, 6 * i, 6, 6) = Matrix6d::Identity();
-        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(model_.link_[contact_part[i]].xpos_contact - model_.com_.pos);
+        A.block(3, 6 * i, 3, 3) = DyrosMath::skm(link_[contact_part[i]].xpos_contact - com_.pos);
     }
     VectorXd force_res = A.block(0, 0, 6, contact_index * 6) * ContactForce__;
     VectorXd g, lb, ub, lbA, ubA;
@@ -527,7 +527,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd co
         A(6 + i * 5 + 3, 4 + 6 * i) = 1.0;
         A(6 + i * 5 + 4, 4 + 6 * i) = 1.0;
 
-        if (contact_part[i] == model_.Right_Foot)
+        if (contact_part[i] == Right_Foot)
         {
             A(6 + i * 5, 2 + 6 * i) = -wall_friction_ratio;
             ubA(6 + i * 5) = 0.0;
@@ -547,7 +547,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd co
             lbA(6 + i * 5 + 4) = -1000.0;
             ubA(6 + i * 5 + 4) = 0;
         }
-        if (contact_part[i] == model_.Right_Hand)
+        if (contact_part[i] == Right_Hand)
         {
             A(6 + i * 5, 2 + 6 * i) = -wall_friction_ratio;
 
@@ -568,7 +568,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd co
             lbA(6 + i * 5 + 4) = -1000.0;
             ubA(6 + i * 5 + 4) = 0;
         }
-        if (contact_part[i] == model_.Left_Foot)
+        if (contact_part[i] == Left_Foot)
         {
             A(6 + i * 5, 2 + 6 * i) = wall_friction_ratio;
 
@@ -589,7 +589,7 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd co
             lbA(6 + i * 5 + 4) = 0.0;
             ubA(6 + i * 5 + 4) = 1000.0;
         }
-        if (contact_part[i] == model_.Left_Hand)
+        if (contact_part[i] == Left_Hand)
         {
             A(6 + i * 5, 2 + 6 * i) = wall_friction_ratio;
 
@@ -637,20 +637,21 @@ VectorQd Wholebody_controller::contact_torque_calc_from_QP_wall_mod2(VectorQd co
     result_temp = force_redistribute;
     return torque_contact_;
 }
+*/
 
 VectorQd Wholebody_controller::CP_control_init(double dT)
 {
-    double w_ = sqrt(9.81 / model_.com_.pos(2));
+    double w_ = sqrt(9.81 / rk_.com_.pos(2));
     double b_ = exp(w_ * dT);
 
     Vector2d CP_displace;
     CP_displace(0) = 0.0;
     CP_displace(1) = 0.015;
 
-    CP_ref[0] = model_.com_.pos.segment(0, 2);
-    CP_ref[1] = model_.link_[model_.Left_Foot].xpos.segment(0, 2) - CP_displace;
-    CP_ref[2] = model_.link_[model_.Right_Foot].xpos.segment(0, 2) + CP_displace;
-    CP_ref[3] = model_.com_.pos.segment(0, 2);
+    CP_ref[0] = rk_.com_.pos.segment(0, 2);
+    CP_ref[1] = rk_.link_[Left_Foot].xpos.segment(0, 2) - CP_displace;
+    CP_ref[2] = rk_.link_[Right_Foot].xpos.segment(0, 2) + CP_displace;
+    CP_ref[3] = rk_.com_.pos.segment(0, 2);
 }
 
 VectorQd Wholebody_controller::CP_controller()
@@ -659,22 +660,22 @@ VectorQd Wholebody_controller::CP_controller()
 
 Vector6d Wholebody_controller::zmp_controller(Vector2d ZMP, double height)
 {
-    double w_ = sqrt(9.81 / model_.com_.pos(2));
+    double w_ = sqrt(9.81 / rk_.com_.pos(2));
     Vector3d desired_accel;
-    desired_accel.segment(0, 2) = pow(w_, 2) * (model_.com_.pos.segment(0, 2) - ZMP);
+    desired_accel.segment(0, 2) = pow(w_, 2) * (rk_.com_.pos.segment(0, 2) - ZMP);
     desired_accel(2) = 0.0;
-    Vector3d desired_vel = model_.com_.vel + desired_accel * abs(d_time_);
+    Vector3d desired_vel = rk_.com_.vel + desired_accel * abs(d_time_);
     desired_vel(2) = 0.0;
-    Vector3d desired_pos = model_.com_.pos + desired_vel * abs(d_time_);
+    Vector3d desired_pos = rk_.com_.pos + desired_vel * abs(d_time_);
     desired_pos(2) = height;
     Eigen::Vector3d kp_, kd_;
     kp_ << 400, 400, 400;
     kd_ << 40, 40, 40;
-    Vector3d fstar = getfstar(kp_, kd_, desired_pos, model_.com_.pos, desired_vel, model_.com_.vel);
+    Vector3d fstar = getfstar(kp_, kd_, desired_pos, rk_.com_.pos, desired_vel, rk_.com_.vel);
 
     Vector3d fstar_r;
-    fstar_r(0) = -ZMP(1) / (model_.com_.mass * 9.81);
-    fstar_r(1) = -ZMP(0) / (model_.com_.mass * 9.81);
+    fstar_r(0) = -ZMP(1) / (rk_.com_.mass * 9.81);
+    fstar_r(1) = -ZMP(0) / (rk_.com_.mass * 9.81);
     fstar_r(2) = 0;
 
     Vector6d r_z;
@@ -691,7 +692,7 @@ VectorQd Wholebody_controller::gravity_compensation_torque()
 
     for (int i = 0; i < MODEL_DOF + 1; i++)
     {
-        G -= model_.link_[i].Jac_COM_p.transpose() * model_.link_[i].Mass * Grav_ref;
+        G -= rk_.link_[i].Jac_COM_p.transpose() * rk_.link_[i].Mass * Grav_ref;
     }
 
     Eigen::MatrixXd J_g;
@@ -701,15 +702,17 @@ VectorQd Wholebody_controller::gravity_compensation_torque()
     Eigen::VectorXd torque_grav(MODEL_DOF);
     Eigen::MatrixXd aa = J_g * A_matrix_inverse * N_C * J_g.transpose();
     /*
-  double epsilon = 1e-7;
-  Eigen::JacobiSVD<Eigen::MatrixXd> svd(aa ,Eigen::ComputeThinU | Eigen::ComputeThinV);
-  double tolerance = epsilon * std::max(aa.cols(), aa.rows()) *svd.singularValues().array().abs()(0);
-  Eigen::MatrixXd ppinv = svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
-*/
-    // Eigen::MatrixXd ppinv = aa.completeOrthogonalDecomposition().pseudoInverse();
-    //torque_grav = (J_g*A_matrix.inverse()*N_C*J_g.transpose()).completeOrthogonalDecomposition().pseudoInverse()*J_g*A_matrix.inverse()*N_C*G;
-    //torque_grav.setZero();
-    //Eigen::MatrixXd ppinv = DyrosMath::pinv_QR(aa);
+    double epsilon = 1e-7;
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(aa ,Eigen::ComputeThinU | Eigen::ComputeThinV);
+    double tolerance = epsilon * std::max(aa.cols(), aa.rows()) *svd.singularValues().array().abs()(0);
+    Eigen::MatrixXd ppinv = svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
+
+    Eigen::MatrixXd ppinv = aa.completeOrthogonalDecomposition().pseudoInverse();
+    torque_grav = (J_g*A_matrix.inverse()*N_C*J_g.transpose()).completeOrthogonalDecomposition().pseudoInverse()*J_g*A_matrix.inverse()*N_C*G;
+    torque_grav.setZero();
+    Eigen::MatrixXd ppinv = DyrosMath::pinv_QR(aa);
+    */
+
     Eigen::MatrixXd ppinv = DyrosMath::pinv_SVD(aa);
 
     Eigen::MatrixXd tg_temp = ppinv * J_g * A_matrix_inverse * N_C;
@@ -717,6 +720,19 @@ VectorQd Wholebody_controller::gravity_compensation_torque()
 
     ROS_DEBUG_ONCE("gravity torque calc end ");
     return torque_grav;
+}
+
+VectorQd Wholebody_controller::gravity_compensation_torque(bool fixed)
+{
+    ROS_DEBUG_ONCE("gravity torque calc start ");
+    G.setZero(MODEL_DOF + 6);
+
+    for (int i = 0; i < MODEL_DOF + 1; i++)
+    {
+        G -= rk_.link_[i].Jac_COM_p.transpose() * rk_.link_[i].Mass * Grav_ref;
+    }
+
+    return G.segment(6, MODEL_DOF);
 }
 
 VectorQd Wholebody_controller::task_control_torque(MatrixXd J_task, VectorXd f_star_)
@@ -805,12 +821,12 @@ VectorQd Wholebody_controller::task_control_torque(MatrixXd J_task, VectorXd f_s
         F_ = lambda * task_selection_matrix * f_star_;
         VectorXd F_2;
 
-        Vector2d Fd_com = zmp_gain * 9.81 / 0.811 * (model_.com_.pos.segment(0, 2) - ZMP_task) * model_.com_.mass;
+        Vector2d Fd_com = zmp_gain * 9.81 / 0.811 * (rk_.com_.pos.segment(0, 2) - ZMP_task) * rk_.com_.mass;
         task_desired_force.setZero(task_dof);
 
         task_desired_force.segment(0, 2) = Fd_com;
-        //task_desired_force(3) = ZMP_task(1) * (model_.com_.mass * 9.81);
-        //task_desired_force(4) = ZMP_task(0) * (model_.com_.mass * 9.81);
+        //task_desired_force(3) = ZMP_task(1) * (com_.mass * 9.81);
+        //task_desired_force(4) = ZMP_task(0) * (com_.mass * 9.81);
 
         F_2 = F_ + task_desired_force;
 
@@ -1008,7 +1024,7 @@ Vector3d Wholebody_controller::getfstar(Vector3d kp, Vector3d kd, Matrix3d r_des
     ROS_DEBUG_ONCE("fstar calc");
     Vector3d fstar_;
 
-    Matrix3d Rotyaw = DyrosMath::rotateWithZ(model_.yaw_radian);
+    Matrix3d Rotyaw = DyrosMath::rotateWithZ(yaw_radian);
     Vector3d angle_d_global = Rotyaw * DyrosMath::getPhi(r_now, r_desired);
 
     for (int i = 0; i < 3; i++)
@@ -1026,7 +1042,7 @@ Vector3d Wholebody_controller::getfstar_tra(int link_id, Vector3d kpt, Vector3d 
 
     for (int i = 0; i < 3; i++)
     {
-        fstar_(i) = kpt(i) * (model_.link_[link_id].x_traj(i) - model_.link_[link_id].xpos(i)) + kdt(i) * (model_.link_[link_id].v_traj(i) - model_.link_[link_id].v(i));
+        fstar_(i) = kpt(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + kdt(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
     }
 
     return fstar_;
@@ -1037,25 +1053,25 @@ Vector3d Wholebody_controller::getfstar_rot(int link_id, Vector3d kpa, Vector3d 
     ROS_DEBUG_ONCE("fstar calc");
     Vector3d fstar_;
 
-    Matrix3d Rotyaw = DyrosMath::rotateWithZ(model_.yaw_radian);
+    Matrix3d Rotyaw = DyrosMath::rotateWithZ(yaw_radian);
 
-    Vector3d angle_d_global = -Rotyaw * DyrosMath::getPhi(model_.link_[link_id].Rotm, model_.link_[link_id].r_traj);
+    Vector3d angle_d_global = -Rotyaw * DyrosMath::getPhi(rk_.link_[link_id].Rotm, rk_.link_[link_id].r_traj);
 
-    //Matrix3d Rotyaw = DyrosMath::rotateWithZ(model_.yaw_radian);
+    //Matrix3d Rotyaw = DyrosMath::rotateWithZ(yaw_radian);
 
-    //Vector3d angle_d_global = Rotyaw * DyrosMath::getPhi(model_.link_[link_id].Rotm, model_.link_[link_id].r_traj);
+    //Vector3d angle_d_global = Rotyaw * DyrosMath::getPhi(link_[link_id].Rotm, link_[link_id].r_traj);
 
     for (int i = 0; i < 3; i++)
     {
-        fstar_(i) = (kpa(i) * angle_d_global(i) - kda(i) * model_.link_[link_id].w(i));
+        fstar_(i) = (kpa(i) * angle_d_global(i) - kda(i) * rk_.link_[link_id].w(i));
     }
     /*
   std::cout << "fstar check " << std::endl
-            << model_.link_[link_id].name << std::endl
+            << link_[link_id].name << std::endl
             << " rotation now " << std::endl
-            << model_.link_[link_id].Rotm << std::endl
+            << link_[link_id].Rotm << std::endl
             << "desired rotation " << std::endl
-            << model_.link_[link_id].r_traj << std::endl
+            << link_[link_id].r_traj << std::endl
             << "angle d " << std::endl
             << angle_d << std::endl
             << "global angle d " << std::endl
@@ -1135,17 +1151,17 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
 
         Vector3d P1_, P2_;
 
-        P1_ = model_.link_[model_.Right_Foot].xpos;
-        P2_ = model_.link_[model_.Left_Foot].xpos;
+        P1_ = rk_.link_[Right_Foot].xpos;
+        P2_ = rk_.link_[Left_Foot].xpos;
 
-        Matrix3d Rotyaw = DyrosMath::rotateWithZ(-model_.yaw_radian);
+        Matrix3d Rotyaw = DyrosMath::rotateWithZ(-yaw_radian);
 
         Vector3d P1_local, P2_local;
         P1_local = Rotyaw * P1_;
         P2_local = Rotyaw * P2_;
 
-        Matrix12d force_rot_yaw;
-        force_rot_yaw.setZero();
+        MatrixXd force_rot_yaw;
+        force_rot_yaw.setZero(12, 12);
         for (int i = 0; i < 4; i++)
         {
             force_rot_yaw.block(i * 3, i * 3, 3, 3) = Rotyaw;
@@ -1440,7 +1456,7 @@ void Wholebody_controller::ForceRedistributionTwoContactMod(double eta_cust, dou
     W.block(3, 0, 3, 3) = P1_hat;
     W.block(3, 6, 3, 3) = P2_hat;
 
-    // model_.link_[model_.Right_Leg].Rotm;
+    // link_[Right_Leg].Rotm;
 
     // for (int i = 0; i < 3; i++)
     // {

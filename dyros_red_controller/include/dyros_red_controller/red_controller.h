@@ -93,6 +93,8 @@ private:
   Eigen::VectorQd acceleration_estimated_before;
 
   //Kinematics Information :
+  KinematicsData red_;
+
   Link link_[LINK_NUMBER + 1];
   double yaw_radian;
   Eigen::MatrixVVd A_;

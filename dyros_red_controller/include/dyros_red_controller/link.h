@@ -119,5 +119,20 @@ private:
   RigidBodyDynamics::Model *model;
 };
 
-std::ostream &operator<<(std::ostream &out, const Link &link);
+struct KinematicsData
+{
+  Com com_;
+  Link link_[LINK_NUMBER + 1];
+  double yaw_radian;
+  Eigen::MatrixVVd A_;
+
+  Eigen::VectorQd q_;
+  Eigen::VectorQVQd q_virtual_;
+  Eigen::VectorQd q_dot_;
+  Eigen::VectorVQd q_dot_virtual_;
+  Eigen::VectorVQd q_ddot_virtual_;
+};
+
+std::ostream &
+operator<<(std::ostream &out, const Link &link);
 #endif

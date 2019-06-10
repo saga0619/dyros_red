@@ -95,7 +95,6 @@ void Link::Set_Contact(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_vi
 void Link::Set_Contact(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_position)
 {
     j_temp.setZero(6, MODEL_DOF_VIRTUAL);
-
     mtx_rbdl.lock();
     RigidBodyDynamics::CalcPointJacobian6D(*model, q_virtual_, id, Contact_position, j_temp, false);
     xpos_contact = RigidBodyDynamics::CalcBodyToBaseCoordinates(*model, q_virtual_, id, Contact_position, false);
