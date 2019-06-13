@@ -5,12 +5,32 @@
 #include "dyros_red_controller/data_container.h"
 #include "math_type_define.h"
 
+#include "dyros_red_controller/redsvd.h"
 #include "dyros_red_controller/qp.h"
 #include <qpOASES.hpp>
 
 using namespace Eigen;
 using namespace std;
 using namespace qpOASES;
+
+/* Wholebody controller description :
+* This library is made by junewhee ahn, based on theory by jaeheung park
+* 
+*
+* task control how to use : 
+* 1. set contact status with function 'Wholebody_controller::contact_set_multi(...)'
+* 2. get gravity compensation torque with 'Wholebody_controller::gravity_compensation_torque(...)'
+* 3. define task dof number
+* 4. construct task jacobian 
+* 5. define desired task position and time,
+* 6. get trajectory of task with function 'link_.Set_Trajectory_from_quintic(....)' or other set_traj functions at link class!
+*    initial position of each task can be determined through following function, link_[].Set_initpos()
+* 7. get fstar with Wholebody_controller::getfstar6d(...)
+* 8. get torque task with Wholebody_controller::task_control_torque(....)
+
+
+
+*/
 
 class Wholebody_controller
 {
@@ -37,7 +57,8 @@ public:
 
   //Main loop wholebody function
 
-  //update mass matrix
+  // update kinematics information
+  //
   void update();
 
   //set contact status of robot. true for contact false for not contact
@@ -50,10 +71,7 @@ public:
   VectorQd contact_force_custom(VectorQd command_torque, Eigen::VectorXd contact_force_now, Eigen::VectorXd contact_force_desired);
 
   //update gravity compensation torque
-  VectorQd gravity_compensation_torque();
-
-  //get gravity compensation torque of fixed base mode
-  VectorQd gravity_compensation_torque(bool fixed);
+  VectorQd gravity_compensation_torque(bool fixed = false, bool redsvd = false);
 
   //get contact redistribution torque with Quadratic programing
   VectorQd contact_torque_calc_from_QP(VectorQd command_torque);

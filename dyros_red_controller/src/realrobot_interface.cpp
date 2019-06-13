@@ -405,6 +405,7 @@ void RealRobotInterface::ethercatCheck()
     printf("S\n");
     while (ros::ok())
     {
+        std::cout << "test cout for ehtercatcheck ! " << std::endl;
         if (inOP && ((wkc < expectedWKC) || ec_group[currentgroup].docheckstate))
         {
             printf("S\n");
@@ -474,8 +475,17 @@ void RealRobotInterface::ethercatCheck()
             if (!ec_group[currentgroup].docheckstate)
                 printf("*");
         }
+
+        std::cout << "test cout for ehtercatcheck ! : check end ! " << std::endl;
+
+        for (int slave = 1; slave <= ec_slavecount; slave++)
+            std::cout << "slave : " << slave << "\t" << ec_slave[slave].state << "\t";
+
+        std::cout << std::endl;
+
         osal_usleep(250);
     }
+    std::cout << "checking thread end !" << std::endl;
 }
 
 void RealRobotInterface::ImuCallback(const sensor_msgs::ImuConstPtr &msg)

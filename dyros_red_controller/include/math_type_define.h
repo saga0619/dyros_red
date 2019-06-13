@@ -553,5 +553,10 @@ static double minmax_cut(double val, double min_, double max_)
     return val;
 }
 
+static double check_border(double x, double y, double x0, double x1, double y0, double y1, double sign)
+{
+  return -sign * ((y1 - y0) * (x - x0) + (x1 - x0) * (y0 - y));
+}
+
 } // namespace DyrosMath
 #endif

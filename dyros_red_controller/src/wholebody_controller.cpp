@@ -685,7 +685,7 @@ Vector6d Wholebody_controller::zmp_controller(Vector2d ZMP, double height)
     return r_z;
 }
 
-VectorQd Wholebody_controller::gravity_compensation_torque()
+VectorQd Wholebody_controller::gravity_compensation_torque(bool fixed, bool redsvd)
 {
     ROS_DEBUG_ONCE("gravity torque calc start ");
     G.setZero(MODEL_DOF + 6);
@@ -694,6 +694,8 @@ VectorQd Wholebody_controller::gravity_compensation_torque()
     {
         G -= rk_.link_[i].Jac_COM_p.transpose() * rk_.link_[i].Mass * Grav_ref;
     }
+    if (fixed)
+        return G.segment(6, MODEL_DOF);
 
     Eigen::MatrixXd J_g;
     J_g.setZero(MODEL_DOF, MODEL_DOF + 6);
@@ -712,27 +714,24 @@ VectorQd Wholebody_controller::gravity_compensation_torque()
     torque_grav.setZero();
     Eigen::MatrixXd ppinv = DyrosMath::pinv_QR(aa);
     */
-
-    Eigen::MatrixXd ppinv = DyrosMath::pinv_SVD(aa);
+    Eigen::MatrixXd ppinv;
+    double epsilon = 1e-7;
+    if (redsvd)
+    {
+        RedSVD::RedSVD<Eigen::MatrixXd> svd(aa);
+        double tolerance = epsilon * std::max(aa.cols(), aa.rows()) * svd.singularValues().array().abs()(0);
+        ppinv = svd.matrixV() * (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
+    }
+    else
+    {
+        ppinv = DyrosMath::pinv_SVD(aa);
+    }
 
     Eigen::MatrixXd tg_temp = ppinv * J_g * A_matrix_inverse * N_C;
     torque_grav = tg_temp * G;
 
     ROS_DEBUG_ONCE("gravity torque calc end ");
     return torque_grav;
-}
-
-VectorQd Wholebody_controller::gravity_compensation_torque(bool fixed)
-{
-    ROS_DEBUG_ONCE("gravity torque calc start ");
-    G.setZero(MODEL_DOF + 6);
-
-    for (int i = 0; i < MODEL_DOF + 1; i++)
-    {
-        G -= rk_.link_[i].Jac_COM_p.transpose() * rk_.link_[i].Mass * Grav_ref;
-    }
-
-    return G.segment(6, MODEL_DOF);
 }
 
 VectorQd Wholebody_controller::task_control_torque(MatrixXd J_task, VectorXd f_star_)

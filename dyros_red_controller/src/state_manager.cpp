@@ -335,24 +335,54 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     pointpub_msg.polygon.points[2].y = link_[Left_Foot].xpos(1);
     pointpub_msg.polygon.points[2].z = link_[Left_Foot].xpos(2);
 
+    /*
     if (com_pos(1) < link_[Right_Foot].xpos(1))
     {
-        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << control_time_ << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
     }
     else if (com_pos(1) > link_[Left_Foot].xpos(1))
     {
-        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+        std::cout << control_time_ << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+    }
+    if ((com_pos(0) < link_[Right_Foot].xpos(0)) && (com_pos(0) < link_[Left_Foot].xpos(0)))
+    {
+        std::cout << control_time_ << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+    }
+    else if (com_pos(0) > link_[Left_Foot].xpos(0))
+    {
+        std::cout << control_time_ << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
+    } */
+
+    Eigen::Vector3d foot_ahead_pos(0.15, 0, 0);
+    Eigen::Vector3d foot_back_pos(-0.09, 0, 0);
+    Eigen::Vector3d RH, RT, LH, LT;
+
+    RH = link_[Right_Foot].xpos + link_[Right_Foot].Rotm * foot_ahead_pos;
+    RT = link_[Right_Foot].xpos + link_[Right_Foot].Rotm * foot_back_pos;
+
+    LH = link_[Left_Foot].xpos + link_[Left_Foot].Rotm * foot_ahead_pos;
+    LT = link_[Left_Foot].xpos + link_[Left_Foot].Rotm * foot_back_pos;
+
+    double s[4];
+
+    s[0] = DyrosMath::check_border(com_.pos(0), com_.pos(1), RH(0), RT(0), RH(1), RT(1), -1.0);
+    s[1] = DyrosMath::check_border(com_.pos(0), com_.pos(1), RT(0), LT(0), RT(1), LT(1), -1.0);
+    s[2] = DyrosMath::check_border(com_.pos(0), com_.pos(1), LT(0), LH(0), LT(1), LH(1), -1.0);
+    s[3] = DyrosMath::check_border(com_.pos(0), com_.pos(1), LH(0), RH(0), LH(1), RH(1), -1.0);
+    //std::cout << " com pos : x " << com_.pos(0) << "\t" << com_.pos(1) << std::endl;
+    //std::cout << "check sign ! \t" << s[0] << "\t" << s[1] << "\t" << s[2] << "\t" << s[3] << std::endl;
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (s[i] < 0)
+        {
+            std::cout << control_time_ << "com is out of support polygon !, line " << i << std::endl;
+        }
     }
 
-    if (com_pos(1) < link_[Right_Foot].xpos(1))
-    {
-        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
-    }
-    else if (com_pos(1) > link_[Left_Foot].xpos(1))
-    {
-        std::cout << "COM_Y OUT WARNING !!!!!!!!!!!!!!!!" << std::endl;
-    }
-
+    /*
+    s[1] = DyrosMath::check_border(com_.pos(0), com_.pos(1), RT(0), LT(0), RT(1), LT(1), 1.0);
+    std::cout << " s[1] : " << s[1] << std::endl; */
     Eigen::Vector3d vel_temp;
     vel_temp = com_.vel;
     com_.vel = com_vel;
@@ -439,9 +469,9 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
             dc.torqueOn = false;
             dc.torqueOff = true;
         }
-        else if(dc.torqueOff)
+        else if (dc.torqueOff)
         {
-            std::cout << "Torque is already disabled, command duplicated, ignoring command! "<<std::endl;
+            std::cout << "Torque is already disabled, command duplicated, ignoring command! " << std::endl;
         }
     }
     else if (msg->data == "gravity")

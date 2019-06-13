@@ -1,6 +1,5 @@
 #include "dyros_red_controller/red_controller.h"
 #include "dyros_red_controller/terminal.h"
-#include "dyros_red_controller/redsvd.h"
 #include "dyros_red_controller/wholebody_controller.h"
 #include <fstream>
 
@@ -120,7 +119,6 @@ void RedController::dynamicsThreadLow()
     Eigen::MatrixXd J_C;
     Eigen::MatrixXd J_C_temp;
     Eigen::MatrixXd Jcon[2];
-
     Eigen::VectorXd qtemp[2], conp[2];
 
     J_C.setZero(contact_number * 6, MODEL_DOF_VIRTUAL);
@@ -130,8 +128,13 @@ void RedController::dynamicsThreadLow()
     acceleration_estimated_before.setZero();
     q_dot_before_.setZero();
 
-    VectorQd TorqueDesiredLocal;
+    VectorQd TorqueDesiredLocal, TorqueContact;
     TorqueDesiredLocal.setZero();
+    TorqueContact.setZero();
+
+    Vector12d fc_redis;
+    double fc_ratio;
+    fc_redis.setZero();
 
     std::cout << "DynamicsThreadLow : START" << std::endl;
     while (!dc.shutdown && ros::ok())
@@ -150,75 +153,9 @@ void RedController::dynamicsThreadLow()
         ///////////////////////////////////////////////////////////////////////////////////////
 
         wc_.contact_set_multi(1, 1, 0, 0);
-        //A_matrix_inverse = A_.inverse();
 
-        /*
-        link_id[0] = Right_Foot;
-        link_id[1] = Left_Foot;
-        for (int i = 0; i < contact_number; i++)
-        {
-            link_[link_id[i]].Set_Contact(q_virtual_, link_[link_id[i]].contact_point);
-
-            qtemp[i] = q_virtual_;
-            conp[i] = link_[link_id[i]].contact_point;
-
-            J_C.block(i * 6, 0, 6, MODEL_DOF_VIRTUAL) = link_[link_id[i]].Jac_Contact;
-
-            Jcon[i] = link_[link_id[i]].Jac_Contact;
-        }
-
-        J_C_temp = J_C;
-
-        Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
-
-        J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
-        I37.setIdentity(total_dof_ + 6, total_dof_ + 6);
-
-        N_C = I37 - J_C.transpose() * J_C_INV_T;
-        Slc_k.setZero(total_dof_, total_dof_ + 6);
-        Slc_k.block(0, 6, total_dof_, total_dof_).setIdentity();
-        Slc_k_T = Slc_k.transpose();
-        //W = Slc_k * N_C.transpose() * A_matrix_inverse * N_C * Slc_k_T;
-        W = Slc_k * A_matrix_inverse * N_C * Slc_k_T; //2 types for w matrix
-
-        //W_inv = DyrosMath::pinv_SVD(W);
-        G.setZero(total_dof_ + 6);
-
-        Grav_ref.setZero(3);
-        Grav_ref(2) = -9.81;
-
-        for (int i = 0; i < total_dof_ + 1; i++)
-        {
-            G -= link_[i].Jac_COM_p.transpose() * link_[i].Mass * Grav_ref;
-        }
-        J_g.setZero(total_dof_, total_dof_ + 6);
-        J_g.block(0, 6, total_dof_, total_dof_).setIdentity();
-
-        aa = J_g * A_matrix_inverse * N_C * J_g.transpose();
-
-        double epsilon = std::numeric_limits<double>::epsilon();
-
-        Eigen::JacobiSVD<Eigen::MatrixXd> svd(aa, Eigen::ComputeThinU | Eigen::ComputeThinV);
-        //RedSVD::RedSVD<Eigen::MatrixXd> svd(aa);
-
-        double tolerance = epsilon * std::max(aa.cols(), aa.rows()) * svd.singularValues().array().abs()(0);
-
-        ppinv = svd.matrixV() * (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
-
-        tg_temp = ppinv * J_g * A_matrix_inverse * N_C;
-        torque_grav = tg_temp * G;
-        */
-        double ratio;
-
-        if (dc.fixedgravity)
-        {
-            //std::cout<<"fixedgravityMode"<<std::endl;
-            torque_grav = G.segment(6, MODEL_DOF);
-        }
-        //std::cout << "gravity compensation !" << std::endl;
-        TorqueDesiredLocal = wc_.gravity_compensation_torque();
-        //std::cout << "gravity compensation end!" << std::endl;
-
+        TorqueDesiredLocal = wc_.gravity_compensation_torque(dc.fixedgravity);
+        TorqueContact = wc_.contact_force_redistribution_torque(red_.yaw_radian, TorqueDesiredLocal, fc_redis, fc_ratio);
         //acceleration_estimated = (A_matrix_inverse * N_C * Slc_k_T * (TorqueDesiredLocal - torque_grav)).segment(6, MODEL_DOF);
         //acceleration_observed = q_dot_ - q_dot_before_;
         //q_dot_before_ = q_dot_;
@@ -232,7 +169,7 @@ void RedController::dynamicsThreadLow()
         ///////////////////////////////////////////////////////////////////////////////////////
 
         mtx.lock();
-        torque_desired = TorqueDesiredLocal;
+        torque_desired = TorqueDesiredLocal + TorqueContact;
         //dc.accel_dif = acceleration_differance;
         //dc.accel_obsrvd = acceleration_observed;
         mtx.unlock();
@@ -242,7 +179,6 @@ void RedController::dynamicsThreadLow()
         first = false;
 
         std::chrono::duration<double> elapsed_time = std::chrono::high_resolution_clock::now() - dyn_loop_start;
-
         //std::cout << "elapsed time : " << elapsed_time.count() << std::endl;
     }
 }
