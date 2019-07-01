@@ -14,6 +14,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     motor_acc_dif_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/accdifinfo", 1);
     tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
     point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point", 3);
+
     pointpub_msg.polygon.points.resize(3);
 
     if (dc.mode == "realrobot")
@@ -376,7 +377,8 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     {
         if (s[i] < 0)
         {
-            std::cout << control_time_ << "com is out of support polygon !, line " << i << std::endl;
+            if (dc.spalarm)
+                std::cout << control_time_ << "com is out of support polygon !, line " << i << std::endl;
         }
     }
 
@@ -505,5 +507,14 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     {
         std::cout << "fixed based gravity compensation mode" << std::endl;
         dc.fixedgravity = true;
+    }
+    else if (msg->data == "spalarm")
+    {
+        if (dc.spalarm)
+            std::cout << "Support Polygon alarm : Off" << std::endl;
+        else
+            std::cout << "Support Polygon alarm : On" << std::endl;
+
+        dc.spalarm = !dc.spalarm;
     }
 }

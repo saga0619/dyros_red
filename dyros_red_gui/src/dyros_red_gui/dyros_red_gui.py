@@ -38,7 +38,7 @@ class DyrosRedGuiPlugin(Plugin):
         self._publisher = rospy.Publisher(
             '/dyros_red/command', String, queue_size=10)
         self._publisher2 = rospy.Publisher(
-            '/dyros_red/com_command', dyros_red_msgs.msg.ComCommand, queue_size=10)
+            '/dyros_red/taskcommand', dyros_red_msgs.msg.TaskCommand, queue_size=10)
 
         global run_mode
         run_mode = rospy.get_param('/dyros_red_controller/run_mode', 'realrobot')
@@ -269,28 +269,25 @@ class DyrosRedGuiPlugin(Plugin):
         self.send_msg("tunereset")
 
     def com_command_sender(self):
-        if self._widget.text_pos.text().replace('.', '', 1).isdigit() and self._widget.text_time.text().replace('.', '', 1).isdigit():
-            print("Sending COM command mgs")
-            com_command_msg = dyros_red_msgs.msg.ComCommand()
-            c_pos = float(self._widget.text_pos.text())
-            if c_pos < 0 and c_pos > 1:
-                print("com pos value must between 0 ~ 1")
-            list = [0, c_pos, 1]
-            list.sort()
-            com_command_msg.ratio = list[1]
-            t_time = float(self._widget.text_time.text())
-            if t_time < 0:
-                print("traj time is negative. changing it to positive")
-                t_time = - t_time
-            com_command_msg.time = t_time
-            c_height = float(self._widget.text_height.text())
-            com_command_msg.height = c_height
-            com_command_msg.angle = float(self._widget.text_angle.text())
-            idx = self._widget.comboBox.currentIndex()
-            com_command_msg.mode = idx
-            self._publisher2.publish(com_command_msg)
-        else:
-            print("Commands need to be float and positive ! ")
+        print("Sending COM command mgs")
+        com_command_msg = dyros_red_msgs.msg.ComCommand()
+        c_pos = float(self._widget.text_pos.text())
+        if c_pos < 0 and c_pos > 1:
+            print("com pos value must between 0 ~ 1")
+        list = [0, c_pos, 1]
+        list.sort()
+        com_command_msg.ratio = list[1]
+        t_time = float(self._widget.text_time.text())
+        if t_time < 0:
+            print("traj time is negative. changing it to positive")
+            t_time = - t_time
+        com_command_msg.time = t_time
+        c_height = float(self._widget.text_height.text())
+        com_command_msg.height = c_height
+        com_command_msg.angle = float(self._widget.text_angle.text())
+        idx = self._widget.comboBox.currentIndex()
+        com_command_msg.mode = idx
+        self._publisher2.publish(com_command_msg)
 
     def torqueon_button(self):
         self.send_msg("torqueon")

@@ -557,6 +557,19 @@ static double check_border(double x, double y, double x0, double x1, double y0, 
 {
   return -sign * ((y1 - y0) * (x - x0) + (x1 - x0) * (y0 - y));
 }
-
+static inline double lowPassFilter(double input, double prev, double ts, double tau)
+{
+  return (tau * prev + ts * input) / (tau + ts);
+}
+template <int N>
+static Eigen::Matrix<double, N, 1> lowPassFilter(Eigen::Matrix<double, N, 1> input, Eigen::Matrix<double, N, 1> prev, double ts, double tau)
+{
+  Eigen::Matrix<double, N, 1> res;
+  for (int i = 0; i < N; i++)
+  {
+    res(i) = lowPassFilter(input(i), prev(i), ts, tau);
+  }
+  return res;
+}
 } // namespace DyrosMath
 #endif

@@ -119,8 +119,9 @@ private:
   RigidBodyDynamics::Model *model;
 };
 
-struct KinematicsData
+class KinematicsData
 {
+public:
   Com com_;
   Link link_[LINK_NUMBER + 1];
   double yaw_radian;

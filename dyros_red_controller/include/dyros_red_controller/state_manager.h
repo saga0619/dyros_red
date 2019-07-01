@@ -5,6 +5,7 @@
 #include "dyros_red_controller/terminal.h"
 #include "dyros_red_msgs/MotorInfo.h"
 #include "geometry_msgs/PolygonStamped.h"
+#include "dyros_red_msgs/TaskCommand.h"
 
 extern std::mutex mtx;
 extern std::mutex mtx_rbdl;
@@ -69,6 +70,7 @@ public:
   //Communication Subscriber!
 
   ros::Subscriber gui_command;
+  //ros::Subscriber task_command;
   ros::Publisher joint_states_pub;
   ros::Publisher time_pub;
   ros::Publisher motor_info_pub;
@@ -77,7 +79,6 @@ public:
 
   ros::Publisher tgainPublisher;
   std_msgs::Float32 tgain_p;
-  
 
   sensor_msgs::JointState joint_state_msg;
   std_msgs::Float32 time_msg;
@@ -86,6 +87,7 @@ public:
   geometry_msgs::PolygonStamped pointpub_msg;
 
   void CommandCallback(const std_msgs::StringConstPtr &msg);
+  //void TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg);
 };
 
 #endif

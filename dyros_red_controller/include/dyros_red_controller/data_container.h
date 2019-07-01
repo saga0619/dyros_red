@@ -146,6 +146,7 @@ public:
   bool customGain = false;
   bool fixedgravity = false;
   bool testmode = false;
+  bool spalarm = false;
 
   double t_gain = 0.0;
 

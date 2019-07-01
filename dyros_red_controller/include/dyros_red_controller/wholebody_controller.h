@@ -62,7 +62,7 @@ public:
   void update();
 
   //set contact status of robot. true for contact false for not contact
-  void contact_set_multi(bool right_foot, bool left_foot, bool right_hand, bool left_hand);
+  void set_contact(bool right_foot, bool left_foot, bool right_hand, bool left_hand);
 
   //contact force redistribution by yisoolee method at 2 contact(both foot)
   VectorQd contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta);
@@ -78,9 +78,7 @@ public:
 
   // Get Contact Redistribution Torque with QP. Wall contact mode.
   //VectorQd contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio);
-
   //Get Contact Redistribution Torque with QP. Wall contact mode.
-
   //VectorQd contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio);
 
   /*
@@ -193,7 +191,7 @@ public:
 
 private:
   //update contact space dynamics
-  void contact_set(int contact_number, int link_id[]);
+  //void contact_set(int contact_number, int link_id[]);
   void ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
   void ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
 };

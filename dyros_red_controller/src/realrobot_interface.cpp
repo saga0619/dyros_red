@@ -213,6 +213,7 @@ void RealRobotInterface::ethercatThread()
                                     txPDO[slave - 1]->targetPosition = (positionDesiredElmo(slave - 1)) * RAD2CNT[slave - 1] * Dr[slave - 1];
                                     //txPDO[slave - 1]->targetTorque = (int)(torqueDesiredElmo(slave - 1) * NM2CNT[slave - 1] * Dr[slave - 1]);
 
+                                    std::cout << ec_slave[0].state << std::endl;
                                     if (dc.emergencyoff)
                                     {
                                         txPDO[slave - 1]->targetTorque = 0.0;

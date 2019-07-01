@@ -47,6 +47,16 @@ const double Kvs[MODEL_DOF] =
         Kv_Pitch3s,
         Kv_Roll2s};
 
+struct TaskCommand
+{
+  double command_time;
+  double traj_time;
+  double ratio;
+  double height;
+  double angle;
+  int mode;
+};
+
 class RedController
 {
 public:
@@ -57,6 +67,9 @@ public:
   void dynamicsThreadHigh();
   void tuiThread();
   DataContainer &dc;
+  TaskCommand tc;
+  ros::Subscriber task_command;
+  void TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg);
 
 private:
   void getState();
@@ -72,6 +85,8 @@ private:
   double control_time_;
 
   bool safetymode;
+
+  bool task_switch = false;
 
   int dym_hz, stm_hz;
 
@@ -94,8 +109,7 @@ private:
 
   //Kinematics Information :
   KinematicsData red_;
-
-  Link link_[LINK_NUMBER + 1];
+  //Link link_[LINK_NUMBER + 1];
   double yaw_radian;
   Eigen::MatrixVVd A_;
   Eigen::MatrixVVd A_inv_;

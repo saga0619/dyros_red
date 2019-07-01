@@ -21,7 +21,7 @@ void Wholebody_controller::update()
     task_force_control_feedback = false;
     zmp_control = false;
 }
-
+/*
 void Wholebody_controller::contact_set(int contact_number, int link_id[])
 {
     J_C.setZero(contact_number * 6, MODEL_DOF_VIRTUAL);
@@ -42,9 +42,9 @@ void Wholebody_controller::contact_set(int contact_number, int link_id[])
     W = Slc_k * A_matrix_inverse * N_C * Slc_k_T; //2 types for w matrix
     W_inv = DyrosMath::pinv_SVD(W);
     contact_force_predict.setZero();
-}
+}*/
 
-void Wholebody_controller::contact_set_multi(bool right_foot, bool left_foot, bool right_hand, bool left_hand)
+void Wholebody_controller::set_contact(bool right_foot, bool left_foot, bool right_hand, bool left_hand)
 {
     contact_index = 0;
     if (right_foot)
@@ -67,8 +67,28 @@ void Wholebody_controller::contact_set_multi(bool right_foot, bool left_foot, bo
         contact_part[contact_index] = Left_Hand;
         contact_index++;
     }*/
-    contact_set(contact_index, contact_part);
+    //contact_set(contact_index, contact_part);
+
+    J_C.setZero(contact_index * 6, MODEL_DOF_VIRTUAL);
+    for (int i = 0; i < contact_index; i++)
+    {
+        rk_.link_[contact_part[i]].Set_Contact(current_q_, rk_.link_[contact_part[i]].contact_point);
+        J_C.block(i * 6, 0, 6, MODEL_DOF_VIRTUAL) = rk_.link_[contact_part[i]].Jac_Contact;
+    }
+    Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
+    J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
+    N_C.setZero(MODEL_DOF + 6, MODEL_DOF + 6);
+    I37.setIdentity(MODEL_DOF + 6, MODEL_DOF + 6);
+    N_C = I37 - J_C.transpose() * J_C_INV_T;
+    Slc_k.setZero(MODEL_DOF, MODEL_DOF + 6);
+    Slc_k.block(0, 6, MODEL_DOF, MODEL_DOF).setIdentity();
+    Slc_k_T = Slc_k.transpose();
+    //W = Slc_k * N_C.transpose() * A_matrix_inverse * N_C * Slc_k_T;
+    W = Slc_k * A_matrix_inverse * N_C * Slc_k_T; //2 types for w matrix
+    W_inv = DyrosMath::pinv_SVD(W);
+    contact_force_predict.setZero();
 }
+
 Matrix2d matpower(Matrix2d mat, int i)
 {
     Matrix2d m;
@@ -1042,8 +1062,9 @@ Vector3d Wholebody_controller::getfstar_tra(int link_id, Vector3d kpt, Vector3d 
     for (int i = 0; i < 3; i++)
     {
         fstar_(i) = kpt(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + kdt(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
-    }
 
+        //std::cout << i << "\t traj : " << rk_.link_[link_id].x_traj(i) << "\t pos : " << rk_.link_[link_id].xpos(i) << "\t init : " << rk_.link_[link_id].x_init(i) << std::endl;
+    }
     return fstar_;
 }
 

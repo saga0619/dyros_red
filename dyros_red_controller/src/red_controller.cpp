@@ -1,6 +1,8 @@
 #include "dyros_red_controller/red_controller.h"
 #include "dyros_red_controller/terminal.h"
 #include "dyros_red_controller/wholebody_controller.h"
+#include "dyros_red_msgs/TaskCommand.h"
+#include "stdlib.h"
 #include <fstream>
 
 std::mutex mtx;
@@ -12,6 +14,33 @@ std::mutex mtx_ncurse;
 RedController::RedController(DataContainer &dc_global, StateManager &sm, DynamicsManager &dm) : dc(dc_global), s_(sm), d_(dm)
 {
     initialize();
+
+    task_command = dc.nh.subscribe("/dyros_red/taskcommand", 100, &RedController::TaskCommandCallback, this);
+}
+
+void RedController::TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg)
+{
+    tc.command_time = control_time_;
+    tc.traj_time = msg->time;
+    tc.ratio = msg->ratio;
+    tc.angle = msg->angle;
+    tc.height = msg->height;
+    tc.mode = msg->mode;
+
+    red_.link_[Right_Foot].Set_initpos();
+    red_.link_[Left_Foot].Set_initpos();
+    red_.link_[Pelvis].Set_initpos();
+    red_.link_[COM_id].Set_initpos();
+
+    task_switch = true;
+
+    std::cout << "task command check : \n command time : " << control_time_ << "\n traj time : " << msg->time << "\n ratio : " << msg->ratio << std::endl;
+    std::cout << "init set check : Right Foot init pos : \n"
+              << red_.link_[Right_Foot].x_init << std::endl;
+    std::cout << "init set check : Left Foot init pos : \n"
+              << red_.link_[Left_Foot].x_init << std::endl;
+    std::cout << "init set check : Pelvis Foot init pos : \n"
+              << red_.link_[Pelvis].x_init << std::endl;
 }
 
 void RedController::stateThread()
@@ -112,7 +141,7 @@ void RedController::dynamicsThreadLow()
     Eigen::VectorXd G;
     Eigen::MatrixXd J_g;
     Eigen::MatrixXd aa;
-    Eigen::VectorXd torque_grav;
+    Eigen::VectorXd torque_grav, torque_task;
     Eigen::MatrixXd ppinv;
     Eigen::MatrixXd tg_temp;
     Eigen::MatrixXd A_matrix_inverse;
@@ -121,9 +150,16 @@ void RedController::dynamicsThreadLow()
     Eigen::MatrixXd Jcon[2];
     Eigen::VectorXd qtemp[2], conp[2];
 
+    Eigen::MatrixXd J_task;
+    Eigen::VectorXd f_star;
+
+    int task_number;
+
     J_C.setZero(contact_number * 6, MODEL_DOF_VIRTUAL);
-    N_C.setZero(total_dof_ + 6, total_dof_ + 6);
+    N_C.setZero(total_dof_ + 6, MODEL_DOF_VIRTUAL);
     bool first = true;
+
+    Eigen::Vector3d task_desired;
 
     acceleration_estimated_before.setZero();
     q_dot_before_.setZero();
@@ -135,6 +171,15 @@ void RedController::dynamicsThreadLow()
     Vector12d fc_redis;
     double fc_ratio;
     fc_redis.setZero();
+
+    Vector3d kp_, kd_, kpa_, kda_;
+    for (int i = 0; i < 3; i++)
+    {
+        kp_(i) = 400;
+        kd_(i) = 40;
+        kpa_(i) = 400;
+        kda_(i) = 40;
+    }
 
     std::cout << "DynamicsThreadLow : START" << std::endl;
     while (!dc.shutdown && ros::ok())
@@ -152,9 +197,45 @@ void RedController::dynamicsThreadLow()
         /////////////              Controller Code Here !                     /////////////////
         ///////////////////////////////////////////////////////////////////////////////////////
 
-        wc_.contact_set_multi(1, 1, 0, 0);
+        wc_.set_contact(1, 1, 0, 0);
 
-        TorqueDesiredLocal = wc_.gravity_compensation_torque(dc.fixedgravity);
+        torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+        torque_task.setZero(MODEL_DOF);
+
+        if (task_switch)
+        {
+            if (tc.mode == 0)
+            {
+                task_number = 6;
+                J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
+                f_star.setZero(task_number);
+
+                J_task = red_.link_[Pelvis].Jac;
+
+                task_desired = tc.ratio * red_.link_[Left_Foot].xpos + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos;
+                task_desired(2) = tc.height;
+
+                red_.link_[Pelvis].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time, task_desired);
+                f_star = wc_.getfstar6d(Pelvis, kp_, kd_, kpa_, kda_);
+
+                std::cout << "fstar : \n"
+                          << f_star << "\ntask_desired : \n " << task_desired << std::endl;
+
+                torque_task = wc_.task_control_torque(J_task, f_star);
+
+                std::cout << "torque task : " << std::endl
+                          << torque_task << std::endl
+                          << std::endl
+                          << std::endl
+                          << std::endl;
+                mtx.lock();
+                ros::Duration(5.0).sleep();
+
+                mtx.unlock();
+            }
+        }
+
+        TorqueDesiredLocal = torque_grav + torque_task;
         TorqueContact = wc_.contact_force_redistribution_torque(red_.yaw_radian, TorqueDesiredLocal, fc_redis, fc_ratio);
         //acceleration_estimated = (A_matrix_inverse * N_C * Slc_k_T * (TorqueDesiredLocal - torque_grav)).segment(6, MODEL_DOF);
         //acceleration_observed = q_dot_ - q_dot_before_;
