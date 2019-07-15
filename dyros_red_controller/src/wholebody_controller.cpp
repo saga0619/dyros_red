@@ -6,7 +6,7 @@
 // Params params;
 // Workspace work;(DataContainer &dc, KinematicsData &kd_);
 // Settings settings;
-Wholebody_controller::Wholebody_controller(DataContainer &dc_global, KinematicsData &kd_) : dc(dc_global), rk_(kd_)
+Wholebody_controller::Wholebody_controller(DataContainer &dc_global, KinematicsData &kind) : dc(dc_global), rk_(kind)
 {
     Grav_ref.setZero(3);
     Grav_ref(2) = -9.81;
@@ -1062,9 +1062,8 @@ Vector3d Wholebody_controller::getfstar_tra(int link_id, Vector3d kpt, Vector3d 
     for (int i = 0; i < 3; i++)
     {
         fstar_(i) = kpt(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + kdt(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
-
-        //std::cout << i << "\t traj : " << rk_.link_[link_id].x_traj(i) << "\t pos : " << rk_.link_[link_id].xpos(i) << "\t init : " << rk_.link_[link_id].x_init(i) << std::endl;
     }
+
     return fstar_;
 }
 

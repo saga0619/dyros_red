@@ -13,8 +13,10 @@ int main(int argc, char **argv)
     dc.nh.param("/dyros_red_controller/ncurse", dc.ncurse_mode, true);
     dc.nh.param<std::string>("/dyros_red_controller/ifname", dc.ifname, "enp0s31f6");
     dc.nh.param("/dyros_red_controller/ctime", dc.ctime, 250);
+    dc.nh.param("/dyros_red_controller/pub_mode", dc.pubmode, false);
 
     Tui tui(dc);
+
     std::string cs[10][10];
     tui.ReadAndPrint(3, 0, "ascii0");
 
@@ -178,7 +180,6 @@ int main(int argc, char **argv)
             rprint_sol(dc.ncurse_mode, 3 + 2 * i, 35, "Thread %d End", i);
         }
     }
-
 
     if (dc.ncurse_mode)
         mvprintw(22, 10, "PRESS ANY KEY TO EXIT ...");

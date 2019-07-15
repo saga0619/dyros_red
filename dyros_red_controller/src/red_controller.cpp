@@ -33,14 +33,6 @@ void RedController::TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPt
     red_.link_[COM_id].Set_initpos();
 
     task_switch = true;
-
-    std::cout << "task command check : \n command time : " << control_time_ << "\n traj time : " << msg->time << "\n ratio : " << msg->ratio << std::endl;
-    std::cout << "init set check : Right Foot init pos : \n"
-              << red_.link_[Right_Foot].x_init << std::endl;
-    std::cout << "init set check : Left Foot init pos : \n"
-              << red_.link_[Left_Foot].x_init << std::endl;
-    std::cout << "init set check : Pelvis Foot init pos : \n"
-              << red_.link_[Pelvis].x_init << std::endl;
 }
 
 void RedController::stateThread()
@@ -184,10 +176,17 @@ void RedController::dynamicsThreadLow()
     std::cout << "DynamicsThreadLow : START" << std::endl;
     while (!dc.shutdown && ros::ok())
     {
+        if (control_time_ == 0)
+        {
+            first = true;
+            task_switch = false;
+        }
         std::chrono::high_resolution_clock::time_point dyn_loop_start = std::chrono::high_resolution_clock::now();
 
         getState();
+
         wc_.update();
+
         sec = std::chrono::high_resolution_clock::now() - start_time;
         if (sec.count() - control_time_ > 0.01)
         {
@@ -197,15 +196,15 @@ void RedController::dynamicsThreadLow()
         /////////////              Controller Code Here !                     /////////////////
         ///////////////////////////////////////////////////////////////////////////////////////
 
-        wc_.set_contact(1, 1, 0, 0);
-
-        torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
         torque_task.setZero(MODEL_DOF);
 
         if (task_switch)
         {
             if (tc.mode == 0)
             {
+                wc_.set_contact(1, 1, 0, 0);
+
+                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
                 task_number = 6;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
                 f_star.setZero(task_number);
@@ -213,26 +212,84 @@ void RedController::dynamicsThreadLow()
                 J_task = red_.link_[Pelvis].Jac;
 
                 task_desired = tc.ratio * red_.link_[Left_Foot].xpos + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos;
-                task_desired(2) = tc.height;
+                task_desired(2) = tc.height + tc.ratio * red_.link_[Left_Foot].xpos(2) + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos(2);
 
                 red_.link_[Pelvis].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time, task_desired);
-                f_star = wc_.getfstar6d(Pelvis, kp_, kd_, kpa_, kda_);
 
-                std::cout << "fstar : \n"
-                          << f_star << "\ntask_desired : \n " << task_desired << std::endl;
+                //red_.link_[Pelvis].rot_desired = Matrix3d::Identity();
+
+                //red_.link_[Pelvis].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, false);
+
+                f_star = wc_.getfstar6d(COM_id, kp_, kd_, kpa_, kda_);
 
                 torque_task = wc_.task_control_torque(J_task, f_star);
-
-                std::cout << "torque task : " << std::endl
-                          << torque_task << std::endl
-                          << std::endl
-                          << std::endl
-                          << std::endl;
-                mtx.lock();
-                ros::Duration(5.0).sleep();
-
-                mtx.unlock();
             }
+            else if (tc.mode == 1)
+            {
+                if (control_time_ < tc.command_time + tc.traj_time)
+                    wc_.set_contact(1, 1, 0, 0);
+                else
+                    wc_.set_contact(0, 1, 0, 0);
+                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                task_number = 6;
+                J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
+                f_star.setZero(task_number);
+
+                J_task = red_.link_[COM_id].Jac;
+
+                task_desired = tc.ratio * red_.link_[Left_Foot].xpos + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos;
+                task_desired(2) = tc.height + tc.ratio * red_.link_[Left_Foot].xpos(2) + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos(2);
+                //task_desired(2) = tc.height;
+
+                red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time, task_desired);
+                f_star = wc_.getfstar6d(COM_id, kp_, kd_, kpa_, kda_);
+
+                torque_task = wc_.task_control_torque(J_task, f_star);
+            }
+            else if (tc.mode == 2)
+            {
+                if (control_time_ < tc.command_time + tc.traj_time)
+                {
+                    wc_.set_contact(1, 1, 0, 0);
+                }
+                else
+                {
+                    wc_.set_contact(0, 1, 0, 0);
+                    //task_number = 12;
+                    //J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
+                    //f_star.setZero(task_number);
+
+                    //J_task.block(0, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[COM_id].Jac;
+                    //J_task.block(6, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[Right_Foot].Jac;
+                }
+
+                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                task_number = 6;
+                J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
+                f_star.setZero(task_number);
+
+                J_task = red_.link_[COM_id].Jac;
+
+                red_.link_[COM_id].x_desired = tc.ratio * red_.link_[Left_Foot].xpos + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos;
+                red_.link_[COM_id].x_desired(2) = tc.height + tc.ratio * red_.link_[Left_Foot].xpos(2) + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos(2);
+
+                red_.link_[COM_id].rot_desired = Matrix3d::Identity();
+
+                //red_.link_[COM_id].
+                //task_desired(2) = tc.height;
+
+                red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time);
+                red_.link_[COM_id].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, false);
+                f_star = wc_.getfstar6d(COM_id, kp_, kd_, kpa_, kda_);
+
+                torque_task = wc_.task_control_torque(J_task, f_star);
+            }
+        }
+        else
+        {
+            wc_.set_contact(1, 1, 0, 0);
+
+            torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
         }
 
         TorqueDesiredLocal = torque_grav + torque_task;
@@ -346,6 +403,7 @@ void RedController::getState()
 
             red_.link_[i] = dc.link_[i];
         }
+        first_run = false;
     }
     for (int i = 0; i < LINK_NUMBER + 1; i++)
     {

@@ -126,6 +126,19 @@ void Link::Set_Trajectory(Eigen::Vector3d position_desired, Eigen::Vector3d velo
     w_traj = rotational_velocity_desired;
 }
 
+void Link::Set_Trajectory_from_quintic(double current_time, double start_time, double end_time)
+{
+    for (int j = 0; j < 3; j++)
+    {
+        Eigen::Vector3d quintic = DyrosMath::QuinticSpline(current_time, start_time, end_time, x_init(j), 0, 0, x_desired(j), 0, 0);
+        x_traj(j) = quintic(0);
+        v_traj(j) = quintic(1);
+    }
+
+    r_traj = rot_init;
+    w_traj = Eigen::Vector3d::Zero();
+}
+
 void Link::Set_Trajectory_from_quintic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_desired)
 {
     for (int j = 0; j < 3; j++)
@@ -152,7 +165,7 @@ void Link::Set_Trajectory_from_quintic(double current_time, double start_time, d
     w_traj = Eigen::Vector3d::Zero();
 }
 
-void Link::Set_Trajectory_rotation(double current_time, double start_time, double end_time, Eigen::Matrix3d rot_desired, bool local_)
+void Link::Set_Trajectory_rotation(double current_time, double start_time, double end_time, bool local_)
 {
     Eigen::Vector3d axis;
     double angle;
@@ -165,6 +178,38 @@ void Link::Set_Trajectory_rotation(double current_time, double start_time, doubl
     else
     {
         Eigen::AngleAxisd aa(rot_init.transpose() * rot_desired);
+        axis = aa.axis();
+        angle = aa.angle();
+    }
+    double c_a = DyrosMath::cubic(current_time, start_time, end_time, 0.0, angle, 0.0, 0.0);
+    Eigen::Matrix3d rmat;
+    rmat = Eigen::AngleAxisd(c_a, axis);
+
+    r_traj = rot_init * rmat;
+
+    double dtime = 0.0001;
+    double c_a_dtime = DyrosMath::cubic(current_time + dtime, start_time, end_time, 0.0, angle, 0.0, 0.0);
+
+    Eigen::Vector3d ea = r_traj.eulerAngles(0, 1, 2);
+
+    Eigen::Vector3d ea_dtime = (rot_init * Eigen::AngleAxisd(c_a_dtime, axis)).eulerAngles(0, 1, 2);
+
+    w_traj = (ea_dtime - ea) / dtime;
+}
+
+void Link::Set_Trajectory_rotation(double current_time, double start_time, double end_time, Eigen::Matrix3d rot_desired_, bool local_)
+{
+    Eigen::Vector3d axis;
+    double angle;
+    if (local_)
+    {
+        Eigen::AngleAxisd aa(rot_desired_);
+        axis = aa.axis();
+        angle = aa.angle();
+    }
+    else
+    {
+        Eigen::AngleAxisd aa(rot_init.transpose() * rot_desired_);
         axis = aa.axis();
         angle = aa.angle();
     }

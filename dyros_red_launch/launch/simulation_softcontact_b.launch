@@ -5,12 +5,10 @@
   <arg name="gui" default="true"/>
   <arg name="run_mode" default="simulation"/>
   <arg name="ncurse" default="false"/>
-  <arg name="pub_mode" default="true"/>
 
   <node name="mujoco_ros" pkg="mujoco_ros" type="mujoco_ros" required="true" respawn="false" output="screen">
     <param name="license" type="string" value="$(find dyros_red_lowerbody_description)/../../../../mjkey.txt" />
-    <param name="model_file" type="string" value="$(find dyros_red_lowerbody_description)/mujoco_model/red_lowerbody.xml"/>
-    <param name="pub_mode" value="$(arg pub_mode)"/>
+    <param name="model_file" type="string" value="$(find dyros_red_lowerbody_description)/mujoco_model/red_lowerbody_softcontact_b.xml"/>
   </node>
 
   <group if="$(arg controller)">
@@ -19,7 +17,6 @@
       <param name="debug" value="$(arg debug)" />
       <param name="rviz_pub" value="$(arg rviz)"/>
       <param name="ncurse" value="$(arg ncurse)"/>
-      <param name="pub_mode" value="$(arg pub_mode)"/>
     </node>
   </group>
 

@@ -147,6 +147,9 @@ public:
   bool fixedgravity = false;
   bool testmode = false;
   bool spalarm = false;
+  bool pubmode = false;
+
+  bool initialize_request = false;
 
   double t_gain = 0.0;
 

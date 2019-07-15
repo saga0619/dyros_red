@@ -2,6 +2,7 @@
 #define MUJOCO_INTERFACE_H
 
 #include "state_manager.h"
+#include "mujoco_ros_msgs/SimStatus.h"
 
 class MujocoInterface : public StateManager
 {
@@ -29,6 +30,7 @@ private:
   void sensorStateCallback(const mujoco_ros_msgs::SensorStateConstPtr &msg);
   void simCommandCallback(const std_msgs::StringConstPtr &msg);
   void simTimeCallback(const std_msgs::Float32ConstPtr &msg);
+  void simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr &msg);
 
   ros::Publisher mujoco_joint_set_pub_;
   ros::Publisher mujoco_sim_command_pub_;
@@ -37,6 +39,7 @@ private:
   ros::Subscriber mujoco_sensor_state_sub_;
   ros::Subscriber mujoco_sim_command_sub_;
   ros::Subscriber mujoco_sim_time_sub_;
+  ros::Subscriber mujoco_sim_status_sub_;
 
   mujoco_ros_msgs::JointSet mujoco_joint_set_msg_;
 
@@ -45,6 +48,8 @@ private:
   bool mujoco_ready = false;
   bool mujoco_init_receive = false;
   bool mujoco_reset = false;
+
+  bool virtual_joint_from_simlulation = true;
 
   float mujoco_sim_time;
   float mujoco_sim_last_time;

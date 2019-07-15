@@ -31,6 +31,7 @@ void DynamicsManager::dynamicsThread(void)
         rprint(dc, 17, 10, "single thread dyn calc : %8.4f ms              ", d1);
         if (dc.shutdown)
         {
+            //std::cout<<"
             rprint(dc, true, 17, 10, "thread calc end ");
             break;
         }

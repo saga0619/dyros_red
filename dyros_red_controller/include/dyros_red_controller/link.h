@@ -48,10 +48,16 @@ public:
   void Set_Trajectory(Eigen::Vector3d position_desired, Eigen::Vector3d velocity_desired, Eigen::Matrix3d rotation_desired, Eigen::Vector3d rotational_velocity_desired);
 
   // set realtime trajectory of link from quintic spline.
+  void Set_Trajectory_from_quintic(double current_time, double start_time, double end_time);
+
+  // set realtime trajectory of link from quintic spline.
   void Set_Trajectory_from_quintic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_desired);
 
   // set realtime trajectory of link from quintic spline.
   void Set_Trajectory_from_quintic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_init, Eigen::Vector3d pos_desired);
+
+  // set realtime trajectory of rotation of link
+  void Set_Trajectory_rotation(double current_time, double start_time, double end_time, bool local_);
 
   // set realtime trajectory of rotation of link
   void Set_Trajectory_rotation(double current_time, double start_time, double end_time, Eigen::Matrix3d rot_desired, bool local_);
@@ -113,6 +119,9 @@ public:
   Eigen::Vector3d v_init;
   Eigen::Matrix3d rot_init;
 
+  Eigen::Vector3d x_desired;
+  Eigen::Matrix3d rot_desired;
+
 private:
   Eigen::MatrixXd j_temp;
   Eigen::MatrixXd j_temp2;
@@ -132,6 +141,8 @@ public:
   Eigen::VectorQd q_dot_;
   Eigen::VectorVQd q_dot_virtual_;
   Eigen::VectorVQd q_ddot_virtual_;
+
+  bool check = false;
 };
 
 std::ostream &

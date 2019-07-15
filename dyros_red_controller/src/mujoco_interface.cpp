@@ -3,15 +3,20 @@
 MujocoInterface::MujocoInterface(DataContainer &dc_global) : dc(dc_global), StateManager(dc_global)
 {
     ros::NodeHandle nh = dc.nh;
+    if (dc.pubmode)
+    {
+        mujoco_sim_status_sub_ = nh.subscribe("/mujoco_ros_interface/sim_status", 1, &MujocoInterface::simStatusCallback, this, ros::TransportHints().tcpNoDelay(true));
+    }
+    else
+    {
+        mujoco_joint_state_sub_ = nh.subscribe("/mujoco_ros_interface/joint_states", 1, &MujocoInterface::jointStateCallback, this, ros::TransportHints().tcpNoDelay(true));
+        mujoco_sim_time_sub_ = nh.subscribe("/mujoco_ros_interface/sim_time", 1, &MujocoInterface::simTimeCallback, this, ros::TransportHints().tcpNoDelay(true));
+        mujoco_sensor_state_sub_ = nh.subscribe("/mujoco_ros_interface/sensor_states", 1, &MujocoInterface::sensorStateCallback, this, ros::TransportHints().tcpNoDelay(true));
+    }
 
     mujoco_joint_set_pub_ = nh.advertise<mujoco_ros_msgs::JointSet>("/mujoco_ros_interface/joint_set", 1);
     mujoco_sim_command_pub_ = nh.advertise<std_msgs::String>("/mujoco_ros_interface/sim_command_con2sim", 100);
     mujoco_sim_command_sub_ = nh.subscribe("/mujoco_ros_interface/sim_command_sim2con", 100, &MujocoInterface::simCommandCallback, this);
-
-    mujoco_joint_state_sub_ = nh.subscribe("/mujoco_ros_interface/joint_states", 1, &MujocoInterface::jointStateCallback, this, ros::TransportHints().tcpNoDelay(true));
-    mujoco_sim_time_sub_ = nh.subscribe("/mujoco_ros_interface/sim_time", 1, &MujocoInterface::simTimeCallback, this, ros::TransportHints().tcpNoDelay(true));
-    mujoco_sensor_state_sub_ = nh.subscribe("/mujoco_ros_interface/sensor_states", 1, &MujocoInterface::sensorStateCallback, this, ros::TransportHints().tcpNoDelay(true));
-
     mujoco_joint_set_msg_.position.resize(MODEL_DOF);
     mujoco_joint_set_msg_.torque.resize(MODEL_DOF);
 }
@@ -146,6 +151,134 @@ void MujocoInterface::simTimeCallback(const std_msgs::Float32ConstPtr &msg)
     sim_time_ = mujoco_sim_time;
 }
 
+void MujocoInterface::simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr &msg)
+{
+    mujoco_sim_time = msg->time;
+    control_time_ = mujoco_sim_time;
+    sim_time_ = mujoco_sim_time;
+
+    for (int i = 0; i < MODEL_DOF; i++)
+    {
+        for (int j = 0; j < msg->name.size(); j++)
+        {
+            if (RED::ACTUATOR_NAME[i] == msg->name[j].data())
+            {
+                q_(i) = msg->position[j];
+                q_virtual_(i + 6) = msg->position[j];
+                q_dot_(i) = msg->velocity[j];
+                q_dot_virtual_(i + 6) = msg->velocity[j];
+                q_ddot_virtual_(i + 6) = msg->effort[j];
+                torque_(i) = msg->effort[j];
+            }
+        }
+
+        joint_name_mj[i] = msg->name[i + 6].data();
+    }
+
+    //virtual joint
+    if (virtual_joint_from_simlulation)
+    {
+        for (int i = 0; i < 6; i++)
+        {
+            q_virtual_(i) = msg->position[i];
+            q_dot_virtual_(i) = msg->velocity[i];
+            q_ddot_virtual_(i) = msg->effort[i];
+        }
+        q_virtual_(MODEL_DOF + 6) = msg->position[MODEL_DOF + 6];
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "Gyro_Pelvis_IMU")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //q_dot_virtual_(j+3)=msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "RF_Force_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //right_foot_ft_(j) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "RF_Torque_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //right_foot_ft_(j + 3) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "LF_Force_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //left_foot_ft_(j) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "LF_Torque_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //left_foot_ft_(j + 3) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "LH_Force_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //left_hand_ft_(j) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "LH_Torque_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //left_hand_ft_(j + 3) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "RH_Force_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //right_hand_ft_(j) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    for (int i = 0; i < msg->sensor.size(); i++)
+    {
+        if (msg->sensor[i].name == "RH_Torque_sensor")
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                //right_hand_ft_(j + 3) = msg->sensor[i].data[j];
+            }
+        }
+    }
+    data_received_counter_++;
+}
+
 void MujocoInterface::jointStateCallback(const sensor_msgs::JointStateConstPtr &msg)
 {
     for (int i = 0; i < MODEL_DOF; i++)
@@ -167,15 +300,17 @@ void MujocoInterface::jointStateCallback(const sensor_msgs::JointStateConstPtr &
     }
 
     //virtual joint
-
-    for (int i = 0; i < 6; i++)
+    if (virtual_joint_from_simlulation)
     {
-        q_virtual_(i) = msg->position[i];
-        q_dot_virtual_(i) = msg->velocity[i];
-        q_ddot_virtual_(i) = msg->effort[i];
+        for (int i = 0; i < 6; i++)
+        {
+            q_virtual_(i) = msg->position[i];
+            q_dot_virtual_(i) = msg->velocity[i];
+            q_ddot_virtual_(i) = msg->effort[i];
+        }
+        q_virtual_(MODEL_DOF + 6) = msg->position[MODEL_DOF + 6];
     }
 
-    q_virtual_(MODEL_DOF + 6) = msg->position[MODEL_DOF + 6];
     data_received_counter_++;
     //tf::Quaternion q(q_virtual_(3), q_virtual_(4), q_virtual_(5), q_virtual_(total_dof_ + 6));
     //q.normalize();

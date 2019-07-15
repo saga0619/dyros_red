@@ -28,6 +28,7 @@ public:
   //store data at container
   void storeState();
 
+  void stateEstimate();
   //private functions
 
   //update kinematic information with RBDL
@@ -41,6 +42,7 @@ public:
   unsigned int link_id_[40];
 
   double control_time_;
+  double control_time_before_;
   double sim_time_;
 
   int data_received_counter_;

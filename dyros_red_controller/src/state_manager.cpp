@@ -115,6 +115,11 @@ void StateManager::stateThread(void)
         //std::cout << "update rbdl, ";
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
+        //std::cout <<" state estimation ";
+        stateEstimate();
+
+        updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
+
         //std::cout << "store states, ";
         storeState();
 
@@ -129,11 +134,17 @@ void StateManager::stateThread(void)
         }
         e_s = std::chrono::high_resolution_clock::now() - StartTime;
         //To check frequency
-        /*if (e_s.count() > sec10.count() * i)
+
+        if (e_s.count() > sec10.count() * i)
         {
-            rprint(dc, 0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
+            //rprint(dc, 0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
+
+            if ((ThreadCount - (i - 1) * dc.stm_hz) != dc.stm_hz)
+            {
+                std::cout << "state update frequency warning ! " << ThreadCount - (i - 1) * dc.stm_hz << " hz! " << std::endl;
+            }
             i++;
-        }*/
+        }
 
         //Data to GUI
         if ((ThreadCount % (int)(dc.stm_hz / 60)) == 0)
@@ -197,6 +208,9 @@ void StateManager::testThread()
         updateState();
         updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
 
+        stateEstimate();
+        updateKinematics(q_virtual_, q_dot_virtual_, q_ddot_virtual_);
+
         storeState();
 
         //std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
@@ -249,7 +263,7 @@ void StateManager::storeState()
 {
     mtx_dc.lock();
 
-    for (int i = 0; i < LINK_NUMBER; i++)
+    for (int i = 0; i < LINK_NUMBER + 1; i++)
     {
         dc.link_[i] = link_[i];
     }
@@ -431,6 +445,10 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     //link_[Right_Hand].Set_Contact(model_, q_virtual_, link_[Right_Hand].contact_point);
     //link_[Left_Hand].Set_Contact(model_, q_virtual_, link_[Left_Hand].contact_point);
     //ROS_INFO_ONCE("CONTROLLER : MODEL : updatekinematics end ");
+}
+
+void StateManager::stateEstimate()
+{
 }
 
 void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
