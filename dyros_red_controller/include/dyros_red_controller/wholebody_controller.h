@@ -52,6 +52,8 @@ public:
   bool target_arrived_[4];
   bool debug;
 
+  bool contact_calc = false;
+
   VectorQVQd current_q_;
   //const VectorQd &current_q_; // updated by control_base
 
@@ -62,7 +64,8 @@ public:
   void update();
 
   //set contact status of robot. true for contact false for not contact
-  void set_contact(bool right_foot, bool left_foot, bool right_hand, bool left_hand);
+  void set_contact();
+  void set_contact(bool left_foot, bool right_foot, bool left_hand = false, bool right_hand = false);
 
   //contact force redistribution by yisoolee method at 2 contact(both foot)
   VectorQd contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta);

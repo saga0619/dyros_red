@@ -97,14 +97,18 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
 void StateManager::stateThread(void)
 {
     std::chrono::high_resolution_clock::time_point StartTime = std::chrono::high_resolution_clock::now();
+    //std::chrono::high_resolution_clock::time_point StartTime2 = std::chrono::high_resolution_clock::now();
     std::chrono::seconds sec10(1);
     std::chrono::milliseconds ms(50);
+
+    std::chrono::high_resolution_clock::time_point int_StartTime = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> e_s(0);
     //ROS_INFO("START");
     int ThreadCount = 0;
     int i = 1;
     int dcount = 0;
+    int ThreadCount2 = 0;
 
     while (ros::ok())
     {
@@ -126,23 +130,19 @@ void StateManager::stateThread(void)
         //std::cout << "store states complete !" <<std::endl;
         dc.firstcalcdone = true;
 
-        std::this_thread::sleep_until(StartTime + ThreadCount * dc.stm_timestep);
-
         if (dc.shutdown)
         {
             break;
         }
-        e_s = std::chrono::high_resolution_clock::now() - StartTime;
+        e_s = int_StartTime - StartTime;
         //To check frequency
-
-        if (e_s.count() > sec10.count() * i)
+        if (e_s > sec10)
         {
+            StartTime = std::chrono::high_resolution_clock::now();
             //rprint(dc, 0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
 
-            if ((ThreadCount - (i - 1) * dc.stm_hz) != dc.stm_hz)
-            {
-                std::cout << "state update frequency warning ! " << ThreadCount - (i - 1) * dc.stm_hz << " hz! " << std::endl;
-            }
+            std::cout << "state update frequency warning ! " << ThreadCount - ThreadCount2 << " hz! " << std::endl;
+            ThreadCount2 = ThreadCount;
             i++;
         }
 
@@ -190,6 +190,10 @@ void StateManager::stateThread(void)
         motor_acc_dif_info_pub.publish(acc_dif_info_msg);
 
         ThreadCount++;
+
+        //std::this_thread::sleep_until(int_StartTime + dc.stm_timestep);
+        //std::this_thread::sleep_until(int_StartTime + dc.stm_timestep);
+        int_StartTime = std::chrono::high_resolution_clock::now();
     }
 }
 void StateManager::testThread()
@@ -472,12 +476,17 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     }
     else if (msg->data == "positioncontrol")
     {
-        std::cout << "Joint Position Control Mode is on! Holding current position!" << std::endl;
         if (!dc.positionControl)
         {
+            std::cout << "Joint position control : on " << std::endl;
             dc.commandTime = control_time_;
             dc.positionDesired = q_;
         }
+        else
+        {
+            std::cout << "Joint position control : off " << std::endl;
+        }
+
         dc.positionControl = !dc.positionControl;
     }
     else if (msg->data == "torqueoff")
@@ -496,9 +505,17 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
     }
     else if (msg->data == "gravity")
     {
-        std::cout << "gravity compensation mode is on! " << std::endl;
-        dc.commandTime = control_time_;
-        dc.gravityMode = true;
+        if (dc.gravityMode)
+        {
+            std::cout << "gravity compensation mode : off " << std::endl;
+            dc.gravityMode = false;
+        }
+        else
+        {
+            std::cout << "gravity compensation mode is on! " << std::endl;
+            dc.commandTime = control_time_;
+            dc.gravityMode = true;
+        }
     }
     else if (msg->data == "emergencyoff")
     {
@@ -534,5 +551,17 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
             std::cout << "Support Polygon alarm : On" << std::endl;
 
         dc.spalarm = !dc.spalarm;
+    }
+    else if (msg->data == "torqueredis")
+    {
+        if (dc.torqueredis)
+        {
+            std::cout << "Torque contact redistribution off " << std::endl;
+        }
+        else
+        {
+            std::cout << "Torque contact redistribution on " << std::endl;
+        }
+        dc.torqueredis = !dc.torqueredis;
     }
 }

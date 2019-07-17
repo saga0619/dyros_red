@@ -128,6 +128,13 @@ private:
   RigidBodyDynamics::Model *model;
 };
 
+class EndEffector
+{
+public:
+  Eigen::Vector3d cp_;
+  bool contact = false;
+};
+
 class KinematicsData
 {
 public:
@@ -143,6 +150,10 @@ public:
   Eigen::VectorVQd q_ddot_virtual_;
 
   bool check = false;
+
+  bool contact_[ENDEFFECTOR_NUMBER] = {true, true};
+
+  EndEffector ee_[ENDEFFECTOR_NUMBER];
 };
 
 std::ostream &

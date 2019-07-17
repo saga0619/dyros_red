@@ -148,6 +148,7 @@ public:
   bool testmode = false;
   bool spalarm = false;
   bool pubmode = false;
+  bool torqueredis = false;
 
   bool initialize_request = false;
 

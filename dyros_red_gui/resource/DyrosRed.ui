@@ -134,7 +134,7 @@
           </size>
          </property>
          <property name="text">
-          <string>0.9</string>
+          <string>0.75</string>
          </property>
         </widget>
        </item>
@@ -195,17 +195,17 @@
          </property>
          <item>
           <property name="text">
-           <string>COM only</string>
+           <string>Pelvis Control</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>Pelvis with Arms</string>
+           <string>COM to left foot single</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>Pelvis only</string>
+           <string>COM to lf, pelvis to horizontal</string>
           </property>
          </item>
          <item>
@@ -431,6 +431,9 @@
    <property name="text">
     <string>TORQUE OFF</string>
    </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
   </widget>
   <widget class="QPushButton" name="torqueon_button">
    <property name="enabled">
@@ -454,6 +457,12 @@
    </property>
    <property name="text">
     <string>TORQUE ON</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
    </property>
   </widget>
   <widget class="QWidget" name="layoutWidget_2">
@@ -522,6 +531,9 @@
     <string>EMERGENCY
 OFF</string>
    </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
   </widget>
   <widget class="QTabWidget" name="tabWidget">
    <property name="geometry">
@@ -539,7 +551,7 @@ OFF</string>
     <enum>QTabWidget::North</enum>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>3</number>
    </property>
    <property name="elideMode">
     <enum>Qt::ElideNone</enum>
@@ -1917,8 +1929,8 @@ OFF</string>
     <widget class="QWidget" name="horizontalLayoutWidget_3">
      <property name="geometry">
       <rect>
-       <x>30</x>
-       <y>60</y>
+       <x>10</x>
+       <y>50</y>
        <width>241</width>
        <height>321</height>
       </rect>
@@ -2067,8 +2079,8 @@ OFF</string>
     <widget class="QLabel" name="label_62">
      <property name="geometry">
       <rect>
-       <x>120</x>
-       <y>40</y>
+       <x>100</x>
+       <y>30</y>
        <width>66</width>
        <height>17</height>
       </rect>
@@ -2080,8 +2092,8 @@ OFF</string>
     <widget class="QLabel" name="label_63">
      <property name="geometry">
       <rect>
-       <x>200</x>
-       <y>40</y>
+       <x>180</x>
+       <y>30</y>
        <width>66</width>
        <height>17</height>
       </rect>
@@ -2093,8 +2105,8 @@ OFF</string>
     <widget class="QPushButton" name="pushButton">
      <property name="geometry">
       <rect>
-       <x>170</x>
-       <y>390</y>
+       <x>150</x>
+       <y>380</y>
        <width>97</width>
        <height>27</height>
       </rect>
@@ -2106,14 +2118,27 @@ OFF</string>
     <widget class="QPushButton" name="pushButton_2">
      <property name="geometry">
       <rect>
-       <x>60</x>
-       <y>390</y>
+       <x>40</x>
+       <y>380</y>
        <width>97</width>
        <height>27</height>
       </rect>
      </property>
      <property name="text">
       <string>Current</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="torqueredis">
+     <property name="geometry">
+      <rect>
+       <x>280</x>
+       <y>60</y>
+       <width>97</width>
+       <height>27</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>torqueredis</string>
      </property>
     </widget>
    </widget>

@@ -100,6 +100,8 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.task_button.setShortcut(QKeySequence("p"))
         torqueon = False
 
+        self._widget.torqueredis.pressed.connect(self.torqueredis_button)
+
         # Limit QLineEdit input to double.
         dbl_val = QDoubleValidator()
 
@@ -296,6 +298,7 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.contact_button.setEnabled(True)
         self._widget.data_button.setEnabled(True)
         self._widget.msg_box.setText("Ready to Go !")
+        self._widget.torqueoff_button.setChecked(False)
 
     def emergencyoff_button(self):
         self.send_msg("emergencyoff")
@@ -304,6 +307,7 @@ class DyrosRedGuiPlugin(Plugin):
     def torqueoff_button(self):
         self.send_msg("torqueoff")
         self._widget.msg_box.setText("Sleep mode")
+        self._widget.torqueon_button.setChecked(False)
 
     def data_button(self):
         self.send_msg("data")
@@ -322,6 +326,9 @@ class DyrosRedGuiPlugin(Plugin):
 
     def send_msg2(self, msg):
         self._publisher3.publish(msg)
+
+    def torqueredis_button(self):
+        self.send_msg("torqueredis")
 
     def tune_command_button(self):
         cnt1 = self._widget.tn1.text()
