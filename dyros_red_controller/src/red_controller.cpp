@@ -169,8 +169,8 @@ void RedController::dynamicsThreadLow()
     {
         kp_(i) = 400;
         kd_(i) = 40;
-        kpa_(i) = 400;
-        kda_(i) = 40;
+        kpa_(i) = 200;
+        kda_(i) = 20;
     }
 
     std::cout << "DynamicsThreadLow : START" << std::endl;
@@ -190,7 +190,7 @@ void RedController::dynamicsThreadLow()
         if ((dyn_loop_start - start_time2) > sec1)
         {
             start_time2 = std::chrono::high_resolution_clock::now();
-            std::cout << "dyn thread : " << dynthread_cnt << " hz, time : " << est << std::endl;
+            std::cout << "dynamics thread : " << dynthread_cnt << " hz, time : " << est << std::endl;
             dynthread_cnt = 0;
             est = 0;
         }
@@ -331,8 +331,8 @@ void RedController::dynamicsThreadLow()
                 //right_cp << -0.04, -0.095;
                 //left_cp << -0.04, 0.095;
                 cp_mod << -0.00, -0.00747;
-                right_cp << -0.00, -0.095;
-                left_cp << -0.00, 0.095;
+                right_cp << 0.03, -0.1;
+                left_cp << 0.03, 0.1;
 
                 if (loop_ - loop_temp)
                 {
@@ -363,11 +363,11 @@ void RedController::dynamicsThreadLow()
 
                 if (cgen_init)
                 {
-                    std::cout << "loop : " << loop_ << " loop time : " << loop_time << std::endl;
+                    // std::cout << "loop : " << loop_ << " loop time : " << loop_time << std::endl;
                     //cx_init = model_.com_.pos.segment(0, 2);
                     //cv_init = model_.com_.vel.segment(0, 2);
-                    std::cout << "desired cp   x : " << desired_cp(0) << "  y : " << desired_cp(1) << std::endl;
-                    std::cout << "zmp gen   x : " << zmp(0) << "  y : " << zmp(1) << std::endl;
+                    //std::cout << "desired cp   x : " << desired_cp(0) << "  y : " << desired_cp(1) << std::endl;
+                    //std::cout << "zmp gen   x : " << zmp(0) << "  y : " << zmp(1) << std::endl;
                     //std::cout << "c CP" << std::endl;
                     //std::cout << model_.com_.CP << std::endl;
 
@@ -375,13 +375,38 @@ void RedController::dynamicsThreadLow()
                     //cgen_init = false;
                 }
 
-                if (zmp(1) > 0.12)
+                if (zmp(1) > 0.11)
                 {
-                    zmp(1) = 0.12;
+                    zmp(1) = 0.11;
                 }
-                if (zmp(1) < -0.12)
+                if (zmp(1) < -0.11)
                 {
-                    zmp(1) = -0.12;
+                    zmp(1) = -0.11;
+                }
+                if (loop_ > 0)
+                {
+                    if (red_.ee_[0].contact)
+                    {
+                        if (zmp(1) > red_.link_[Left_Foot].xpos(1) + 0.05)
+                        {
+                            zmp(1) = red_.link_[Left_Foot].xpos(1) + 0.05;
+                        }
+                        if (zmp(1) < red_.link_[Left_Foot].xpos(1) - 0.08)
+                        {
+                            zmp(1) = red_.link_[Left_Foot].xpos(1) - 0.08;
+                        }
+                    }
+                    else if (red_.ee_[1].contact)
+                    {
+                        if (zmp(1) > red_.link_[Right_Foot].xpos(1) + 0.08)
+                        {
+                            zmp(1) = red_.link_[Right_Foot].xpos(1) + 0.08;
+                        }
+                        if (zmp(1) < red_.link_[Right_Foot].xpos(1) - 0.05)
+                        {
+                            zmp(1) = red_.link_[Right_Foot].xpos(1) - 0.05;
+                        }
+                    }
                 }
 
                 // est_cp_ = b_ * (model_.com_.pos.segment(0, 2) + model_.com_.vel.segment(0, 2) / w_) + (1 - b_) * zmp;
@@ -515,7 +540,9 @@ void RedController::dynamicsThreadLow()
                     f_star.segment(0, 3) = wc_.getfstar_tra(COM_id, kp_, kd_);
                     f_star.segment(3, 3) = wc_.getfstar_rot(Pelvis, kpa_, kda_);
                     f_star.segment(6, 3) = wc_.getfstar_tra(Right_Foot, kp_, kd_);
+
                     f_star.segment(9, 3) = wc_.getfstar_rot(Right_Foot, kpa_, kda_);
+                    f_star(9) = 0;
                 }
                 else if (red_.ee_[1].contact) // rightfoot contact
                 {
@@ -562,7 +589,9 @@ void RedController::dynamicsThreadLow()
                     f_star.segment(0, 3) = wc_.getfstar_tra(COM_id, kp_, kd_);
                     f_star.segment(3, 3) = wc_.getfstar_rot(Pelvis, kpa_, kda_);
                     f_star.segment(6, 3) = wc_.getfstar_tra(Left_Foot, kp_, kd_);
+
                     f_star.segment(9, 3) = wc_.getfstar_rot(Left_Foot, kpa_, kda_);
+                    f_star(9) = 0;
                 }
 
                 torque_task = wc_.task_control_torque(J_task, f_star);

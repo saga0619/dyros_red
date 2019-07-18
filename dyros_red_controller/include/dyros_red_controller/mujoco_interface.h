@@ -54,6 +54,8 @@ private:
   float mujoco_sim_time;
   float mujoco_sim_last_time;
 
+  bool new_state_trigger = false;
+
   std::string joint_name_mj[MODEL_DOF];
   //ros::Rate rate_;
   int dyn_hz;

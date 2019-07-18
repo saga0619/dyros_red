@@ -141,7 +141,8 @@ void StateManager::stateThread(void)
             StartTime = std::chrono::high_resolution_clock::now();
             //rprint(dc, 0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
 
-            std::cout << "state update frequency warning ! " << ThreadCount - ThreadCount2 << " hz! " << std::endl;
+            std::cout << control_time_ << " ::: state thread : " << ThreadCount - ThreadCount2 << " hz ";
+            //<< std::endl;
             ThreadCount2 = ThreadCount;
             i++;
         }

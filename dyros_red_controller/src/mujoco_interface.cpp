@@ -23,7 +23,16 @@ MujocoInterface::MujocoInterface(DataContainer &dc_global) : dc(dc_global), Stat
 
 void MujocoInterface::updateState()
 {
-    ros::spinOnce();
+    while (ros::ok())
+    {
+        ros::spinOnce();
+        if (new_state_trigger)
+        {
+            new_state_trigger = false;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(1));
+    }
 }
 
 void MujocoInterface::sendCommand(Eigen::VectorQd command, double simt)
@@ -277,6 +286,7 @@ void MujocoInterface::simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr
         }
     }
     data_received_counter_++;
+    new_state_trigger = true;
 }
 
 void MujocoInterface::jointStateCallback(const sensor_msgs::JointStateConstPtr &msg)
