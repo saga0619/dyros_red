@@ -31,6 +31,10 @@ void MujocoInterface::updateState()
             new_state_trigger = false;
             break;
         }
+        if (dc.mode == "testmode" || dc.mode == "testmode2")
+        {
+            break;
+        }
         std::this_thread::sleep_for(std::chrono::microseconds(1));
     }
 }
