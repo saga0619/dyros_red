@@ -15,7 +15,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
     point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point", 3);
 
-    pointpub_msg.polygon.points.resize(3);
+    pointpub_msg.polygon.points.resize(4);
 
     if (dc.mode == "realrobot")
     {
@@ -141,7 +141,8 @@ void StateManager::stateThread(void)
             StartTime = std::chrono::high_resolution_clock::now();
             //rprint(dc, 0, 0, "s count : %d", ThreadCount - (i - 1) * 4000);
 
-            std::cout << control_time_ << " ::: state thread : " << ThreadCount - ThreadCount2 << " hz ";
+            if (dc.checkfreqency)
+                std::cout << control_time_ << " ::: state thread : " << ThreadCount - ThreadCount2 << " hz ";
             //<< std::endl;
             ThreadCount2 = ThreadCount;
             i++;
@@ -171,6 +172,22 @@ void StateManager::stateThread(void)
             }
             tgain_p.data = dc.t_gain;
             tgainPublisher.publish(tgain_p);
+
+            pointpub_msg.polygon.points[0].x = link_[COM_id].xpos(0); //com_pos(0);
+            pointpub_msg.polygon.points[0].y = link_[COM_id].xpos(1);
+            pointpub_msg.polygon.points[0].z = link_[COM_id].xpos(2);
+
+            pointpub_msg.polygon.points[1].x = link_[Right_Foot].xpos(0);
+            pointpub_msg.polygon.points[1].y = link_[Right_Foot].xpos(1);
+            pointpub_msg.polygon.points[1].z = link_[Right_Foot].xpos(2);
+
+            pointpub_msg.polygon.points[2].x = link_[Left_Foot].xpos(0);
+            pointpub_msg.polygon.points[2].y = link_[Left_Foot].xpos(1);
+            pointpub_msg.polygon.points[2].z = link_[Left_Foot].xpos(2);
+
+            pointpub_msg.polygon.points[3].x = link_[Pelvis].xpos(0);
+            pointpub_msg.polygon.points[3].y = link_[Pelvis].xpos(1);
+            pointpub_msg.polygon.points[3].z = link_[Pelvis].xpos(2);
 
             point_pub.publish(pointpub_msg);
         }
@@ -298,6 +315,8 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
    * 6 ~ MODEL_DOF + 5 : joint position
    * model dof + 6 ( last component of q_virtual) : w of Quaternion
    * */
+
+    //std::cout << control_time_ << " : q_v(0) : " << q_virtual(0) << " : q_v(1) : " << q_virtual(1) << " : q_v(2) : " << q_virtual(2) << std::endl;
     mtx_rbdl.lock();
     RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, &q_dot_virtual, &q_ddot_virtual);
     RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_, false);
@@ -342,18 +361,6 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
 
     com_.mass = com_mass;
     com_.pos = com_pos;
-
-    pointpub_msg.polygon.points[0].x = com_pos(0);
-    pointpub_msg.polygon.points[0].y = com_pos(1);
-    pointpub_msg.polygon.points[0].z = com_pos(2);
-
-    pointpub_msg.polygon.points[1].x = link_[Right_Foot].xpos(0);
-    pointpub_msg.polygon.points[1].y = link_[Right_Foot].xpos(1);
-    pointpub_msg.polygon.points[1].z = link_[Right_Foot].xpos(2);
-
-    pointpub_msg.polygon.points[2].x = link_[Left_Foot].xpos(0);
-    pointpub_msg.polygon.points[2].y = link_[Left_Foot].xpos(1);
-    pointpub_msg.polygon.points[2].z = link_[Left_Foot].xpos(2);
 
     /*
     if (com_pos(1) < link_[Right_Foot].xpos(1))
@@ -454,6 +461,75 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
 
 void StateManager::stateEstimate()
 {
+    static bool contact_right, contact_left;
+    static Eigen::Vector3d rf_cp, lf_cp;
+
+    static Eigen::Vector3d mod_base_pos;
+    static Eigen::Vector3d mod_base_vel;
+
+    static Eigen::Vector3d rf_cp_m, lf_cp_m;
+
+    static double rf_s_ratio, lf_s_ratio;
+
+    if (dc.semode)
+    {
+        if (contact_right != dc.red_.ee_[1].contact)
+        {
+            if (dc.red_.ee_[1].contact)
+            {
+                std::cout << "right foot contact point initialized" << std::endl;
+                rf_cp = link_[Right_Foot].xpos;
+            }
+            else
+            {
+                std::cout << "right foot contact disabled" << std::endl;
+            }
+        }
+        if (contact_left != dc.red_.ee_[0].contact)
+        {
+            if (dc.red_.ee_[0].contact)
+            {
+                std::cout << "left foot contact point initialized" << std::endl;
+                lf_cp = link_[Left_Foot].xpos;
+            }
+            else
+            {
+                std::cout << "left foot contact disabled" << std::endl;
+            }
+        }
+
+        contact_right = dc.red_.ee_[1].contact;
+        contact_left = dc.red_.ee_[0].contact;
+
+        rf_cp_m = link_[Right_Foot].xpos - rf_cp;
+        lf_cp_m = link_[Left_Foot].xpos - lf_cp;
+
+        rf_s_ratio = 1.0;
+        lf_s_ratio = 1.0;
+
+        if (contact_right && contact_left)
+        {
+            //std::cout << control_time_ << " : base pos calc ! " << std::endl;
+            mod_base_pos = (rf_cp_m * rf_s_ratio / (rf_s_ratio + lf_s_ratio) + lf_cp_m * lf_s_ratio / (rf_s_ratio + lf_s_ratio));
+            mod_base_vel = link_[Right_Foot].v * rf_s_ratio / (rf_s_ratio + lf_s_ratio) + link_[Left_Foot].v * lf_s_ratio / (rf_s_ratio + lf_s_ratio);
+        }
+        else if (contact_right)
+        {
+            mod_base_pos = rf_cp_m;
+            mod_base_vel = link_[Right_Foot].v;
+        }
+        else if (contact_left)
+        {
+            mod_base_pos = lf_cp_m;
+            mod_base_vel = link_[Left_Foot].v;
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            q_virtual_(i) = -mod_base_pos(i);
+            q_dot_virtual_(i) = -mod_base_vel(i);
+        }
+    }
 }
 
 void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
@@ -564,5 +640,17 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
             std::cout << "Torque contact redistribution on " << std::endl;
         }
         dc.torqueredis = !dc.torqueredis;
+    }
+    else if (msg->data == "stateestimation")
+    {
+        if (dc.semode)
+        {
+            std::cout << "State Estimation mode off" << std::endl;
+        }
+        else
+        {
+            std::cout << "State Estimation mode on" << std::endl;
+        }
+        dc.semode = !dc.semode;
     }
 }

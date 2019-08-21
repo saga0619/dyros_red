@@ -49,7 +49,7 @@ private:
   bool mujoco_init_receive = false;
   bool mujoco_reset = false;
 
-  bool virtual_joint_from_simlulation = true;
+  //bool virtual_joint_from_simlulation = true;
 
   float mujoco_sim_time;
   float mujoco_sim_last_time;

@@ -189,7 +189,24 @@ void MujocoInterface::simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr
     }
 
     //virtual joint
-    if (virtual_joint_from_simlulation)
+    if (dc.semode)
+    {
+        for (int i = 3; i < 6; i++)
+        {
+            q_virtual_(i) = msg->position[i];
+            q_dot_virtual_(i) = msg->velocity[i];
+            q_ddot_virtual_(i) = msg->effort[i];
+        }
+        q_virtual_(MODEL_DOF + 6) = msg->position[MODEL_DOF + 6];
+
+        for (int i = 0; i < 3; i++)
+        {
+            q_virtual_(i) = 0.0;
+            q_dot_virtual_(i) = 0.0;
+            q_ddot_virtual_(i) = 0.0;
+        }
+    }
+    else
     {
         for (int i = 0; i < 6; i++)
         {
@@ -314,7 +331,7 @@ void MujocoInterface::jointStateCallback(const sensor_msgs::JointStateConstPtr &
     }
 
     //virtual joint
-    if (virtual_joint_from_simlulation)
+    if (dc.semode == false)
     {
         for (int i = 0; i < 6; i++)
         {
@@ -348,7 +365,7 @@ void MujocoInterface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCons
         {
             for (int j = 0; j < 3; j++)
             {
-                //right_foot_ft_(j) = msg->sensor[i].data[j];
+                RF_FT(j) = msg->sensor[i].data[j];
             }
         }
     }
@@ -358,7 +375,7 @@ void MujocoInterface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCons
         {
             for (int j = 0; j < 3; j++)
             {
-                //right_foot_ft_(j + 3) = msg->sensor[i].data[j];
+                RF_FT(j + 3) = msg->sensor[i].data[j];
             }
         }
     }
@@ -368,7 +385,7 @@ void MujocoInterface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCons
         {
             for (int j = 0; j < 3; j++)
             {
-                //left_foot_ft_(j) = msg->sensor[i].data[j];
+                LF_FT(j) = msg->sensor[i].data[j];
             }
         }
     }
@@ -378,7 +395,7 @@ void MujocoInterface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCons
         {
             for (int j = 0; j < 3; j++)
             {
-                //left_foot_ft_(j + 3) = msg->sensor[i].data[j];
+                LF_FT(j + 3) = msg->sensor[i].data[j];
             }
         }
     }

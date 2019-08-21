@@ -104,6 +104,7 @@ public:
 
   //Kinematics Information :
   //MODEL RED;
+  KinematicsData red_;
 
   //Kinematics Information :
   Link link_[LINK_NUMBER + 1];
@@ -138,24 +139,34 @@ public:
   double commandTime = 0.0;
   double commandTimeLock = -1.0;
 
+  //Hardware switch
+
   bool torqueOn = false;
   bool torqueOff = false;
-  bool positionControl = false;
-  bool gravityMode = false;
   bool emergencyoff = false;
-  bool customGain = false;
-  bool fixedgravity = false;
-  bool testmode = false;
-  bool spalarm = false;
-  bool pubmode = false;
-  bool torqueredis = false;
-
-  bool initialize_request = false;
-
   double t_gain = 0.0;
-
   double torqueOnTime = 0.0;
   double torqueOffTime = 0.0;
+
+  //Simulation switch
+
+  bool pubmode = false;       // Publish mode of mujoco, integrated mode(basic), detached mode.
+  bool checkfreqency = false; // check running frequency of state thread and dynamics thread.
+
+  bool testmode = false; // switch for controller test mode.
+
+  //Controller switch
+
+  bool positionControl = false;
+  bool gravityMode = false;
+  bool customGain = false;
+  bool fixedgravity = false;
+  bool torqueredis = false;
+
+  bool spalarm = false; // support polygon alarm bool
+  bool semode = false;  // state estimation running or not.
+
+  bool initialize_request = false;
 };
 
 #endif

@@ -11,7 +11,7 @@ std::mutex mtx_dc;
 std::mutex mtx_terminal;
 std::mutex mtx_ncurse;
 
-RedController::RedController(DataContainer &dc_global, StateManager &sm, DynamicsManager &dm) : dc(dc_global), s_(sm), d_(dm)
+RedController::RedController(DataContainer &dc_global, StateManager &sm, DynamicsManager &dm) : dc(dc_global), s_(sm), d_(dm), red_(dc_global.red_)
 {
     initialize();
 
@@ -190,7 +190,8 @@ void RedController::dynamicsThreadLow()
         if ((dyn_loop_start - start_time2) > sec1)
         {
             start_time2 = std::chrono::high_resolution_clock::now();
-            std::cout << "dynamics thread : " << dynthread_cnt << " hz, time : " << est << std::endl;
+            if (dc.checkfreqency)
+                std::cout << "dynamics thread : " << dynthread_cnt << " hz, time : " << est << std::endl;
             dynthread_cnt = 0;
             est = 0;
         }
@@ -224,7 +225,7 @@ void RedController::dynamicsThreadLow()
                 wc_.set_contact(1, 1);
 
                 torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
-                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                //torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
                 task_number = 6;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
                 f_star.setZero(task_number);
@@ -240,7 +241,7 @@ void RedController::dynamicsThreadLow()
 
                 f_star = wc_.getfstar6d(Pelvis, kp_, kd_, kpa_, kda_);
                 torque_task = wc_.task_control_torque(J_task, f_star);
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                //torque_task = wc_.task_control_torque(J_task, f_star);
             }
             else if (tc.mode == 1)
             {
@@ -648,6 +649,8 @@ void RedController::dynamicsThreadLow()
         //dc.accel_dif = acceleration_differance;
         //dc.accel_obsrvd = acceleration_observed;
         mtx.unlock();
+
+        contact_force = wc_.get_contact_force(torque_desired);
 
         if (dc.shutdown)
             break;

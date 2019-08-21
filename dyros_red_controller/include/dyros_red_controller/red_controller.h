@@ -76,6 +76,7 @@ private:
   void initialize();
   StateManager &s_;
   DynamicsManager &d_;
+  KinematicsData &red_;
 
   bool connected;
 
@@ -107,8 +108,9 @@ private:
   Eigen::VectorQd q_dot_before_;
   Eigen::VectorQd acceleration_estimated_before;
 
+  Eigen::Vector12d contact_force;
+
   //Kinematics Information :
-  KinematicsData red_;
   //Link link_[LINK_NUMBER + 1];
   double yaw_radian;
   Eigen::MatrixVVd A_;

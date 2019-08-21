@@ -69,6 +69,8 @@ public:
   Link link_[LINK_NUMBER + 1];
   Com com_;
 
+  Eigen::Vector6d RF_FT, LF_FT;
+
   //Communication Subscriber!
 
   ros::Subscriber gui_command;

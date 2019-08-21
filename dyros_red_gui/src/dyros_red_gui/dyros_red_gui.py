@@ -102,6 +102,10 @@ class DyrosRedGuiPlugin(Plugin):
 
         self._widget.torqueredis.pressed.connect(self.torqueredis_button)
 
+        # command tab buttons
+
+        self._widget.sebutton.pressed.connect(self.sebutton)
+
         # Limit QLineEdit input to double.
         dbl_val = QDoubleValidator()
 
@@ -144,9 +148,21 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.label.setText(str(round(msg.polygon.points[0].x, 6)))
         self._widget.label_2.setText(str(round(msg.polygon.points[0].y, 6)))
         self._widget.label_3.setText(str(round(msg.polygon.points[0].z, 6)))
-        #self._widget.label_14.setText(str(round(msg.polygon.points[3].x, 6)))
-        #self._widget.label_15.setText(str(round(msg.polygon.points[3].y, 6)))
-        #self._widget.label_16.setText(str(round(msg.polygon.points[3].z, 6)))
+
+        # pelvis
+        self._widget.label_14.setText(str(round(msg.polygon.points[3].x, 6)))
+        self._widget.label_15.setText(str(round(msg.polygon.points[3].y, 6)))
+        self._widget.label_16.setText(str(round(msg.polygon.points[3].z, 6)))
+
+        # right foot
+        self._widget.label_73.setText(str(round(msg.polygon.points[1].x, 6)))
+        self._widget.label_74.setText(str(round(msg.polygon.points[1].y, 6)))
+        self._widget.label_75.setText(str(round(msg.polygon.points[1].z, 6)))
+
+        # left foot
+        self._widget.label_64.setText(str(round(msg.polygon.points[2].x, 6)))
+        self._widget.label_65.setText(str(round(msg.polygon.points[2].y, 6)))
+        self._widget.label_66.setText(str(round(msg.polygon.points[2].z, 6)))
 
         #self._widget.label_22.setText(str(round(msg.polygon.points[4].x, 6)))
         #self._widget.label_23.setText(str(round(msg.polygon.points[4].y, 6)))
@@ -239,6 +255,9 @@ class DyrosRedGuiPlugin(Plugin):
 
     def slowmotion_button(self):
         self.send_msg2("mjslowmotion")
+
+    def sebutton(self):
+        self.send_msg("stateestimation")
 
     def reset_button(self):
         self.send_msg2("mjreset")
