@@ -14,6 +14,24 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     motor_acc_dif_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/accdifinfo", 1);
     tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
     point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point", 3);
+    ft_viz_pub = dc.nh.advertise<visualization_msgs::MarkerArray>("/dyros_Red/ft_viz", 0);
+    ft_viz_msg.markers.resize(4);
+
+    for (int i = 0; i < 4; i++)
+    {
+        ft_viz_msg.markers[i].header.frame_id = "base_link";
+        ft_viz_msg.markers[i].ns = "my_namespace";
+        ft_viz_msg.markers[i].id = i;
+        ft_viz_msg.markers[i].type = visualization_msgs::Marker::ARROW;
+        ft_viz_msg.markers[i].action = visualization_msgs::Marker::ADD;
+        ft_viz_msg.markers[i].points.resize(2);
+        ft_viz_msg.markers[i].color.a = 1.0;
+        ft_viz_msg.markers[i].color.g = 1.0;
+
+        ft_viz_msg.markers[i].scale.x = 0.1;
+        ft_viz_msg.markers[i].scale.y = 0.15;
+        ft_viz_msg.markers[i].scale.z = 0;
+    }
 
     pointpub_msg.polygon.points.resize(4);
 
@@ -58,6 +76,15 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         for (int i = 0; i < MODEL_DOF + 1; i++)
         {
             link_id_[i] = model_.GetBodyId(RED::LINK_NAME[i]);
+            if (i == 0)
+            {
+                int li = link_id_[Pelvis];
+                std::cout << "Pelvis center of mass? : " << model_.mBodies[li].mCenterOfMass[0] << "  " << model_.mBodies[li].mCenterOfMass[1] << "  " << model_.mBodies[li].mCenterOfMass[2] << std::endl;
+                std::cout << "mass : " << model_.mBodies[li].mMass << std::endl;
+
+                //model_.mBodies[li].mCenterOfMass[0] = 0.005; //modify inertial properties of body
+            }
+
             if (!model_.IsBodyId(link_id_[i]))
             {
                 ROS_INFO_COND(verbose, "Failed to get body id at link %d : %s", i, RED::LINK_NAME[i]);
@@ -190,6 +217,29 @@ void StateManager::stateThread(void)
             pointpub_msg.polygon.points[3].z = link_[Pelvis].xpos(2);
 
             point_pub.publish(pointpub_msg);
+
+            for (int i = 0; i < 2; i++)
+            {
+                ft_viz_msg.markers[i].header.stamp = ros::Time::now();
+            }
+
+            ft_viz_msg.markers[0].points[0].x = link_[Right_Foot].xpos(0);
+            ft_viz_msg.markers[0].points[0].y = link_[Right_Foot].xpos(1);
+            ft_viz_msg.markers[0].points[0].z = link_[Right_Foot].xpos(2);
+
+            ft_viz_msg.markers[0].points[1].x = RF_FT(0);
+            ft_viz_msg.markers[0].points[1].y = RF_FT(1);
+            ft_viz_msg.markers[0].points[1].z = RF_FT(2) / 10.0;
+
+            ft_viz_msg.markers[1].points[0].x = link_[Left_Foot].xpos(0);
+            ft_viz_msg.markers[1].points[0].y = link_[Left_Foot].xpos(1);
+            ft_viz_msg.markers[1].points[0].z = link_[Left_Foot].xpos(2);
+
+            ft_viz_msg.markers[1].points[1].x = LF_FT(0);
+            ft_viz_msg.markers[1].points[1].y = LF_FT(1);
+            ft_viz_msg.markers[1].points[1].z = LF_FT(2) / 10.0;
+
+            ft_viz_pub.publish(ft_viz_msg);
         }
 
         //every 1 seconds

@@ -5,6 +5,7 @@
 #include "dyros_red_controller/terminal.h"
 #include "dyros_red_msgs/MotorInfo.h"
 #include "geometry_msgs/PolygonStamped.h"
+#include "visualization_msgs/MarkerArray.h"
 #include "dyros_red_msgs/TaskCommand.h"
 
 extern std::mutex mtx;
@@ -80,6 +81,9 @@ public:
   ros::Publisher motor_info_pub;
   ros::Publisher motor_acc_dif_info_pub;
   ros::Publisher point_pub;
+
+  ros::Publisher ft_viz_pub;
+  visualization_msgs::MarkerArray ft_viz_msg;
 
   ros::Publisher tgainPublisher;
   std_msgs::Float32 tgain_p;

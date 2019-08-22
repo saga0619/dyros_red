@@ -770,3 +770,7 @@ void RedController::initialize()
 {
     torque_desired.setZero();
 }
+
+void RedController::ContinuityChecker(double data)
+{
+}

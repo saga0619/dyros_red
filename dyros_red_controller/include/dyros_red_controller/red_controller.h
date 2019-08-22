@@ -70,6 +70,7 @@ public:
   TaskCommand tc;
   ros::Subscriber task_command;
   void TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg);
+  void ContinuityChecker(double data);
 
 private:
   void getState();
@@ -108,7 +109,7 @@ private:
   Eigen::VectorQd q_dot_before_;
   Eigen::VectorQd acceleration_estimated_before;
 
-  Eigen::Vector12d contact_force;
+  Eigen::VectorXd contact_force;
 
   //Kinematics Information :
   //Link link_[LINK_NUMBER + 1];

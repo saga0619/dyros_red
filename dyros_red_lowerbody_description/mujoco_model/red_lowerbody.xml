@@ -20,7 +20,7 @@
     </default>
     <option timestep='0.0005' iterations="100" tolerance="1e-11" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="75" noslip_tolerance="1e-9"/>
     <visual>
-        <quality shadowsize="10000" offsamples="16"/>
+        <quality shadowsize="1024" offsamples="16"/>
         <map stiffness="10" znear="0.05"/>
     </visual>
 

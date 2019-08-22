@@ -232,7 +232,7 @@ void MujocoInterface::simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr
         {
             for (int j = 0; j < 3; j++)
             {
-                //right_foot_ft_(j) = msg->sensor[i].data[j];
+                RF_FT(j) = msg->sensor[i].data[j];
             }
         }
     }
@@ -242,7 +242,7 @@ void MujocoInterface::simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr
         {
             for (int j = 0; j < 3; j++)
             {
-                //right_foot_ft_(j + 3) = msg->sensor[i].data[j];
+                RF_FT(j + 3) = msg->sensor[i].data[j];
             }
         }
     }
@@ -252,7 +252,7 @@ void MujocoInterface::simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr
         {
             for (int j = 0; j < 3; j++)
             {
-                //left_foot_ft_(j) = msg->sensor[i].data[j];
+                LF_FT(j) = msg->sensor[i].data[j];
             }
         }
     }
@@ -262,7 +262,7 @@ void MujocoInterface::simStatusCallback(const mujoco_ros_msgs::SimStatusConstPtr
         {
             for (int j = 0; j < 3; j++)
             {
-                //left_foot_ft_(j + 3) = msg->sensor[i].data[j];
+                LF_FT(j + 3) = msg->sensor[i].data[j];
             }
         }
     }
