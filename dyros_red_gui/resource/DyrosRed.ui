@@ -195,27 +195,27 @@
          </property>
          <item>
           <property name="text">
-           <string>Pelvis Control</string>
+           <string>Pelvis Position Control</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>COM to left foot single</string>
+           <string>COM position Control</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>COM to lf, pelvis to horizontal</string>
+           <string>COM to lf</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>Pelvis COM combined</string>
+           <string>COM to lf, pelvis to horizonta</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>Pelvis COM combined + Upperbody rotate 90</string>
+           <string>lf control with single support</string>
           </property>
          </item>
          <item>

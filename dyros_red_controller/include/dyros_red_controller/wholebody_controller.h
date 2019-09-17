@@ -52,6 +52,9 @@ public:
   bool target_arrived_[4];
   bool debug;
 
+  int Right = 0;
+  int Left = 1;
+
   bool contact_calc = false;
 
   VectorQVQd current_q_;
@@ -105,6 +108,7 @@ public:
   //force control selection matrix 1 for control with fstar 0 for force control
   void set_force_control_feedback(MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
   void set_zmp_control(Vector2d ZMP, double gain);
+  void zmp_feedback_control(Vector3d desired_zmp);
 
   MatrixXd task_selection_matrix;
   VectorXd task_desired_force;
@@ -122,14 +126,17 @@ public:
   VectorXd get_contact_force(VectorQd command_torque);
 
   //Get ZMP position from contact forces and both foot position
-  Vector3d GetZMPpos(Vector3d P_right, Vector3d P_left, Vector12d ContactForce);
+  Vector3d GetZMPpos(bool Local = false);
 
   //Eigen::Vector6d Getfstar( );
   Vector3d getfstar(Vector3d kp, Vector3d kd, Vector3d p_desired, Vector3d p_now, Vector3d d_desired, Vector3d d_now);
   Vector3d getfstar(Vector3d kp, Vector3d kd, Matrix3d r_desired, Matrix3d r_now, Vector3d w_desired, Vector3d w_now);
   Vector3d getfstar_tra(int link_id, Vector3d kpt, Vector3d kdt);
+  Vector3d getfstar_tra(int link_id);
   Vector3d getfstar_rot(int link_id, Vector3d kpa, Vector3d kda);
+  Vector3d getfstar_rot(int link_id);
   Vector6d getfstar6d(int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda);
+  Vector6d getfstar6d(int link_id);
 
   //zmp controller
   VectorQd CP_control_init(double dT);

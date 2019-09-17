@@ -44,6 +44,9 @@ const int Pelvis = 0;
 const int Left_Foot = 6;
 const int Right_Foot = 12;
 
+const int LEFT = 0;
+const int RIGHT = 1;
+
 const int COM_id = 13;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //

@@ -241,3 +241,7 @@ std::ostream &operator<<(std::ostream &os, const Link &lk)
        << "x : " << lk.xpos(0) << " y : " << lk.xpos(1) << " z : " << lk.xpos(2) << std::endl;
     return os;
 }
+
+Eigen::Vector2d local2global(double x, double y, double angle)
+{
+}

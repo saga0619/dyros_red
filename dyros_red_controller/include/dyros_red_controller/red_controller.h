@@ -71,6 +71,7 @@ public:
   ros::Subscriber task_command;
   void TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg);
   void ContinuityChecker(double data);
+  void ZMPmonitor();
 
 private:
   void getState();

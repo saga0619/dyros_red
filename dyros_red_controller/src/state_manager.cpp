@@ -229,7 +229,7 @@ void StateManager::stateThread(void)
 
             ft_viz_msg.markers[0].points[1].x = RF_FT(0);
             ft_viz_msg.markers[0].points[1].y = RF_FT(1);
-            ft_viz_msg.markers[0].points[1].z = RF_FT(2) / 10.0;
+            ft_viz_msg.markers[0].points[1].z = RF_FT(2) / 100.0;
 
             ft_viz_msg.markers[1].points[0].x = link_[Left_Foot].xpos(0);
             ft_viz_msg.markers[1].points[0].y = link_[Left_Foot].xpos(1);
@@ -237,7 +237,7 @@ void StateManager::stateThread(void)
 
             ft_viz_msg.markers[1].points[1].x = LF_FT(0);
             ft_viz_msg.markers[1].points[1].y = LF_FT(1);
-            ft_viz_msg.markers[1].points[1].z = LF_FT(2) / 10.0;
+            ft_viz_msg.markers[1].points[1].z = LF_FT(2) / 100.0;
 
             ft_viz_pub.publish(ft_viz_msg);
         }

@@ -122,6 +122,11 @@ public:
   Eigen::Vector3d x_desired;
   Eigen::Matrix3d rot_desired;
 
+  Eigen::Vector3d pos_p_gain;
+  Eigen::Vector3d pos_d_gain;
+  Eigen::Vector3d rot_p_gain;
+  Eigen::Vector3d rot_d_gain;
+
 private:
   Eigen::MatrixXd j_temp;
   Eigen::MatrixXd j_temp2;
@@ -134,6 +139,16 @@ public:
   Eigen::Vector3d cp_;
   bool contact = false;
 };
+
+class Position
+{
+public:
+  double x, y;
+  double angle;
+  void rotate(double angle);
+};
+
+Eigen::Vector2d local2global(double x, double y, double angle);
 
 class KinematicsData
 {
@@ -149,11 +164,14 @@ public:
   Eigen::VectorVQd q_dot_virtual_;
   Eigen::VectorVQd q_ddot_virtual_;
 
+  Eigen::VectorXd ContactForce;
+  Eigen::Vector3d ZMP;
   bool check = false;
 
-  bool contact_[ENDEFFECTOR_NUMBER] = {true, true};
+  //bool contact_[ENDEFFECTOR_NUMBER] = {true, true};
 
-  EndEffector ee_[ENDEFFECTOR_NUMBER];
+  //ee_ : Left to Right
+  EndEffector ee_[ENDEFFECTOR_NUMBER]; //ee_ : 0: Left 1: Right
 };
 
 std::ostream &

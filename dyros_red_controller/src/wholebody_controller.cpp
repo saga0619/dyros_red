@@ -1,5 +1,6 @@
 #include "dyros_red_controller/wholebody_controller.h"
 
+//Left Foot is first! LEFT = 0, RIGHT = 1 !
 // #include "cvxgen/solver.h"
 
 // Vars vars;
@@ -43,6 +44,10 @@ void Wholebody_controller::contact_set(int contact_number, int link_id[])
     W_inv = DyrosMath::pinv_SVD(W);
     contact_force_predict.setZero();
 }*/
+
+void Wholebody_controller::zmp_feedback_control(Vector3d desired_zmp)
+{
+}
 
 void Wholebody_controller::set_contact()
 {
@@ -95,16 +100,18 @@ void Wholebody_controller::set_contact(bool left_foot, bool right_foot, bool lef
 {
     rk_.ee_[0].contact = left_foot;
     rk_.ee_[1].contact = right_foot;
+    rk_.ee_[0].cp_ = rk_.link_[Left_Foot].contact_point;
+    rk_.ee_[1].cp_ = rk_.link_[Right_Foot].contact_point;
 
     contact_index = 0;
-    if (right_foot)
-    {
-        contact_part[contact_index] = Right_Foot;
-        contact_index++;
-    }
     if (left_foot)
     {
         contact_part[contact_index] = Left_Foot;
+        contact_index++;
+    }
+    if (right_foot)
+    {
+        contact_part[contact_index] = Right_Foot;
         contact_index++;
     }
     /* if (right_hand)
@@ -181,6 +188,7 @@ Vector2d Wholebody_controller::getcpref(double task_time, double future_time)
     {
         ZMP_ref[i] = 1 / (1 - b_) * CP_ref[i + 1] - b_ / (1 - b_) * CP_ref[i];
     }
+    //non gui mode?
 
     //(int)time
     double left_time = 1 - task_time + (int)task_time;
@@ -1130,6 +1138,18 @@ Vector3d Wholebody_controller::getfstar_tra(int link_id, Vector3d kpt, Vector3d 
     return fstar_;
 }
 
+Vector3d Wholebody_controller::getfstar_tra(int link_id)
+{
+    ROS_DEBUG_ONCE("fstar calc");
+    Vector3d fstar_;
+
+    for (int i = 0; i < 3; i++)
+    {
+        fstar_(i) = rk_.link_[link_id].pos_p_gain(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + rk_.link_[link_id].pos_d_gain(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
+    }
+    return fstar_;
+}
+
 Vector3d Wholebody_controller::getfstar_rot(int link_id, Vector3d kpa, Vector3d kda)
 {
     ROS_DEBUG_ONCE("fstar calc");
@@ -1166,11 +1186,56 @@ Vector3d Wholebody_controller::getfstar_rot(int link_id, Vector3d kpa, Vector3d 
     return fstar_;
 }
 
+Vector3d Wholebody_controller::getfstar_rot(int link_id)
+{
+    ROS_DEBUG_ONCE("fstar calc");
+    Vector3d fstar_;
+
+    Matrix3d Rotyaw = DyrosMath::rotateWithZ(yaw_radian);
+
+    Vector3d angle_d_global = -Rotyaw * DyrosMath::getPhi(rk_.link_[link_id].Rotm, rk_.link_[link_id].r_traj);
+
+    //Matrix3d Rotyaw = DyrosMath::rotateWithZ(yaw_radian);
+
+    //Vector3d angle_d_global = Rotyaw * DyrosMath::getPhi(link_[link_id].Rotm, link_[link_id].r_traj);
+
+    for (int i = 0; i < 3; i++)
+    {
+        fstar_(i) = (rk_.link_[link_id].rot_p_gain(i) * angle_d_global(i) - rk_.link_[link_id].rot_d_gain(i) * rk_.link_[link_id].w(i));
+    }
+    /*
+  std::cout << "fstar check " << std::endl
+            << link_[link_id].name << std::endl
+            << " rotation now " << std::endl
+            << link_[link_id].Rotm << std::endl
+            << "desired rotation " << std::endl
+            << link_[link_id].r_traj << std::endl
+            << "angle d " << std::endl
+            << angle_d << std::endl
+            << "global angle d " << std::endl
+            << angle_d_global << std::endl
+            << "fstar " << std::endl
+            << fstar_ << std::endl
+            << " ////////////////////////////////////////////////////////////////" << std::endl;
+  */
+
+    return fstar_;
+}
+
 Vector6d Wholebody_controller::getfstar6d(int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda)
 {
     Vector6d f_star;
     f_star.segment(0, 3) = getfstar_tra(link_id, kpt, kdt);
     f_star.segment(3, 3) = getfstar_rot(link_id, kpa, kda);
+    return f_star;
+}
+
+Vector6d Wholebody_controller::getfstar6d(int link_id)
+{
+    Vector6d f_star;
+    f_star.segment(0, 3) = getfstar_tra(link_id);
+    f_star.segment(3, 3) = getfstar_rot(link_id);
+
     return f_star;
 }
 
@@ -1213,6 +1278,7 @@ VectorQd Wholebody_controller::contact_force_custom(VectorQd command_torque, Eig
 VectorXd Wholebody_controller::get_contact_force(VectorQd command_torque)
 {
     VectorXd contactforce = J_C_INV_T * Slc_k_T * command_torque - Lambda_c * J_C * A_matrix_inverse * G;
+    rk_.ContactForce = contactforce;
     return contactforce;
 }
 
@@ -1233,8 +1299,8 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
 
         Vector3d P1_, P2_;
 
-        P1_ = rk_.link_[Right_Foot].xpos;
-        P2_ = rk_.link_[Left_Foot].xpos;
+        P1_ = rk_.link_[Left_Foot].xpos;
+        P2_ = rk_.link_[Right_Foot].xpos;
 
         Matrix3d Rotyaw = DyrosMath::rotateWithZ(-yaw_radian);
 
@@ -1262,9 +1328,9 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
         double foot_width = 0.1;
 
         Vector12d ContactForce_Local_yaw;
-        ContactForce_Local_yaw = force_rot_yaw * ContactForce_;
+        ContactForce_Local_yaw = force_rot_yaw * ContactForce_; //Robot frame based contact force
 
-        ZMP_pos = GetZMPpos(P1_local, P2_local, ContactForce_Local_yaw);
+        //ZMP_pos = GetZMPpos(P1_local, P2_local, ContactForce_Local_yaw);
 
         ForceRedistributionTwoContactMod2(0.99, foot_length, foot_width, 1.0, 0.8, 0.8, P1_local, P2_local, ContactForce_Local_yaw, ResultantForce_, ResultRedistribution_, eta);
 
@@ -1325,19 +1391,54 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
     return torque_contact_;
 }
 
-Vector3d Wholebody_controller::GetZMPpos(Vector3d P_right, Vector3d P_left, Vector12d ContactForce)
+Vector3d Wholebody_controller::GetZMPpos(bool Local)
 {
-
     Vector3d zmp_pos;
     Vector3d P_;
     zmp_pos.setZero();
     P_.setZero();
+    static Vector3d zmp_pos_max = (Eigen::Vector3d() << 0, 0, 0).finished();
+    static Vector3d zmp_pos_min = (Eigen::Vector3d() << 0, 0, 0).finished();
+
+    if (Local)
+    {
+        zmp_pos(0) = (-rk_.ContactForce(4) - (rk_.ee_[0].cp_(2) - P_(2)) * rk_.ContactForce(0) + rk_.ee_[0].cp_(0) * rk_.ContactForce(2) - rk_.ContactForce(10) - (rk_.ee_[1].cp_(2) - P_(2)) * rk_.ContactForce(6) + rk_.ee_[1].cp_(0) * rk_.ContactForce(8)) / (rk_.ContactForce(2) + rk_.ContactForce(8));
+        zmp_pos(1) = (rk_.ContactForce(3) - (rk_.ee_[0].cp_(2) - P_(2)) * rk_.ContactForce(1) + rk_.ee_[0].cp_(1) * rk_.ContactForce(2) + rk_.ContactForce(9) - (rk_.ee_[1].cp_(2) - P_(2)) * rk_.ContactForce(7) + rk_.ee_[1].cp_(1) * rk_.ContactForce(8)) / (rk_.ContactForce(2) + rk_.ContactForce(8));
+    }
+    else
+    {
+        if (rk_.ee_[0].contact && rk_.ee_[1].contact)
+        {
+            zmp_pos(0) = (-rk_.ContactForce(4) - (rk_.ee_[0].cp_(2) - P_(2)) * rk_.ContactForce(0) + rk_.ee_[0].cp_(0) * rk_.ContactForce(2) - rk_.ContactForce(10) - (rk_.ee_[1].cp_(2) - P_(2)) * rk_.ContactForce(6) + rk_.ee_[1].cp_(0) * rk_.ContactForce(8)) / (rk_.ContactForce(2) + rk_.ContactForce(8));
+            zmp_pos(1) = (rk_.ContactForce(3) - (rk_.ee_[0].cp_(2) - P_(2)) * rk_.ContactForce(1) + rk_.ee_[0].cp_(1) * rk_.ContactForce(2) + rk_.ContactForce(9) - (rk_.ee_[1].cp_(2) - P_(2)) * rk_.ContactForce(7) + rk_.ee_[1].cp_(1) * rk_.ContactForce(8)) / (rk_.ContactForce(2) + rk_.ContactForce(8));
+        }
+        else if (rk_.ee_[0].contact) //left contact
+        {
+            zmp_pos(0) = rk_.ContactForce(4) / rk_.ContactForce(2) + rk_.ee_[0].cp_(0);
+            zmp_pos(1) = rk_.ContactForce(3) / rk_.ContactForce(2) + rk_.ee_[0].cp_(1);
+
+            //zmp_pos(0) = (-ContactForce(4) - (rk_.ee_[1].cp_(2) - P_(2)) * ContactForce(0) + rk_.ee_[1].cp_(0) * ContactForce(2) - ContactForce(10) - (rk_.ee_[0].cocp_ntact(2) - P_(2)) * ContactForce(6) + rk_.ee_[0].cp_(0) * ContactForce(8)) / (ContactForce(2) + ContactForce(8));
+            //zmp_pos(1) = (ContactForce(3) - (rk_.ee_[1].cp_(2) - P_(2)) * ContactForce(1) + rk_.ee_[1].cp_(1) * ContactForce(2) + ContactForce(9) - (rk_.ee_[0].cp_(2) - P_(2)) * ContactForce(7) + rk_.ee_[0].cp_(1) * ContactForce(8)) / (ContactForce(2) + ContactForce(8));
+        }
+        else if (rk_.ee_[1].contact) //right contact
+        {
+            zmp_pos(0) = rk_.ContactForce(4) / rk_.ContactForce(2) + rk_.ee_[1].cp_(0);
+            zmp_pos(1) = rk_.ContactForce(3) / rk_.ContactForce(2) + rk_.ee_[1].cp_(1);
+        }
+    }
 
     //zmp_pos(0) = (-ContactForce(4) - P_right(2) * ContactForce(0) + P_right(0) * ContactForce(2) - ContactForce(10) - P_left(2) * ContactForce(6) + P_left(0) * ContactForce(8)) / (ContactForce(2)+ContactForce(8));
     //zmp_pos(1) = (ContactForce(3) - P_right(2) * ContactForce(1) + P_right(1) * ContactForce(2) + ContactForce(9) - P_left(2) * ContactForce(7) + P_left(1) * ContactForce(8)) / (ContactForce(2)+ContactForce(8));
-    zmp_pos(0) = (-ContactForce(4) - (P_right(2) - P_(2)) * ContactForce(0) + P_right(0) * ContactForce(2) - ContactForce(10) - (P_left(2) - P_(2)) * ContactForce(6) + P_left(0) * ContactForce(8)) / (ContactForce(2) + ContactForce(8));
-    zmp_pos(1) = (ContactForce(3) - (P_right(2) - P_(2)) * ContactForce(1) + P_right(1) * ContactForce(2) + ContactForce(9) - (P_left(2) - P_(2)) * ContactForce(7) + P_left(1) * ContactForce(8)) / (ContactForce(2) + ContactForce(8));
 
+    //std::cout << "ZMP position : " << zmp_pos(0) << "\t" << zmp_pos(1) << "\t" << zmp_pos(2) << " " << std::endl;
+    printf("ZMP position : %8.4f  %8.4f  %8.4f  max : %8.4f  %8.4f  %8.4f  min : %8.4f  %8.4f  %8.4f\n", zmp_pos(0), zmp_pos(1), zmp_pos(2), zmp_pos_max(0), zmp_pos_max(1), zmp_pos_max(2), zmp_pos_min(0), zmp_pos_min(1), zmp_pos_min(2));
+    for (int i = 0; i < 3; i++)
+    {
+        if (zmp_pos_max(i) < zmp_pos(i))
+            zmp_pos_max(i) = zmp_pos(i);
+        if (zmp_pos_min(i) > zmp_pos(i))
+            zmp_pos_min(i) = zmp_pos(i);
+    }
     return (zmp_pos);
 }
 

@@ -290,14 +290,19 @@ class DyrosRedGuiPlugin(Plugin):
         self.send_msg("tunereset")
 
     def com_command_sender(self):
+        idx = self._widget.comboBox.currentIndex()
         print("Sending COM command mgs")
         com_command_msg = dyros_red_msgs.msg.ComCommand()
         c_pos = float(self._widget.text_pos.text())
-        if c_pos < 0 and c_pos > 1:
-            print("com pos value must between 0 ~ 1")
-        list = [0, c_pos, 1]
-        list.sort()
-        com_command_msg.ratio = list[1]
+        if idx == 0:
+            if c_pos < 0 and c_pos > 1:
+                print("com pos value must between 0 ~ 1")
+            list = [0, c_pos, 1]
+            list.sort()
+            com_command_msg.ratio = list[1]
+        else:
+            com_command_msg.ratio = c_pos
+
         t_time = float(self._widget.text_time.text())
         if t_time < 0:
             print("traj time is negative. changing it to positive")
