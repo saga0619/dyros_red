@@ -212,8 +212,8 @@ void RedController::dynamicsThreadLow()
         red_.link_[Right_Foot].rot_p_gain = red_.link_[Left_Foot].rot_p_gain = kpa_;
         red_.link_[Right_Foot].rot_d_gain = red_.link_[Left_Foot].rot_d_gain = kda_;
 
-        red_.link_[COM_id].pos_d_gain(0) = 120;
-        red_.link_[COM_id].pos_d_gain(1) = 120;
+        red_.link_[COM_id].pos_p_gain = kp_;
+        red_.link_[COM_id].pos_d_gain  = kd_;
 
         wc_.update();
 
@@ -725,6 +725,9 @@ void RedController::dynamicsThreadLow()
         mtx.unlock();
 
         contact_force = wc_.get_contact_force(torque_desired);
+
+        //VectorXd tau_coriolis;
+        //RigidBodyDynamics::NonlinearEffects(model_,red_.q_virtual_,red_.q_dot_virtual_,tau_coriolis)
         wc_.GetZMPpos();
         if (dc.shutdown)
             break;
@@ -833,6 +836,8 @@ void RedController::getState()
         red_.link_[i].Jac_COM_r = dc.link_[i].Jac_COM_r;
         red_.link_[i].COM_position = dc.link_[i].COM_position;
         red_.link_[i].xpos_contact = dc.link_[i].xpos_contact;
+        red_.link_[i].v = dc.link_[i].v;
+        red_.link_[i].w = dc.link_[i].w;
     }
     red_.yaw_radian = dc.yaw_radian;
     red_.A_ = dc.A_;

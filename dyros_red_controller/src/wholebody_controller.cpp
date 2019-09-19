@@ -100,8 +100,6 @@ void Wholebody_controller::set_contact(bool left_foot, bool right_foot, bool lef
 {
     rk_.ee_[0].contact = left_foot;
     rk_.ee_[1].contact = right_foot;
-    rk_.ee_[0].cp_ = rk_.link_[Left_Foot].contact_point;
-    rk_.ee_[1].cp_ = rk_.link_[Right_Foot].contact_point;
 
     contact_index = 0;
     if (left_foot)
@@ -132,6 +130,11 @@ void Wholebody_controller::set_contact(bool left_foot, bool right_foot, bool lef
         rk_.link_[contact_part[i]].Set_Contact(current_q_, rk_.link_[contact_part[i]].contact_point);
         J_C.block(i * 6, 0, 6, MODEL_DOF_VIRTUAL) = rk_.link_[contact_part[i]].Jac_Contact;
     }
+
+
+    rk_.ee_[0].cp_ = rk_.link_[Left_Foot].xpos_contact;
+    rk_.ee_[1].cp_ = rk_.link_[Right_Foot].xpos_contact;
+
     Lambda_c = (J_C * A_matrix_inverse * (J_C.transpose())).inverse();
     J_C_INV_T = Lambda_c * J_C * A_matrix_inverse;
     N_C.setZero(MODEL_DOF + 6, MODEL_DOF + 6);
@@ -1145,8 +1148,15 @@ Vector3d Wholebody_controller::getfstar_tra(int link_id)
 
     for (int i = 0; i < 3; i++)
     {
-        fstar_(i) = rk_.link_[link_id].pos_p_gain(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + rk_.link_[link_id].pos_d_gain(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
+        fstar_(i) = rk_.link_[link_id].a_traj(i) + rk_.link_[link_id].pos_p_gain(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + rk_.link_[link_id].pos_d_gain(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
+        
+        if(i==1)
+        {
+            //std::cout<<"xtraj y : "<<rk_.link_[link_id].x_traj(i) <<"\t xpos y : "<<rk_.link_[link_id].xpos(i)<<"\t f_star : "<<fstar_(i)<<std::endl; 
+        }
+        //fstar_(i) = rk_.link_[link_id].a_traj(i) + rk_.link_[link_id].pos_p_gain(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + rk_.link_[link_id].pos_d_gain(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
     }
+    rk_.fstar = fstar_;
     return fstar_;
 }
 
@@ -1431,13 +1441,19 @@ Vector3d Wholebody_controller::GetZMPpos(bool Local)
     //zmp_pos(1) = (ContactForce(3) - P_right(2) * ContactForce(1) + P_right(1) * ContactForce(2) + ContactForce(9) - P_left(2) * ContactForce(7) + P_left(1) * ContactForce(8)) / (ContactForce(2)+ContactForce(8));
 
     //std::cout << "ZMP position : " << zmp_pos(0) << "\t" << zmp_pos(1) << "\t" << zmp_pos(2) << " " << std::endl;
-    printf("ZMP position : %8.4f  %8.4f  %8.4f  max : %8.4f  %8.4f  %8.4f  min : %8.4f  %8.4f  %8.4f\n", zmp_pos(0), zmp_pos(1), zmp_pos(2), zmp_pos_max(0), zmp_pos_max(1), zmp_pos_max(2), zmp_pos_min(0), zmp_pos_min(1), zmp_pos_min(2));
+    //printf("ZMP position : %8.4f  %8.4f  %8.4f  max : %8.4f  %8.4f  %8.4f  min : %8.4f  %8.4f  %8.4f\n", zmp_pos(0), zmp_pos(1), zmp_pos(2), zmp_pos_max(0), zmp_pos_max(1), zmp_pos_max(2), zmp_pos_min(0), zmp_pos_min(1), zmp_pos_min(2));
     for (int i = 0; i < 3; i++)
     {
         if (zmp_pos_max(i) < zmp_pos(i))
             zmp_pos_max(i) = zmp_pos(i);
         if (zmp_pos_min(i) > zmp_pos(i))
             zmp_pos_min(i) = zmp_pos(i);
+    }
+
+    if(dc.time < 0.01)
+    {
+        zmp_pos_min.setZero();
+        zmp_pos_max.setZero();
     }
     return (zmp_pos);
 }

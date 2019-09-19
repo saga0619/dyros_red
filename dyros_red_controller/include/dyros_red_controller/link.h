@@ -111,6 +111,7 @@ public:
 
   Eigen::Vector3d x_traj;
   Eigen::Vector3d v_traj;
+  Eigen::Vector3d a_traj;
 
   Eigen::Matrix3d r_traj;
   Eigen::Vector3d w_traj;
@@ -155,6 +156,7 @@ class KinematicsData
 public:
   Com com_;
   Link link_[LINK_NUMBER + 1];
+  double orientation;
   double yaw_radian;
   Eigen::MatrixVVd A_;
 
@@ -167,6 +169,8 @@ public:
   Eigen::VectorXd ContactForce;
   Eigen::Vector3d ZMP;
   bool check = false;
+
+  Eigen::Vector3d fstar;
 
   //bool contact_[ENDEFFECTOR_NUMBER] = {true, true};
 

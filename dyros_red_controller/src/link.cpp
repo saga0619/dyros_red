@@ -133,6 +133,7 @@ void Link::Set_Trajectory_from_quintic(double current_time, double start_time, d
         Eigen::Vector3d quintic = DyrosMath::QuinticSpline(current_time, start_time, end_time, x_init(j), 0, 0, x_desired(j), 0, 0);
         x_traj(j) = quintic(0);
         v_traj(j) = quintic(1);
+        a_traj(j) = quintic(2);
     }
 
     r_traj = rot_init;
@@ -146,6 +147,7 @@ void Link::Set_Trajectory_from_quintic(double current_time, double start_time, d
         Eigen::Vector3d quintic = DyrosMath::QuinticSpline(current_time, start_time, end_time, x_init(j), 0, 0, pos_desired(j), 0, 0);
         x_traj(j) = quintic(0);
         v_traj(j) = quintic(1);
+        a_traj(j) = quintic(2);
     }
 
     r_traj = rot_init;
@@ -159,6 +161,7 @@ void Link::Set_Trajectory_from_quintic(double current_time, double start_time, d
         Eigen::Vector3d quintic = DyrosMath::QuinticSpline(current_time, start_time, end_time, pos_init(j), 0, 0, pos_desired(j), 0, 0);
         x_traj(j) = quintic(0);
         v_traj(j) = quintic(1);
+        a_traj(j) = quintic(2);
     }
 
     r_traj = rot_init;

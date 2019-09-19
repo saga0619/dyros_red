@@ -94,6 +94,8 @@ public:
   dyros_red_msgs::MotorInfo acc_dif_info_msg;
   geometry_msgs::PolygonStamped pointpub_msg;
 
+  
+
   void CommandCallback(const std_msgs::StringConstPtr &msg);
   //void TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg);
 };

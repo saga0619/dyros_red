@@ -33,7 +33,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         ft_viz_msg.markers[i].scale.z = 0;
     }
 
-    pointpub_msg.polygon.points.resize(4);
+    pointpub_msg.polygon.points.resize(9);
 
     if (dc.mode == "realrobot")
     {
@@ -200,6 +200,8 @@ void StateManager::stateThread(void)
             tgain_p.data = dc.t_gain;
             tgainPublisher.publish(tgain_p);
 
+            pointpub_msg.header.stamp = ros::Time::now();
+
             pointpub_msg.polygon.points[0].x = link_[COM_id].xpos(0); //com_pos(0);
             pointpub_msg.polygon.points[0].y = link_[COM_id].xpos(1);
             pointpub_msg.polygon.points[0].z = link_[COM_id].xpos(2);
@@ -215,6 +217,26 @@ void StateManager::stateThread(void)
             pointpub_msg.polygon.points[3].x = link_[Pelvis].xpos(0);
             pointpub_msg.polygon.points[3].y = link_[Pelvis].xpos(1);
             pointpub_msg.polygon.points[3].z = link_[Pelvis].xpos(2);
+
+            pointpub_msg.polygon.points[4].x = dc.red_.link_[COM_id].x_traj(0);
+            pointpub_msg.polygon.points[4].y = dc.red_.link_[COM_id].x_traj(1);
+            pointpub_msg.polygon.points[4].z = dc.red_.link_[COM_id].x_traj(2);
+
+            pointpub_msg.polygon.points[5].x = dc.red_.link_[Pelvis].x_traj(0);
+            pointpub_msg.polygon.points[5].y = dc.red_.link_[Pelvis].x_traj(1);
+            pointpub_msg.polygon.points[5].z = dc.red_.link_[Pelvis].x_traj(2);
+
+            pointpub_msg.polygon.points[6].x = dc.red_.link_[Pelvis].v_traj(0);
+            pointpub_msg.polygon.points[6].y = dc.red_.link_[Pelvis].v_traj(1);
+            pointpub_msg.polygon.points[6].z = dc.red_.link_[Pelvis].v_traj(2);
+
+            pointpub_msg.polygon.points[7].x = dc.red_.link_[Pelvis].v(0);
+            pointpub_msg.polygon.points[7].y = dc.red_.link_[Pelvis].v(1);
+            pointpub_msg.polygon.points[7].z = dc.red_.link_[Pelvis].v(2);
+
+            pointpub_msg.polygon.points[8].x = dc.red_.fstar(0);
+            pointpub_msg.polygon.points[8].y = dc.red_.fstar(1);
+            pointpub_msg.polygon.points[8].z = dc.red_.fstar(2);
 
             point_pub.publish(pointpub_msg);
 
@@ -370,6 +392,8 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     mtx_rbdl.lock();
     RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, &q_dot_virtual, &q_ddot_virtual);
     RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_, false);
+    Eigen::VectorXd tau_coriolis;
+    //RigidBodyDynamics::NonlinearEffects(model_,q_virtual_,q_dot_virtual_,tau_coriolis);
     mtx_rbdl.unlock();
 
     tf::Quaternion q(q_virtual_(3), q_virtual_(4), q_virtual_(5), q_virtual_(MODEL_DOF + 6));
@@ -408,6 +432,10 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     mtx_rbdl.lock();
     RigidBodyDynamics::Utils::CalcCenterOfMass(model_, q_virtual_, q_dot_virtual_, &q_ddot_virtual, com_mass, com_pos, &com_vel, &com_accel, &com_ang_momentum, NULL, false);
     mtx_rbdl.unlock();
+
+    RigidBodyDynamics::ConstraintSet CS;
+
+    //CS.AddContactConstraint(link_[Right_Foot].id,)
 
     com_.mass = com_mass;
     com_.pos = com_pos;
