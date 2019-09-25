@@ -110,6 +110,8 @@ public:
   void set_zmp_control(Vector2d ZMP, double gain);
   void zmp_feedback_control(Vector3d desired_zmp);
 
+  
+
   MatrixXd task_selection_matrix;
   VectorXd task_desired_force;
   VectorXd task_feedback_reference;
@@ -137,6 +139,8 @@ public:
   Vector3d getfstar_rot(int link_id);
   Vector6d getfstar6d(int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda);
   Vector6d getfstar6d(int link_id);
+
+  Vector3d COM_traj_with_zmp();
 
   //zmp controller
   VectorQd CP_control_init(double dT);

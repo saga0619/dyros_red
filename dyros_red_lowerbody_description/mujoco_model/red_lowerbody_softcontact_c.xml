@@ -2,7 +2,7 @@
     <compiler angle="radian" meshdir="../meshes/" />
     <size njmax="500" nconmax="100" />
     <default>
-        <joint damping="0.01" frictionloss="0.0"/>
+        <joint damping="1.0" frictionloss="0.1"/>
         <motor ctrllimited="true" ctrlrange="-300 300"/>
         <default class="viz">
             <geom contype="0" conaffinity="0" group="1" type="mesh" rgba=".6 .6 .7 1"/>
@@ -148,6 +148,38 @@
             </body>
 
         </body>
+
+        <body name="Base_Plate0" pos="-0.3 0.3 0.5">
+            <geom type="box" size="0.01 0.01 0.01" class="viz"/>
+            <body name="Plate00" pos="0 0 0">
+                <geom type="box" size="0.28 0.28 0.01"/>
+                <joint name="stjoint0" type="slide" axis="0 0 1" stiffness="60000" damping="1000"/>
+            </body>
+        </body>
+
+        <body name="Base_Plate1" pos="0.3 -0.3 0.5">
+            <geom type="box" size="0.01 0.01 0.01" class="viz"/>
+            <body name="Plate01" pos="0 0 0">
+                <geom type="box" size="0.28 0.28 0.01"/>
+                <joint name="stjoint1" type="slide" axis="0 0 1" stiffness="60000" damping="1000"/>
+            </body>
+        </body>
+
+        <body name="Base_Plate2" pos="-0.3 -0.3 0.5">
+            <geom type="box" size="0.01 0.01 0.01" class="viz"/>
+            <body name="Plate02" pos="0 0 0">
+                <geom type="box" size="0.28 0.28 0.01"/>
+                <joint name="stjoint2" type="slide" axis="0 0 1" stiffness="60000" damping="1000"/>
+            </body>
+        </body>
+
+        <body name="Base_Plate3" pos="0.3 0.3 0.5">
+            <geom type="box" size="0.01 0.01 0.01" class="viz"/>
+            <body name="Plate03" pos="0 0 0">
+                <geom type="box" size="0.28 0.28 0.01"/>
+                <joint name="stjoint3" type="slide" axis="0 0 1" stiffness="60000" damping="1000"/>
+            </body>
+        </body>
     </worldbody>
 
     <actuator>
@@ -175,9 +207,10 @@
     </sensor>
 
     <keyframe>
-        <key name="front" time="0" qpos ="0 0 0.92683 1 0 0 0 
+        <key name="front" time="0" qpos ="0.3 0 1.43683 1 0 0 0 
 								0 0 -0.24 0.6 -0.36 0 
-								0 0 -0.24 0.6 -0.36 0"/>
+								0 0 -0.24 0.6 -0.36 0
+                                0 0 0 0"/>
     </keyframe>
 
 </mujoco>

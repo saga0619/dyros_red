@@ -16,6 +16,94 @@ RedController::RedController(DataContainer &dc_global, StateManager &sm, Dynamic
     initialize();
 
     task_command = dc.nh.subscribe("/dyros_red/taskcommand", 100, &RedController::TaskCommandCallback, this);
+    point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/cdata_pub", 1);
+    pointpub_msg.polygon.points.reserve(20);
+}
+
+void RedController::pubfromcontroller()
+{
+    /*
+    * Point pub info : 
+    * 0 : com position
+    * 1 : com velocity
+    * 2 : com acceleration
+    * 3 : com angular momentum
+    * 4 : com position desired
+    * 5 : com velocity desired
+    * 6 : com acceleration desired
+    * 7 : fstar
+    */
+
+    pointpub_msg.header.stamp = ros::Time::now();
+
+    geometry_msgs::Point32 point;
+
+    point.x = dc.red_.com_.pos(0);
+    point.y = dc.red_.com_.pos(1);
+    point.z = dc.red_.com_.pos(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.com_.vel(0);
+    point.y = dc.red_.com_.vel(1);
+    point.z = dc.red_.com_.vel(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.com_.accel(0);
+    point.y = dc.red_.com_.accel(1);
+    point.z = dc.red_.com_.accel(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.com_.angular_momentum(0);
+    point.y = dc.red_.com_.angular_momentum(1);
+    point.z = dc.red_.com_.angular_momentum(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.link_[COM_id].x_traj(0);
+    point.y = dc.red_.link_[COM_id].x_traj(1);
+    point.z = dc.red_.link_[COM_id].x_traj(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.link_[COM_id].v_traj(0);
+    point.y = dc.red_.link_[COM_id].v_traj(1);
+    point.z = dc.red_.link_[COM_id].v_traj(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.link_[COM_id].a_traj(0);
+    point.y = dc.red_.link_[COM_id].a_traj(1);
+    point.z = dc.red_.link_[COM_id].a_traj(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.fstar(0);
+    point.y = dc.red_.fstar(1);
+    point.z = dc.red_.fstar(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.ZMP(0); //from task torque -> contact force -> zmp
+    point.y = dc.red_.ZMP(1);
+    point.z = dc.red_.ZMP(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.ZMP_local(0); //from acceleration trajecoty -> tasktorque -> contactforce -> zmp
+    point.y = dc.red_.ZMP_local(1);
+    point.z = dc.red_.ZMP_local(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.ZMP_eqn_calc(0); //from acceleration trajectory with zmp equation : xddot = w^2(x-p),  zmp = x - xddot/w^2
+    point.y = dc.red_.ZMP_eqn_calc(1);
+    point.z = dc.red_.ZMP_eqn_calc(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.ZMP_desired(0); //from acceleration trajectory with zmp equation : xddot = w^2(x-p),  zmp = x - xddot/w^2
+    point.y = dc.red_.ZMP_desired(1);
+    point.z = dc.red_.ZMP_desired(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point.x = dc.red_.ZMP_ft(0); //calc from ft sensor
+    point.y = dc.red_.ZMP_ft(1);
+    point.z = dc.red_.ZMP_ft(2);
+    pointpub_msg.polygon.points.push_back(point);
+
+    point_pub.publish(pointpub_msg);
 }
 
 void RedController::TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg)
@@ -45,7 +133,6 @@ void RedController::dynamicsThreadHigh()
 {
     std::cout << "DynamicsThreadHigh : READY ?" << std::endl;
     ros::Rate r(4000);
-
     while ((!dc.connected) && (!dc.shutdown) && ros::ok())
     {
         r.sleep();
@@ -54,13 +141,10 @@ void RedController::dynamicsThreadHigh()
     {
         r.sleep();
     }
-
     std::cout << "DynamicsThreadHigh : START" << std::endl;
     std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
     int cnt = 0;
-
     std::chrono::duration<double> time_now = std::chrono::high_resolution_clock::now() - start_time;
-
     bool set_q_init = true;
     while (!dc.shutdown && ros::ok())
     {
@@ -213,7 +297,7 @@ void RedController::dynamicsThreadLow()
         red_.link_[Right_Foot].rot_d_gain = red_.link_[Left_Foot].rot_d_gain = kda_;
 
         red_.link_[COM_id].pos_p_gain = kp_;
-        red_.link_[COM_id].pos_d_gain  = kd_;
+        red_.link_[COM_id].pos_d_gain = kd_;
 
         wc_.update();
 
@@ -281,6 +365,11 @@ void RedController::dynamicsThreadLow()
                 f_star = wc_.getfstar6d(COM_id);
                 torque_task = wc_.task_control_torque(J_task, f_star);
                 //torque_task = wc_.task_control_torque(J_task, f_star);
+
+                f_star.segment(0, 3) = red_.link_[COM_id].a_traj;
+                TorqueDesiredLocal = wc_.task_control_torque(J_task, f_star) + torque_grav;
+                wc_.get_contact_force(TorqueDesiredLocal);
+                red_.ZMP_local = wc_.GetZMPpos();
             }
             else if (tc.mode == 2) //COM to Left foot, then switch double support to single support
             {
@@ -368,6 +457,179 @@ void RedController::dynamicsThreadLow()
 
                 torque_task = wc_.task_control_torque(J_task, f_star);
                 //red_.link_[Right_Foot].x_desired = tc.
+            }
+            else if (tc.mode == 5)
+            {
+
+                if (red_.ee_[0].contact && red_.ee_[1].contact)
+                {
+                    red_.ContactForce = red_.ContactForce_FT;
+                    red_.ZMP_ft = wc_.GetZMPpos();
+                }
+                else if (red_.ee_[0].contact)
+                {
+                    red_.ContactForce = red_.ContactForce_FT.segment(0, 6);
+                    red_.ZMP_ft = wc_.GetZMPpos();
+                }
+                else if (red_.ee_[1].contact)
+                {
+                    red_.ContactForce = red_.ContactForce_FT.segment(6, 6);
+                    red_.ZMP_ft = wc_.GetZMPpos();
+                }
+
+                red_.ZMP_error = red_.ZMP_desired - red_.ZMP_ft;
+
+                wc_.set_contact(1, 1);
+                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                task_number = 6;
+                J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
+                f_star.setZero(task_number);
+
+                J_task.block(0, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[COM_id].Jac;
+
+                red_.link_[COM_id].x_desired = tc.ratio * red_.link_[Left_Foot].xpos + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos;
+                red_.link_[COM_id].x_desired(2) = tc.height + tc.ratio * red_.link_[Left_Foot].xpos(2) + (1.0 - tc.ratio) * red_.link_[Right_Foot].xpos(2);
+                red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time);
+
+                double r_dis, l_dis;
+
+                r_dis = abs(red_.link_[COM_id].xpos(1) - red_.link_[Right_Foot].xpos(1));
+                l_dis = abs(red_.link_[COM_id].xpos(1) - red_.link_[Left_Foot].xpos(1));
+
+                bool transition;
+                double t = 1.0;
+                double tc = sqrt((red_.com_.pos(2) - (red_.link_[Right_Foot].xpos(2) + red_.link_[Left_Foot].xpos(2)) * 0.5) / 9.81);
+                static double st;
+                double tf = 1.0;
+                static int left_c = 1;
+                static int right_c = 1;
+                static int left_t = 0;
+                static int right_t = 0;
+                static int step = 0;
+                static double tn;
+
+                double d_t = 1.3;
+                double t_gain = 0;
+
+                int transition_step = 200;
+                int transition_step2 = 4;
+
+                if (l_dis < r_dis)
+                {
+                    //red_.ZMP_desired(1) = red_.link_[Left_Foot].xpos(1);
+                    tn = control_time_ - st;
+                    if (right_c == 1)
+                    {
+                        st = control_time_;
+                    }
+                    if (step > transition_step2)
+                        red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh((tf - tn) / tc) + tc * red_.link_[COM_id].v(1) * sinh((tf - tn) / tc)) / (cosh((tf - tn) / tc) - 1);
+
+                    if (right_c == 1)
+                    {
+                        if (step <= transition_step2)
+                        {
+                            red_.ZMP_desired(1) = red_.link_[Left_Foot].xpos(1);
+                        }
+                        else
+                        {
+
+                            std::cout << "transition!" << std::endl;
+                        }
+                        if (step > transition_step)
+                            red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc)) / (cosh(tf / tc) - 1);
+
+                        right_c = 0;
+                        red_.ZMP_error(1) = 0.0;
+                        std::cout << step << " left close : " << tn << " des zmp : " << red_.ZMP_desired(1) << "com p : " << red_.link_[COM_id].xpos(1) << " com v : " << red_.link_[COM_id].v(1) << std::endl;
+                        red_.ZMP_command(1) = red_.ZMP_desired(1);
+                        right_t = 0;
+                        step++;
+                        if ((step > 3) && (tn > d_t))
+                        {
+                            //red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc) - 0.0) / (cosh(tf / tc) - 1);
+                            //red_.ZMP_mod = red_.ZMP_desired * (tn - d_t) * t_gain;
+                        }
+                    }
+
+                    if (right_t < 50)
+                    {
+                        red_.ZMP_error(1) = 0.0;
+                        right_t++;
+                    }
+
+                    //tf = 2.0 - control_time_ + st;
+                    //if (tf < 0)
+                    //    tf = 0;
+                    //ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc) - 0.0) / (cosh(tf / tc) - 1);
+
+                    //tf = 2.0 - control_time_ + st;
+                    //ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf/tc) + tc * red_.link_[COM_id].v(1) * sinh(tf/tc) -0.0)/(cosh(tf/tc)-1);
+
+                    left_c = 1;
+                }
+                else if (r_dis < l_dis)
+                {
+                    tn = control_time_ - st;
+                    //red_.ZMP_desired(1) = red_.link_[Right_Foot].xpos(1);
+                    if (left_c == 1)
+                    {
+                        st = control_time_;
+                    }
+                    if (step > transition_step2)
+                        red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh((tf - tn) / tc) + tc * red_.link_[COM_id].v(1) * sinh((tf - tn) / tc)) / (cosh((tf - tn) / tc) - 1);
+
+                    if (left_c == 1)
+                    {
+                        if (step <= transition_step2)
+                        {
+                            red_.ZMP_desired(1) = red_.link_[Right_Foot].xpos(1);
+                        }
+                        else
+                        {
+
+                            std::cout << "transition!" << std::endl;
+                        }
+
+                        if (step > transition_step)
+                            red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc)) / (cosh(tf / tc) - 1);
+                        
+                        left_c = 0;
+                        red_.ZMP_error(1) = 0.0;
+                        std::cout << step << " right close : " << tn << " des zmp : " << red_.ZMP_desired(1) << "com p : " << red_.link_[COM_id].xpos(1) << " com v : " << red_.link_[COM_id].v(1) << std::endl;
+                        red_.ZMP_command(1) = red_.ZMP_desired(1);
+                        left_t = 0;
+                        step++;
+                        if ((step > 3) && (tn > d_t))
+                        {
+                            //red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc) - 0.0) / (cosh(tf / tc) - 1);
+                            //red_.ZMP_mod = red_.ZMP_desired * (tn - d_t) * t_gain;
+                        }
+                        //tf = 2.0 - control_time_ + st;
+                    }
+
+                    if (left_t < 50)
+                    {
+                        red_.ZMP_error(1) = 0.0;
+                        left_t++;
+                    }
+                    //tf = 2.0 - control_time_ + st;
+                    //if (tf < 0)
+                    //    tf = 0;
+                    //red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc)) / (cosh(tf / tc) - 1);
+                    //ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc) - 0.0) / (cosh(tf / tc) - 1);
+
+                    right_c = 1;
+                }
+                red_.ZMP_desired(0) = red_.link_[COM_id].xpos(0);
+
+                wc_.set_zmp_control(red_.ZMP_desired.segment(0, 2), 1.0);
+
+                f_star = wc_.getfstar6d(COM_id);
+                torque_task = wc_.task_control_torque(J_task, f_star);
+
+                //red_.ZMP_desired.segment(0, 2);
+                red_.ZMP_desired(2) = 0.0;
             }
             else if (tc.mode == 3)
             {
@@ -724,11 +986,26 @@ void RedController::dynamicsThreadLow()
         //dc.accel_obsrvd = acceleration_observed;
         mtx.unlock();
 
-        contact_force = wc_.get_contact_force(torque_desired);
+        //wc_.task_control_torque(J_task,Eigen)
+        //wc_.get_contact_force(TorqueDesiredLocal);
+        //red_.ZMP_local = wc_.GetZMPpos();
+
+        wc_.get_contact_force(torque_desired);
+        red_.ZMP = wc_.GetZMPpos();
+
+        //red_.ZMP_eqn_calc(0) = (red_.link_[COM_id].x_traj(0) * 9.8 - red_.com_.pos(2) * red_.link_[COM_id].a_traj(0)) / 9.8;
+        red_.ZMP_eqn_calc(0) = (red_.link_[COM_id].x_traj(1) * 9.81 - (red_.com_.pos(2) - red_.link_[Right_Foot].xpos(2) * 0.5 - red_.link_[Left_Foot].xpos(2) * 0.5) * red_.link_[COM_id].a_traj(1)) / 9.81;
+        red_.ZMP_eqn_calc(1) = (red_.link_[COM_id].x_traj(1) * 9.81 - (red_.com_.pos(2) - red_.link_[Right_Foot].xpos(2) * 0.5 - red_.link_[Left_Foot].xpos(2) * 0.5) * red_.link_[COM_id].a_traj(1)) / 9.81 + red_.com_.angular_momentum(0) / (red_.com_.mass * 9.81);
+        red_.ZMP_eqn_calc(2) = 0.0;
+
+        //pubfromcontroller();
+
+        //std::cout << "ZMP desired : " << red_.ZMP_desired(1) << "\tZMP ft : " << red_.ZMP_ft(1) << "\tZMP error : " << red_.ZMP_error(1) << std::endl;
+        //std::cout << "zmp error x : "<< zmp1(0) <<"  y : "<< zmp1(1)<<std::endl;
 
         //VectorXd tau_coriolis;
         //RigidBodyDynamics::NonlinearEffects(model_,red_.q_virtual_,red_.q_dot_virtual_,tau_coriolis)
-        wc_.GetZMPpos();
+
         if (dc.shutdown)
             break;
         first = false;
@@ -780,7 +1057,9 @@ void RedController::tuiThread()
         {
             dc.shutdown = true;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        pubfromcontroller();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
 

@@ -167,7 +167,15 @@ public:
   Eigen::VectorVQd q_ddot_virtual_;
 
   Eigen::VectorXd ContactForce;
+  Eigen::Vector12d ContactForce_FT;
   Eigen::Vector3d ZMP;
+  Eigen::Vector3d ZMP_local;
+  Eigen::Vector3d ZMP_desired;
+  Eigen::Vector3d ZMP_ft;
+  Eigen::Vector3d ZMP_error;
+  Eigen::Vector3d ZMP_eqn_calc;
+  Eigen::Vector3d ZMP_command;
+  Eigen::Vector3d ZMP_mod;
   bool check = false;
 
   Eigen::Vector3d fstar;

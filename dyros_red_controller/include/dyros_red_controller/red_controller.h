@@ -73,6 +73,10 @@ public:
   void ContinuityChecker(double data);
   void ZMPmonitor();
 
+
+  void pubfromcontroller();
+  ros::Publisher point_pub;
+  geometry_msgs::PolygonStamped pointpub_msg;
 private:
   void getState();
   void initialize();

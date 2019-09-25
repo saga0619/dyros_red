@@ -33,7 +33,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         ft_viz_msg.markers[i].scale.z = 0;
     }
 
-    pointpub_msg.polygon.points.resize(9);
+    pointpub_msg.polygon.points.resize(17);
 
     if (dc.mode == "realrobot")
     {
@@ -174,9 +174,10 @@ void StateManager::stateThread(void)
             ThreadCount2 = ThreadCount;
             i++;
         }
+        double pub_hz = 200;
 
         //Data to GUI
-        if ((ThreadCount % (int)(dc.stm_hz / 60)) == 0)
+        if ((ThreadCount % (int)(dc.stm_hz / pub_hz)) == 0)
         {
             joint_state_msg.header.stamp = ros::Time::now();
             for (int i = 0; i < MODEL_DOF; i++)
@@ -204,7 +205,7 @@ void StateManager::stateThread(void)
 
             pointpub_msg.polygon.points[0].x = link_[COM_id].xpos(0); //com_pos(0);
             pointpub_msg.polygon.points[0].y = link_[COM_id].xpos(1);
-            pointpub_msg.polygon.points[0].z = link_[COM_id].xpos(2);
+            pointpub_msg.polygon.points[0].z = dc.red_.com_.pos(2);
 
             pointpub_msg.polygon.points[1].x = link_[Right_Foot].xpos(0);
             pointpub_msg.polygon.points[1].y = link_[Right_Foot].xpos(1);
@@ -226,17 +227,50 @@ void StateManager::stateThread(void)
             pointpub_msg.polygon.points[5].y = dc.red_.link_[Pelvis].x_traj(1);
             pointpub_msg.polygon.points[5].z = dc.red_.link_[Pelvis].x_traj(2);
 
-            pointpub_msg.polygon.points[6].x = dc.red_.link_[Pelvis].v_traj(0);
-            pointpub_msg.polygon.points[6].y = dc.red_.link_[Pelvis].v_traj(1);
-            pointpub_msg.polygon.points[6].z = dc.red_.link_[Pelvis].v_traj(2);
+            pointpub_msg.polygon.points[6].x = dc.red_.link_[COM_id].v_traj(0);
+            pointpub_msg.polygon.points[6].y = dc.red_.link_[COM_id].v_traj(1);
+            pointpub_msg.polygon.points[6].z = dc.red_.link_[COM_id].v_traj(2);
 
-            pointpub_msg.polygon.points[7].x = dc.red_.link_[Pelvis].v(0);
-            pointpub_msg.polygon.points[7].y = dc.red_.link_[Pelvis].v(1);
-            pointpub_msg.polygon.points[7].z = dc.red_.link_[Pelvis].v(2);
+            pointpub_msg.polygon.points[7].x = dc.red_.link_[COM_id].v(0);
+            pointpub_msg.polygon.points[7].y = dc.red_.link_[COM_id].v(1);
+            pointpub_msg.polygon.points[7].z = dc.red_.link_[COM_id].v(2);
 
             pointpub_msg.polygon.points[8].x = dc.red_.fstar(0);
             pointpub_msg.polygon.points[8].y = dc.red_.fstar(1);
             pointpub_msg.polygon.points[8].z = dc.red_.fstar(2);
+
+            pointpub_msg.polygon.points[9].x = dc.red_.ZMP(0); //from task torque -> contact force -> zmp
+            pointpub_msg.polygon.points[9].y = dc.red_.ZMP(1);
+            pointpub_msg.polygon.points[9].z = dc.red_.ZMP(2);
+
+            pointpub_msg.polygon.points[10].x = dc.red_.ZMP_local(0); //from acceleration trajecoty -> tasktorque -> contactforce -> zmp
+            pointpub_msg.polygon.points[10].y = dc.red_.ZMP_local(1);
+            pointpub_msg.polygon.points[10].z = dc.red_.ZMP_local(2);
+
+            pointpub_msg.polygon.points[11].x = dc.red_.ZMP_desired(0); //from acceleration trajectory
+            pointpub_msg.polygon.points[11].y = dc.red_.ZMP_desired(1);
+            pointpub_msg.polygon.points[11].z = dc.red_.ZMP_desired(2);
+
+            pointpub_msg.polygon.points[12].x = dc.red_.ZMP_ft(0); //calc from ft sensor
+            pointpub_msg.polygon.points[12].y = dc.red_.ZMP_ft(1);
+            pointpub_msg.polygon.points[12].z = dc.red_.ZMP_ft(2);
+
+            pointpub_msg.polygon.points[13].x = dc.red_.link_[COM_id].a_traj(0);
+            pointpub_msg.polygon.points[13].y = dc.red_.link_[COM_id].a_traj(1);
+            pointpub_msg.polygon.points[13].z = dc.red_.link_[COM_id].a_traj(2);
+
+            pointpub_msg.polygon.points[14].x = dc.red_.ZMP_eqn_calc(0); //from zmp dynamics
+            pointpub_msg.polygon.points[14].y = dc.red_.ZMP_eqn_calc(1);
+            pointpub_msg.polygon.points[14].z = dc.red_.ZMP_eqn_calc(2);
+
+            pointpub_msg.polygon.points[15].x = dc.red_.com_.angular_momentum(0);
+            pointpub_msg.polygon.points[15].y = dc.red_.com_.angular_momentum(1);
+            pointpub_msg.polygon.points[15].z = dc.red_.com_.angular_momentum(2);
+
+            pointpub_msg.polygon.points[16].x = dc.red_.ZMP_command(0);
+            pointpub_msg.polygon.points[16].y = dc.red_.ZMP_command(1);
+            pointpub_msg.polygon.points[16].z = dc.red_.ZMP_command(2);
+
 
             point_pub.publish(pointpub_msg);
 
@@ -374,6 +408,11 @@ void StateManager::storeState()
     dc.yaw_radian = yaw_radian;
     dc.A_ = A_;
     dc.A_inv = A_inv;
+
+    dc.red_.ContactForce_FT.segment(0,6) = LF_FT;
+    dc.red_.ContactForce_FT.segment(6,6) = RF_FT;
+
+    dc.red_.com_ = com_;
 
     mtx_dc.unlock();
 }

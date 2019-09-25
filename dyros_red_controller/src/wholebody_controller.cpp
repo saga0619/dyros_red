@@ -131,7 +131,6 @@ void Wholebody_controller::set_contact(bool left_foot, bool right_foot, bool lef
         J_C.block(i * 6, 0, 6, MODEL_DOF_VIRTUAL) = rk_.link_[contact_part[i]].Jac_Contact;
     }
 
-
     rk_.ee_[0].cp_ = rk_.link_[Left_Foot].xpos_contact;
     rk_.ee_[1].cp_ = rk_.link_[Right_Foot].xpos_contact;
 
@@ -909,18 +908,35 @@ VectorQd Wholebody_controller::task_control_torque(MatrixXd J_task, VectorXd f_s
         VectorXd F_;
         F_.resize(task_dof);
         task_selection_matrix.setIdentity(task_dof, task_dof);
-        task_selection_matrix.block(0, 0, 2, 2).setZero();
+        //task_selection_matrix.block(0, 0, 2, 2).setZero();
+        task_selection_matrix.block(1, 1, 1, 1).setZero();
 
         F_ = lambda * task_selection_matrix * f_star_;
         VectorXd F_2;
 
-        Vector2d Fd_com = zmp_gain * 9.81 / 0.811 * (rk_.com_.pos.segment(0, 2) - ZMP_task) * rk_.com_.mass;
+        double kpf = 200.0;
+        double kvf = 1.0;
+
+        Vector2d Fd_com;
+        Fd_com.setZero();
+        //Fd_com(0) = zmp_gain * 9.81 / rk_.com_.pos(2) * (rk_.com_.pos.segment(0, 2) - ZMP_task - 2.0*rk_.ZMP_error(1)) * rk_.com_.mass;
+
+        //rk_.ZMP_error(1) = 0.0;
+
+        rk_.ZMP_command = rk_.ZMP_command + 0.5 * rk_.ZMP_error;// + rk_.ZMP_mod;
+        //rk_.ZMP_command = rk_.ZMP_command + 0.5 * rk_.ZMP_error + rk_.ZMP_mod;
+
+        //Fd_com(1) = zmp_gain * 9.81 / rk_.com_.pos(2) * (rk_.com_.pos(1) - ZMP_task(1) - 1.0*rk_.ZMP_error(1)) * rk_.com_.mass;
+        Fd_com(1) = zmp_gain * 9.81 / (rk_.com_.pos(2) - rk_.link_[Right_Foot].xpos(2) * 0.5 - rk_.link_[Left_Foot].xpos(2) * 0.5) * (rk_.com_.pos(1) - rk_.ZMP_command(1)) * rk_.com_.mass;
+
         task_desired_force.setZero(task_dof);
 
-        task_desired_force.segment(0, 2) = Fd_com;
+        task_desired_force(1) = Fd_com(1); // - kpf*rk_.ZMP_error(1);//-kvf*rk_.com_.vel(1);
+        //std::cout << Fd_com(1) << "\t" << rk_.ZMP_error(1) << std::endl;
+        //task_desired_force(1) = Fd_com(1);// + kpf*rk_.ZMP_error(1)-kvf*rk_.com_.vel(1);
+        //task_desired_force.segment(0, 2) = Fd_com;
         //task_desired_force(3) = ZMP_task(1) * (com_.mass * 9.81);
         //task_desired_force(4) = ZMP_task(0) * (com_.mass * 9.81);
-
         F_2 = F_ + task_desired_force;
 
         torque_task = W_inv * Q_T_ * Q_temp_inv * F_2;
@@ -1149,10 +1165,10 @@ Vector3d Wholebody_controller::getfstar_tra(int link_id)
     for (int i = 0; i < 3; i++)
     {
         fstar_(i) = rk_.link_[link_id].a_traj(i) + rk_.link_[link_id].pos_p_gain(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + rk_.link_[link_id].pos_d_gain(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
-        
-        if(i==1)
+
+        if (i == 1)
         {
-            //std::cout<<"xtraj y : "<<rk_.link_[link_id].x_traj(i) <<"\t xpos y : "<<rk_.link_[link_id].xpos(i)<<"\t f_star : "<<fstar_(i)<<std::endl; 
+            //std::cout<<"xtraj y : "<<rk_.link_[link_id].x_traj(i) <<"\t xpos y : "<<rk_.link_[link_id].xpos(i)<<"\t f_star : "<<fstar_(i)<<std::endl;
         }
         //fstar_(i) = rk_.link_[link_id].a_traj(i) + rk_.link_[link_id].pos_p_gain(i) * (rk_.link_[link_id].x_traj(i) - rk_.link_[link_id].xpos(i)) + rk_.link_[link_id].pos_d_gain(i) * (rk_.link_[link_id].v_traj(i) - rk_.link_[link_id].v(i));
     }
@@ -1342,7 +1358,7 @@ VectorQd Wholebody_controller::contact_force_redistribution_torque(double yaw_ra
 
         //ZMP_pos = GetZMPpos(P1_local, P2_local, ContactForce_Local_yaw);
 
-        ForceRedistributionTwoContactMod2(0.99, foot_length, foot_width, 1.0, 0.8, 0.8, P1_local, P2_local, ContactForce_Local_yaw, ResultantForce_, ResultRedistribution_, eta);
+        ForceRedistributionTwoContactMod2(0.98, foot_length, foot_width, 1.0, 0.8, 0.8, P1_local, P2_local, ContactForce_Local_yaw, ResultantForce_, ResultRedistribution_, eta);
 
         ForceRedistribution = force_rot_yaw.transpose() * ResultRedistribution_;
 
@@ -1424,16 +1440,20 @@ Vector3d Wholebody_controller::GetZMPpos(bool Local)
         }
         else if (rk_.ee_[0].contact) //left contact
         {
-            zmp_pos(0) = rk_.ContactForce(4) / rk_.ContactForce(2) + rk_.ee_[0].cp_(0);
-            zmp_pos(1) = rk_.ContactForce(3) / rk_.ContactForce(2) + rk_.ee_[0].cp_(1);
+            //std::cout << " f0 : " << rk_.ContactForce(0) << " f1 : " << rk_.ContactForce(1) << " f2 : " << rk_.ContactForce(2) << " f3 : " << rk_.ContactForce(3) << " f4 : " << rk_.ContactForce(4) << " f5 : " << rk_.ContactForce(5) << std::endl;
+            //std::cout<<"rk_.ContactForce(4) : "<<rk_.ContactForce(4)<<"rk_.ContactForce(2)"
+            //std::cout << "x : " << rk_.ContactForce(4) / rk_.ContactForce(2) << "\t";
+            //std::cout << "y : " << rk_.ContactForce(3) / rk_.ContactForce(2) << "\t cp x: " << rk_.link_[Left_Foot].xpos_contact(0) << "\t cp y : " << rk_.link_[Left_Foot].xpos_contact(1) << std::endl;
+            zmp_pos(0) = -rk_.ContactForce(4) / rk_.ContactForce(2) + rk_.link_[Left_Foot].xpos_contact(0);
+            zmp_pos(1) = -rk_.ContactForce(3) / rk_.ContactForce(2) + rk_.link_[Left_Foot].xpos_contact(1);
 
             //zmp_pos(0) = (-ContactForce(4) - (rk_.ee_[1].cp_(2) - P_(2)) * ContactForce(0) + rk_.ee_[1].cp_(0) * ContactForce(2) - ContactForce(10) - (rk_.ee_[0].cocp_ntact(2) - P_(2)) * ContactForce(6) + rk_.ee_[0].cp_(0) * ContactForce(8)) / (ContactForce(2) + ContactForce(8));
             //zmp_pos(1) = (ContactForce(3) - (rk_.ee_[1].cp_(2) - P_(2)) * ContactForce(1) + rk_.ee_[1].cp_(1) * ContactForce(2) + ContactForce(9) - (rk_.ee_[0].cp_(2) - P_(2)) * ContactForce(7) + rk_.ee_[0].cp_(1) * ContactForce(8)) / (ContactForce(2) + ContactForce(8));
         }
         else if (rk_.ee_[1].contact) //right contact
         {
-            zmp_pos(0) = rk_.ContactForce(4) / rk_.ContactForce(2) + rk_.ee_[1].cp_(0);
-            zmp_pos(1) = rk_.ContactForce(3) / rk_.ContactForce(2) + rk_.ee_[1].cp_(1);
+            zmp_pos(0) = -rk_.ContactForce(4) / rk_.ContactForce(2) + rk_.ee_[1].cp_(0);
+            zmp_pos(1) = -rk_.ContactForce(3) / rk_.ContactForce(2) + rk_.ee_[1].cp_(1);
         }
     }
 
@@ -1450,7 +1470,7 @@ Vector3d Wholebody_controller::GetZMPpos(bool Local)
             zmp_pos_min(i) = zmp_pos(i);
     }
 
-    if(dc.time < 0.01)
+    if (dc.time < 0.01)
     {
         zmp_pos_min.setZero();
         zmp_pos_max.setZero();
@@ -1960,4 +1980,12 @@ void Wholebody_controller::ForceRedistributionTwoContactMod(double eta_cust, dou
     //ForceRedistribution(9) = (1.0-eta)/eta*ForceRedistribution(3);
     //ForceRedistribution(10) = (1.0-eta)/eta*ForceRedistribution(4);
     //ForceRedistribution(11) = (1.0-eta)/eta*ForceRedistribution(5);
+}
+
+Vector3d Wholebody_controller::COM_traj_with_zmp()
+{
+    double tc = sqrt(rk_.com_.pos(2) / 9.81);
+
+    //rk_.link_[COM_id].x_traj(1) = ()
+    //rk_.link_[COM_id].a_traj = 9.81/rk_.com_.pos(2)*()
 }

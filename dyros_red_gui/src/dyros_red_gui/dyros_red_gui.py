@@ -95,6 +95,7 @@ class DyrosRedGuiPlugin(Plugin):
 
         self._widget.helpbutton.setShortcut(QKeySequence("h"))
         self._widget.emergencyoff_button.setShortcut(QKeySequence(Qt.Key_Escape))
+        self._widget.com_send_button.setShortcut(QKeySequence(Qt.Key_Return))
         self._widget.torqueon_button.setShortcut(QKeySequence("w"))
         self._widget.torqueoff_button.setShortcut(QKeySequence("q"))
         self._widget.task_button.setShortcut(QKeySequence("p"))
@@ -164,8 +165,9 @@ class DyrosRedGuiPlugin(Plugin):
         self._widget.label_65.setText(str(round(msg.polygon.points[2].y, 6)))
         self._widget.label_66.setText(str(round(msg.polygon.points[2].z, 6)))
 
-        #self._widget.label_22.setText(str(round(msg.polygon.points[4].x, 6)))
-        #self._widget.label_23.setText(str(round(msg.polygon.points[4].y, 6)))
+        # zmp  
+        self._widget.label_22.setText(str(round(msg.polygon.points[9].x, 6)))
+        self._widget.label_23.setText(str(round(msg.polygon.points[9].y, 6)))
 
         #self._widget.label_24.setText(str(round(msg.polygon.points[5].x, 6)))
         #self._widget.label_27.setText(str(round(msg.polygon.points[5].y, 6)))
