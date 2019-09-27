@@ -1,10 +1,11 @@
 #ifndef WHOLEBODY_CONTROLLER_H
 #define WHOLEBODY_CONTROLLER_H
 
-#include "dyros_red_controller/dyros_red_model.h"
+//#include "dyros_red_controller/dyros_red_model.h"
+#include "dyros_red_controller/data_container.h"
 #include "math_type_define.h"
 
-#include "dyros_red_controller/quadraticprogram.h"
+#include "dyros_red_controller/qp.h"
 #include <qpOASES.hpp>
 
 using namespace Eigen;
@@ -19,9 +20,9 @@ class Wholebody_controller
 public:
   //walking_controller();
 
-  Wholebody_controller(DyrosRedModel &model, const VectorQd &current_q, const double hz, const double &control_time, const double &d_time);
-  unsigned int total_dof_;
-  DyrosRedModel &model_;
+  Wholebody_controller(DataContainer &dc);
+  DataContainer &dc;
+  Link link_[MODEL_DOF + 1];
 
   // motion time
   const double hz_;
@@ -118,7 +119,6 @@ public:
   Vector2d getcpref(double task_time, double future_time);
   //Contact Mode
   const int DOUBLE_SUPPORT = 0;
-
   const int SINGLE_SUPPORT_LEFT = 1;
   const int SINGLE_SUPPORT_RIGHT = 2;
   const int TRIPPLE_SUPPORT = 3;
@@ -127,8 +127,9 @@ public:
   int contact_index;
   int contact_part[4];
 
-  MatrixXd A_matrix;
-  MatrixXd A_matrix_inverse;
+  MatrixVVd A_matrix;
+  MatrixVVd A_matrix_inverse;
+
   MatrixXd J_C, J_C_INV_T;
   MatrixXd J_COM;
 
@@ -137,7 +138,7 @@ public:
 
   MatrixXd Lambda_c;
   MatrixXd N_C;
-  MatrixXd I37;
+  MatrixVVd I37;
 
   VectorXd contact_force_predict;
 
@@ -174,8 +175,6 @@ private:
   void contact_set(int contact_number, int link_id[]);
   void ForceRedistributionTwoContactMod2(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
   void ForceRedistributionTwoContactMod(double eta_cust, double footlength, double footwidth, double staticFrictionCoeff, double ratio_x, double ratio_y, Eigen::Vector3d P1, Eigen::Vector3d P2, Eigen::Vector12d &F12, Eigen::Vector6d &ResultantForce, Eigen::Vector12d &ForceRedistribution, double &eta);
-
-
 };
 
 } // namespace dyros_red_controller

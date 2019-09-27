@@ -3,6 +3,8 @@
   <arg name="rviz" default="false"/>
   <arg name="controller" default="true" />
   <arg name="gui" default="true"/>
+  <arg name="run_mode" default="simulation"/>
+  <arg name="ncurse" default="false"/>
 
   <node name="mujoco_ros" pkg="mujoco_ros" type="mujoco_ros" required="true" respawn="false" output="screen">
     <param name="license" type="string" value="$(find dyros_red_description)/../../../../mjkey.txt" />
@@ -11,8 +13,10 @@
 
   <group if="$(arg controller)">
     <node name="dyros_red_controller" pkg="dyros_red_controller" type="dyros_red_controller" output="screen">
+      <param name="run_mode" value="$(arg run_mode)"/>
       <param name="debug" value="$(arg debug)" />
       <param name="rviz_pub" value="$(arg rviz)"/>
+      <param name="ncurse" value="$(arg ncurse)"/>
     </node>
   </group>
 

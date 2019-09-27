@@ -6,10 +6,16 @@
 
 #include <Eigen/Dense>
 //#include <Eigen/SVD>
+#include <iostream>
 
 #define GRAVITY 9.80665
 #define MAX_DOF 50U
 #define RAD2DEG 1 / DEG2RAD
+
+#define MODEL_DOF 31
+#define LINK_NUMBER 32
+#define MODEL_DOF_VIRTUAL 37
+#define MODEL_DOF_QVIRTUAL 38
 
 namespace Eigen
 {
@@ -25,9 +31,9 @@ EIGEN_MAKE_TYPEDEFS(rScalar, d, 5, 5)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 6, 6)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 7, 7)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 8, 8)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 12, 12)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 28, 28)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 30, 30)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF, MODEL_DOF)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF_QVIRTUAL, MODEL_DOF_QVIRTUAL)
 
 // typedef Transform<rScalar, 3, Eigen::Isometry> HTransform;  // typedef Transform< double, 3, Isometry > 	Eigen::Isometry3d
 
@@ -40,6 +46,20 @@ typedef Matrix<rScalar, 8, 4> Matrix8x4d;
 typedef Matrix<rScalar, -1, 1, 0, MAX_DOF, 1> VectorJXd;
 typedef Matrix<rScalar, -1, 1, 0, 12, 1> VectorLXd; //Leg IK
 typedef Matrix<rScalar, -1, -1, 0, MAX_DOF, MAX_DOF> MatrixJXd;
+
+typedef Matrix<rScalar, MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL> MatrixVVd;
+
+typedef Matrix<rScalar, 12, 1> Vector12d;
+
+typedef Matrix<rScalar, MODEL_DOF, 1> VectorQd;
+typedef Matrix<rScalar, MODEL_DOF_VIRTUAL, 1> VectorVQd;
+typedef Matrix<rScalar, MODEL_DOF_QVIRTUAL, 1> VectorQVQd;
+
+typedef Matrix<rScalar, 6, MODEL_DOF_VIRTUAL> Matrix6Vd;
+typedef Matrix<rScalar, 3, MODEL_DOF_VIRTUAL> Matrix3Vd;
+
+typedef Matrix<rScalar, 6, MODEL_DOF> Matrix6Qd;
+typedef Matrix<rScalar, 3, MODEL_DOF> Matrix3Qd;
 
 //Complex
 typedef Matrix<std::complex<double>, 8, 4> Matrix8x4cd;

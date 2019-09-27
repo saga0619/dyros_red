@@ -1,4 +1,4 @@
-#include "dyros_red_controller/quadraticprogram.h"
+#include "dyros_red_controller/qp.h"
 
 CQuadraticProgram::CQuadraticProgram()
 {

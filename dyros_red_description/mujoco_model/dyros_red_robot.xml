@@ -4,7 +4,7 @@
 
     <default>
 
-        <joint damping="2.0" frictionloss="0.0"/>
+        <joint damping="10.0" frictionloss="10.0"/>
 
         <motor ctrllimited="true" ctrlrange="-300 300"/>
 
@@ -94,6 +94,8 @@
 
         <geom name="wall3" type="box" size="1 0.1 0.068" pos="-3 -3.35 0.8"/>
         <geom name="wall4" type="box" size="1 0.1 0.068" pos="-3 -2.65 0.8"/>
+
+        <geom name="inclinedsurf" type="box" size="1 0.1 1" pos="-3 6 0.2" euler="1.23 0 0"/>
         <light directional="true" diffuse=".8 .8 .8" pos="0 0 10" dir="0 0 -10"/>
         <light directional="true" diffuse=".5 .5 .5" pos="10 0 0" dir="-10 0 0"/>
         <!--light mode='targetbodycom' target='base_link' directional='false' diffuse='.8 .8 .8' specular='0.8 0.8 0.8' pos='0 0 10.0' dir='0 0 -1'/-->
@@ -476,6 +478,13 @@
 								0 0 0 
 								0 1.5708 0.87 0.0 2.44 0.0 -1.57 0
 								0 -1.5708 -0.87 0.0 -2.44 0.0 1.57 0"/>
+
+        <key name="front_inclined" time="0" qpos ="-3 6 1.3 1 0 0 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 -0.24 0.6 -0.36 0 
+								0 0 0 
+								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
+								0.3 0 1.5 1.87 0.7 0 1 0"/>
 
     </keyframe>
 </mujoco>
