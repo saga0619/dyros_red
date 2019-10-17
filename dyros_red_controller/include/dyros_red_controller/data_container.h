@@ -112,6 +112,8 @@ public:
   //Kinematics Information :
   Link link_[LINK_NUMBER + 1];
 
+
+  double roll, pitch, yaw;
   double yaw_radian;
 
   Eigen::MatrixVVd A_;

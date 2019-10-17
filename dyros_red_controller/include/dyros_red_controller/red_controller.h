@@ -54,6 +54,7 @@ struct TaskCommand
   double ratio;
   double height;
   double angle;
+  bool task_init;
   int mode;
 };
 

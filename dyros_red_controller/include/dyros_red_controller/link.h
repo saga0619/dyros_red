@@ -38,6 +38,9 @@ public:
   // Set Contact point, Contact jacobian
   void Set_Contact(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_position);
 
+  // Set Sensor Position
+  void Set_Sensor_Position(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Sensor_position);
+
   // update Jacobian matrix of local position at link.
   void Set_Jacobian(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Jacobian_position);
 
@@ -69,12 +72,18 @@ public:
   int id;
   double Mass;
   std::string name;
+
   //local COM position of body
   Eigen::Vector3d COM_position;
+
   //inertial matrix
   Eigen::Matrix3d inertia;
+
   //local contact point
   Eigen::Vector3d contact_point;
+
+  //local sensor point
+  Eigen::Vector3d sensor_point;
 
   //changing variables
   //rotation matrix
@@ -88,6 +97,9 @@ public:
 
   //global position of contact point at body
   Eigen::Vector3d xpos_contact;
+
+  //global position of sensor at body
+  Eigen::Vector3d xpos_sensor;
 
   //cartesian velocity of body
   Eigen::Vector3d v;
@@ -138,6 +150,8 @@ class EndEffector
 {
 public:
   Eigen::Vector3d cp_;
+  Eigen::Vector3d xpos;
+  Eigen::Vector3d sensor_xpos;
   bool contact = false;
 };
 
@@ -158,6 +172,7 @@ public:
   Link link_[LINK_NUMBER + 1];
   double orientation;
   double yaw_radian;
+  double roll, pitch, yaw;
   Eigen::MatrixVVd A_;
 
   Eigen::VectorQd q_;
@@ -171,11 +186,14 @@ public:
   Eigen::Vector3d ZMP;
   Eigen::Vector3d ZMP_local;
   Eigen::Vector3d ZMP_desired;
+  Eigen::Vector3d ZMP_desired2;
   Eigen::Vector3d ZMP_ft;
   Eigen::Vector3d ZMP_error;
   Eigen::Vector3d ZMP_eqn_calc;
   Eigen::Vector3d ZMP_command;
   Eigen::Vector3d ZMP_mod;
+
+  bool zmp_feedback_control = false;
   bool check = false;
 
   Eigen::Vector3d fstar;
@@ -184,6 +202,68 @@ public:
 
   //ee_ : Left to Right
   EndEffector ee_[ENDEFFECTOR_NUMBER]; //ee_ : 0: Left 1: Right
+
+  int contact_index;
+  int contact_part[4];
+
+  double control_time_; // updated by control_base
+  double d_time_;
+
+  double start_time_[4];
+  double end_time_[4];
+  bool target_arrived_[4];
+  bool debug;
+
+  int Right = 0;
+  int Left = 1;
+
+
+  Eigen::MatrixXd task_selection_matrix;
+  Eigen::VectorXd task_desired_force;
+  Eigen::VectorXd task_feedback_reference;
+  Eigen::Vector2d ZMP_task;
+
+  double zmp_gain;
+
+  Eigen::MatrixVVd A_matrix;
+  Eigen::MatrixVVd A_matrix_inverse;
+
+  Eigen::MatrixXd J_C, J_C_INV_T;
+  Eigen::MatrixXd J_COM;
+
+  Eigen::MatrixXd J_task;
+  Eigen::VectorXd f_star;
+
+  Eigen::MatrixXd Lambda_c;
+  Eigen::MatrixXd N_C;
+  Eigen::MatrixVVd I37;
+
+  Eigen::VectorXd contact_force_predict;
+  Eigen::Vector3d Grav_ref;
+
+  Eigen::MatrixXd J_task_T, J_task_inv, J_task_inv_T;
+  Eigen::MatrixXd lambda_inv, lambda;
+  Eigen::MatrixXd W, W_inv;
+  Eigen::MatrixXd Q, Q_T_, Q_temp, Q_temp_inv, Jtemp, Jtemp_2;
+  Eigen::MatrixXd _F;
+
+  Eigen::VectorXd G;
+
+  Eigen::MatrixXd Slc_k, Slc_k_T;
+  Eigen::MatrixXd svd_U;
+
+  int task_dof;
+
+  Eigen::Vector2d p_k_1;
+  Eigen::Vector3d ZMP_pos;
+
+  double fc_redis;
+
+  bool contact_calc;
+  bool task_force_control;
+  bool task_force_control_feedback;
+  bool zmp_control;
+  bool mpc_init;
 };
 
 std::ostream &

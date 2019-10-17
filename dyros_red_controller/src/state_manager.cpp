@@ -13,7 +13,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     time_pub = dc.nh.advertise<std_msgs::Float32>("/dyros_red/time", 1);
     motor_acc_dif_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/accdifinfo", 1);
     tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
-    point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point", 3);
+    point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point", 100);
     ft_viz_pub = dc.nh.advertise<visualization_msgs::MarkerArray>("/dyros_Red/ft_viz", 0);
     ft_viz_msg.markers.resize(4);
 
@@ -105,8 +105,11 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         Eigen::Vector3d lf_c, rf_c, lh_c, rh_c;
         lf_c << 0.0317, 0, -0.1368;
         rf_c << 0.0317, 0, -0.1368;
+
         link_[Right_Foot].contact_point = rf_c;
+        link_[Right_Foot].sensor_point << 0.0, 0.0, -0.1098;
         link_[Left_Foot].contact_point = lf_c;
+        link_[Left_Foot].sensor_point << 0.0, 0.0, -0.1098;
 
         joint_state_msg.name.resize(MODEL_DOF);
         for (int i = 0; i < MODEL_DOF; i++)
@@ -174,7 +177,7 @@ void StateManager::stateThread(void)
             ThreadCount2 = ThreadCount;
             i++;
         }
-        double pub_hz = 200;
+        double pub_hz = 400;
 
         //Data to GUI
         if ((ThreadCount % (int)(dc.stm_hz / pub_hz)) == 0)
@@ -255,22 +258,25 @@ void StateManager::stateThread(void)
             pointpub_msg.polygon.points[12].y = dc.red_.ZMP_ft(1);
             pointpub_msg.polygon.points[12].z = dc.red_.ZMP_ft(2);
 
-            pointpub_msg.polygon.points[13].x = dc.red_.link_[COM_id].a_traj(0);
-            pointpub_msg.polygon.points[13].y = dc.red_.link_[COM_id].a_traj(1);
-            pointpub_msg.polygon.points[13].z = dc.red_.link_[COM_id].a_traj(2);
+            pointpub_msg.polygon.points[13].x = dc.red_.com_.ZMP(0);
+            pointpub_msg.polygon.points[13].y = dc.red_.com_.ZMP(1);
+            pointpub_msg.polygon.points[13].z = 0.0;
 
-            pointpub_msg.polygon.points[14].x = dc.red_.ZMP_eqn_calc(0); //from zmp dynamics
-            pointpub_msg.polygon.points[14].y = dc.red_.ZMP_eqn_calc(1);
-            pointpub_msg.polygon.points[14].z = dc.red_.ZMP_eqn_calc(2);
+            pointpub_msg.polygon.points[14].x = dc.red_.link_[COM_id].a_traj(0);
+            pointpub_msg.polygon.points[14].y = dc.red_.link_[COM_id].a_traj(1);
+            pointpub_msg.polygon.points[14].z = dc.red_.link_[COM_id].a_traj(2);
 
-            pointpub_msg.polygon.points[15].x = dc.red_.com_.angular_momentum(0);
-            pointpub_msg.polygon.points[15].y = dc.red_.com_.angular_momentum(1);
-            pointpub_msg.polygon.points[15].z = dc.red_.com_.angular_momentum(2);
+            //pointpub_msg.polygon.points[14].x = dc.red_.ZMP_eqn_calc(0); //from zmp dynamics
+            //pointpub_msg.polygon.points[14].y = dc.red_.ZMP_eqn_calc(1);
+            //pointpub_msg.polygon.points[14].z = dc.red_.ZMP_eqn_calc(2);
+
+            pointpub_msg.polygon.points[15].x = dc.red_.com_.accel(0);
+            pointpub_msg.polygon.points[15].y = dc.red_.com_.accel(1);
+            pointpub_msg.polygon.points[15].z = dc.red_.com_.accel(2);
 
             pointpub_msg.polygon.points[16].x = dc.red_.ZMP_command(0);
             pointpub_msg.polygon.points[16].y = dc.red_.ZMP_command(1);
             pointpub_msg.polygon.points[16].z = dc.red_.ZMP_command(2);
-
 
             point_pub.publish(pointpub_msg);
 
@@ -405,12 +411,16 @@ void StateManager::storeState()
     dc.q_virtual_ = q_virtual_;
     dc.q_ddot_virtual_ = q_ddot_virtual_;
 
-    dc.yaw_radian = yaw_radian;
+    dc.yaw_radian = yaw;
+    dc.yaw = yaw;
+    dc.roll = roll;
+    dc.pitch = pitch;
+
     dc.A_ = A_;
     dc.A_inv = A_inv;
 
-    dc.red_.ContactForce_FT.segment(0,6) = LF_FT;
-    dc.red_.ContactForce_FT.segment(6,6) = RF_FT;
+    dc.red_.ContactForce_FT.segment(0, 6) = LF_FT;
+    dc.red_.ContactForce_FT.segment(6, 6) = RF_FT;
 
     dc.red_.com_ = com_;
 
@@ -438,9 +448,7 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     tf::Quaternion q(q_virtual_(3), q_virtual_(4), q_virtual_(5), q_virtual_(MODEL_DOF + 6));
 
     tf::Matrix3x3 m(q);
-    double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
-    yaw_radian = yaw;
 
     A_ = A_temp_;
     A_inv = A_.inverse();
@@ -532,7 +540,7 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     vel_temp = com_.vel;
     com_.vel = com_vel;
 
-    com_.accel = -com_accel;
+    com_.accel = com_accel;
     com_.angular_momentum = com_ang_momentum;
 
     double w_ = sqrt(9.81 / com_.pos(2));

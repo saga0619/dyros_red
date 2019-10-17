@@ -32,6 +32,10 @@ using namespace qpOASES;
 
 */
 
+namespace WholebodyController
+{
+}
+
 class Wholebody_controller
 {
 public:
@@ -40,6 +44,100 @@ public:
   Wholebody_controller(DataContainer &dc, KinematicsData &kd_);
   DataContainer &dc;
   KinematicsData &rk_;
+
+  //const VectorQd &current_q_; // updated by control_base
+
+  //Main loop wholebody function
+
+  // update kinematics information
+  //
+  void init(KinematicsData &Robot);
+  void update(KinematicsData &Robot);
+
+  //set contact status of robot. true for contact false for not contact
+  void set_contact(KinematicsData &Robot);
+  void set_contact(KinematicsData &Robot, bool left_foot, bool right_foot, bool left_hand = false, bool right_hand = false);
+
+  //contact force redistribution by yisoolee method at 2 contact(both foot)
+  VectorQd contact_force_redistribution_torque(KinematicsData &Robot, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta);
+
+  //set contact force to desired contact force
+  VectorQd contact_force_custom(KinematicsData &Robot, VectorQd command_torque, Eigen::VectorXd contact_force_now, Eigen::VectorXd contact_force_desired);
+
+  //update gravity compensation torque
+  VectorQd gravity_compensation_torque(KinematicsData &Robot, bool fixed = false, bool redsvd = false);
+
+  //get contact redistribution torque with Quadratic programing
+  VectorQd contact_torque_calc_from_QP(KinematicsData &Robot, VectorQd command_torque);
+
+  // Get Contact Redistribution Torque with QP. Wall contact mode.
+  //VectorQd contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio);
+  //Get Contact Redistribution Torque with QP. Wall contact mode.
+  //VectorQd contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio);
+
+  /*
+  * Get Task Control Torque.
+  * task jacobian and f_star must be defined. 
+  */
+  VectorQd task_control_torque(KinematicsData &Robot, Eigen::MatrixXd J_task, Eigen::VectorXd f_star_);
+
+  /*
+  * Get Task Control Torque 
+  * task jacobian and f_star must be defined. 
+  */
+  VectorQd task_control_torque_custom_force(KinematicsData &Robot, MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force);
+
+  // Get Task Control Torque task jacobian and f_star must be defined.
+  VectorQd task_control_torque_custom_force_feedback(KinematicsData &Robot, MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
+
+  //force control with selection matrix. selec 1 for control with fstar 0 for force control
+  void set_force_control(KinematicsData &Robot, MatrixXd selection_matrix, VectorXd desired_force);
+
+  //force control selection matrix 1 for control with fstar 0 for force control
+  void set_force_control_feedback(KinematicsData &Robot, MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
+  void set_zmp_control(KinematicsData &Robot, Vector2d ZMP, double gain);
+  void set_zmp_feedback_control(KinematicsData &Data, Vector2d ZMP, bool &reset_error);
+  void zmp_feedback_control(Vector3d desired_zmp);
+
+  //Utility functions
+
+  //Get contact force from command torque
+  VectorXd get_contact_force(KinematicsData &Robot, VectorQd command_torque);
+
+  //Get ZMP position from contact forces and both foot position
+  Vector3d GetZMPpos(KinematicsData &Robot, bool Local = false);
+  Vector3d GetZMPpos_fromFT(KinematicsData &Robot, bool Local = false);
+  Vector3d GetZMPpos(KinematicsData &Robot, VectorXd ContactForce, bool Local = false);
+
+  //Eigen::Vector6d Getfstar( );
+  Vector3d getfstar(KinematicsData &Robot, Vector3d kp, Vector3d kd, Vector3d p_desired, Vector3d p_now, Vector3d d_desired, Vector3d d_now);
+  Vector3d getfstar(KinematicsData &Robot, Vector3d kp, Vector3d kd, Matrix3d r_desired, Matrix3d r_now, Vector3d w_desired, Vector3d w_now);
+  Vector3d getfstar_tra(KinematicsData &Robot, int link_id, Vector3d kpt, Vector3d kdt);
+  Vector3d getfstar_tra(KinematicsData &Robot, int link_id);
+  Vector3d getfstar_rot(KinematicsData &Robot, int link_id, Vector3d kpa, Vector3d kda);
+  Vector3d getfstar_rot(KinematicsData &Robot, int link_id);
+  Vector6d getfstar6d(KinematicsData &Robot, int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda);
+  Vector6d getfstar6d(KinematicsData &Robot, int link_id);
+
+  Vector3d COM_traj_with_zmp();
+
+  //zmp controller
+  VectorQd CP_control_init(KinematicsData &Robot, double dT);
+  VectorQd CP_controller();
+  Vector6d zmp_controller(KinematicsData &Robot, Vector2d ZMP, double height);
+  Vector2d CP_ref[20];
+
+  //Vector2d getcptraj(double time, Vector2d zmp);
+
+  Vector2d getcpref(double task_time, double future_time);
+  //Contact Mode
+  const int DOUBLE_SUPPORT = 0;
+  const int SINGLE_SUPPORT_LEFT = 1;
+  const int SINGLE_SUPPORT_RIGHT = 2;
+  const int TRIPPLE_SUPPORT = 3;
+  const int QUAD_SUPPORT = 4;
+
+  /*
 
   // motion time
   //const double hz_;
@@ -58,59 +156,6 @@ public:
   bool contact_calc = false;
 
   VectorQVQd current_q_;
-  //const VectorQd &current_q_; // updated by control_base
-
-  //Main loop wholebody function
-
-  // update kinematics information
-  //
-  void update();
-
-  //set contact status of robot. true for contact false for not contact
-  void set_contact();
-  void set_contact(bool left_foot, bool right_foot, bool left_hand = false, bool right_hand = false);
-
-  //contact force redistribution by yisoolee method at 2 contact(both foot)
-  VectorQd contact_force_redistribution_torque(double yaw_radian, VectorQd command_torque, Eigen::Vector12d &ForceRedistribution, double &eta);
-
-  //set contact force to desired contact force
-  VectorQd contact_force_custom(VectorQd command_torque, Eigen::VectorXd contact_force_now, Eigen::VectorXd contact_force_desired);
-
-  //update gravity compensation torque
-  VectorQd gravity_compensation_torque(bool fixed = false, bool redsvd = false);
-
-  //get contact redistribution torque with Quadratic programing
-  VectorQd contact_torque_calc_from_QP(VectorQd command_torque);
-
-  // Get Contact Redistribution Torque with QP. Wall contact mode.
-  //VectorQd contact_torque_calc_from_QP_wall(VectorQd command_torque, double wall_friction_ratio);
-  //Get Contact Redistribution Torque with QP. Wall contact mode.
-  //VectorQd contact_torque_calc_from_QP_wall_mod2(VectorQd command_torque, double wall_friction_ratio);
-
-  /*
-  * Get Task Control Torque.
-  * task jacobian and f_star must be defined. 
-  */
-  VectorQd task_control_torque(Eigen::MatrixXd J_task, Eigen::VectorXd f_star_);
-
-  /*
-  * Get Task Control Torque 
-  * task jacobian and f_star must be defined. 
-  */
-  VectorQd task_control_torque_custom_force(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force);
-
-  // Get Task Control Torque task jacobian and f_star must be defined.
-  VectorQd task_control_torque_custom_force_feedback(MatrixXd J_task, VectorXd f_star_, MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
-
-  //force control with selection matrix. selec 1 for control with fstar 0 for force control
-  void set_force_control(MatrixXd selection_matrix, VectorXd desired_force);
-
-  //force control selection matrix 1 for control with fstar 0 for force control
-  void set_force_control_feedback(MatrixXd selection_matrix, VectorXd desired_force, VectorXd ft_hand);
-  void set_zmp_control(Vector2d ZMP, double gain);
-  void zmp_feedback_control(Vector3d desired_zmp);
-
-  
 
   MatrixXd task_selection_matrix;
   VectorXd task_desired_force;
@@ -121,46 +166,7 @@ public:
   bool zmp_control = false;
   double zmp_gain;
   bool mpc_init = false;
-
-  //Utility functions
-
-  //Get contact force from command torque
-  VectorXd get_contact_force(VectorQd command_torque);
-
-  //Get ZMP position from contact forces and both foot position
-  Vector3d GetZMPpos(bool Local = false);
-
-  //Eigen::Vector6d Getfstar( );
-  Vector3d getfstar(Vector3d kp, Vector3d kd, Vector3d p_desired, Vector3d p_now, Vector3d d_desired, Vector3d d_now);
-  Vector3d getfstar(Vector3d kp, Vector3d kd, Matrix3d r_desired, Matrix3d r_now, Vector3d w_desired, Vector3d w_now);
-  Vector3d getfstar_tra(int link_id, Vector3d kpt, Vector3d kdt);
-  Vector3d getfstar_tra(int link_id);
-  Vector3d getfstar_rot(int link_id, Vector3d kpa, Vector3d kda);
-  Vector3d getfstar_rot(int link_id);
-  Vector6d getfstar6d(int link_id, Vector3d kpt, Vector3d kdt, Vector3d kpa, Vector3d kda);
-  Vector6d getfstar6d(int link_id);
-
-  Vector3d COM_traj_with_zmp();
-
-  //zmp controller
-  VectorQd CP_control_init(double dT);
-  VectorQd CP_controller();
-  Vector6d zmp_controller(Vector2d ZMP, double height);
-  Vector2d CP_ref[20];
-
-  //Vector2d getcptraj(double time, Vector2d zmp);
-
-  Vector2d getcpref(double task_time, double future_time);
-  //Contact Mode
-  const int DOUBLE_SUPPORT = 0;
-  const int SINGLE_SUPPORT_LEFT = 1;
-  const int SINGLE_SUPPORT_RIGHT = 2;
-  const int TRIPPLE_SUPPORT = 3;
-  const int QUAD_SUPPORT = 4;
-
-  int contact_index;
-  int contact_part[4];
-
+  
   MatrixVVd A_matrix;
   MatrixVVd A_matrix_inverse;
 
@@ -193,7 +199,7 @@ public:
   Vector2d p_k_1;
   Vector3d ZMP_pos;
 
-  double fc_redis;
+  double fc_redis;*/
 
   //QP solver setting
   void QPInitialize();

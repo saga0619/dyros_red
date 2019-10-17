@@ -92,6 +92,13 @@ void Link::Set_Contact(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_vi
     // - link_[0].xpos);
 }
 
+void Link::Set_Sensor_Position(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Sensor_position)
+{
+    mtx_rbdl.lock();
+    xpos_sensor = RigidBodyDynamics::CalcBodyToBaseCoordinates(*model, q_virtual_, id, Sensor_position, false);
+    mtx_rbdl.unlock();
+}
+
 void Link::Set_Contact(Eigen::VectorQVQd &q_virtual_, Eigen::Vector3d &Contact_position)
 {
     j_temp.setZero(6, MODEL_DOF_VIRTUAL);

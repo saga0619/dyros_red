@@ -57,6 +57,7 @@ public:
   Eigen::VectorQd torque_;
   Eigen::VectorQd torque_desired;
 
+  double roll, pitch, yaw;
   double yaw_radian;
 
   Eigen::MatrixVVd A_;
@@ -93,8 +94,6 @@ public:
   dyros_red_msgs::MotorInfo motor_info_msg;
   dyros_red_msgs::MotorInfo acc_dif_info_msg;
   geometry_msgs::PolygonStamped pointpub_msg;
-
-  
 
   void CommandCallback(const std_msgs::StringConstPtr &msg);
   //void TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg);

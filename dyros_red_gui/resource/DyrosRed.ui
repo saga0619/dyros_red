@@ -220,17 +220,17 @@
          </item>
          <item>
           <property name="text">
-           <string>Pelvis COM combined + Upperbody rotation hold</string>
+           <string>zmp feedback test</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>right hand rotation hold with z axis test</string>
+           <string>capture point walking</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>pelv_COM control + arms joint control</string>
+           <string>capture point walking2</string>
           </property>
          </item>
          <item>

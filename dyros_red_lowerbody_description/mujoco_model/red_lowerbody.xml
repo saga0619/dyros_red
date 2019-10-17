@@ -2,8 +2,8 @@
     <compiler angle="radian" meshdir="../meshes/" />
     <size njmax="500" nconmax="100" />
     <default>
-        <joint damping="0.01" frictionloss="0.0"/>
-        <motor ctrllimited="true" ctrlrange="-300 300"/>
+        <joint damping="1.0" frictionloss="0.0"/>
+        <motor ctrllimited="true" ctrlrange="-200 200"/>
         <default class="viz">
             <geom contype="0" conaffinity="0" group="1" type="mesh" rgba=".6 .6 .7 1"/>
         </default>

@@ -114,6 +114,7 @@ void RedController::TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPt
     tc.angle = msg->angle;
     tc.height = msg->height;
     tc.mode = msg->mode;
+    tc.task_init = true;
 
     red_.link_[Right_Foot].Set_initpos();
     red_.link_[Left_Foot].Set_initpos();
@@ -121,6 +122,8 @@ void RedController::TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPt
     red_.link_[COM_id].Set_initpos();
 
     task_switch = true;
+
+    std::cout << "init set - COM x : " << red_.link_[COM_id].x_init(0) << "\t y : " << red_.link_[COM_id].x_init(1) << std::endl;
 }
 
 void RedController::stateThread()
@@ -175,6 +178,10 @@ void RedController::dynamicsThreadHigh()
         }
         cnt++;
         mtx.lock();
+        if ((abs(red_.roll) > 30.0 / 180.0 * 3.141592) || (abs(red_.pitch) > 30.0 / 180.0 * 3.141592))
+        {
+            torque_desired.setZero();
+        }
         s_.sendCommand(torque_desired, sim_time);
         mtx.unlock();
 
@@ -299,7 +306,8 @@ void RedController::dynamicsThreadLow()
         red_.link_[COM_id].pos_p_gain = kp_;
         red_.link_[COM_id].pos_d_gain = kd_;
 
-        wc_.update();
+        wc_.init(red_);
+        wc_.update(red_);
 
         sec = std::chrono::high_resolution_clock::now() - start_time;
         if (sec.count() - control_time_ > 0.01)
@@ -324,9 +332,9 @@ void RedController::dynamicsThreadLow()
         {
             if (tc.mode == 0) //Pelvis position control
             {
-                wc_.set_contact(1, 1);
+                wc_.set_contact(red_, 1, 1);
 
-                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                torque_grav = wc_.gravity_compensation_torque(red_, dc.fixedgravity);
                 //torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
                 task_number = 6;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
@@ -340,15 +348,15 @@ void RedController::dynamicsThreadLow()
 
                 //red_.link_[Pelvis].rot_desired = Matrix3d::Identity();
 
-                f_star = wc_.getfstar6d(Pelvis);
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                f_star = wc_.getfstar6d(red_, Pelvis);
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
                 //torque_task = wc_.task_control_torque(J_task, f_star);
             }
             else if (tc.mode == 1) //COM position control
             {
-                wc_.set_contact(1, 1);
+                wc_.set_contact(red_, 1, 1);
 
-                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                torque_grav = wc_.gravity_compensation_torque(red_, dc.fixedgravity);
                 //torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
                 task_number = 6;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
@@ -362,54 +370,68 @@ void RedController::dynamicsThreadLow()
 
                 //red_.link_[Pelvis].rot_desired = Matrix3d::Identity();
 
-                f_star = wc_.getfstar6d(COM_id);
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                f_star = wc_.getfstar6d(red_, COM_id);
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
                 //torque_task = wc_.task_control_torque(J_task, f_star);
 
                 f_star.segment(0, 3) = red_.link_[COM_id].a_traj;
-                TorqueDesiredLocal = wc_.task_control_torque(J_task, f_star) + torque_grav;
-                wc_.get_contact_force(TorqueDesiredLocal);
-                red_.ZMP_local = wc_.GetZMPpos();
+
+                TorqueDesiredLocal = wc_.task_control_torque(red_, J_task, f_star) + torque_grav;
+
+                red_.ContactForce = wc_.get_contact_force(red_, TorqueDesiredLocal);
+                red_.ZMP_local = wc_.GetZMPpos(red_);
             }
             else if (tc.mode == 2) //COM to Left foot, then switch double support to single support
             {
                 if (control_time_ < tc.command_time + tc.traj_time)
                 {
-                    wc_.set_contact(1, 1);
+                    wc_.set_contact(red_, 1, 1);
+                    if (tc.ratio >= 0.5)
+                    {
+                        red_.link_[COM_id].x_desired = red_.link_[Left_Foot].xpos;
+                        red_.link_[COM_id].x_desired(2) = tc.height + red_.link_[Left_Foot].xpos(2);
+                    }
+                    else if (tc.ratio < 0.5)
+                    {
+                        red_.link_[COM_id].x_desired = red_.link_[Right_Foot].xpos;
+                        red_.link_[COM_id].x_desired(2) = tc.height + red_.link_[Right_Foot].xpos(2);
+                    }
                 }
-                else
+                else if (tc.ratio < 0.5)
                 {
-                    wc_.set_contact(1, 0);
+                    wc_.set_contact(red_, 0, 1);
+                }
+                else if (tc.ratio > 0.5)
+                {
+                    wc_.set_contact(red_, 1, 0);
                 }
 
-                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                torque_grav = wc_.gravity_compensation_torque(red_, dc.fixedgravity);
                 task_number = 6;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
                 f_star.setZero(task_number);
 
                 J_task = red_.link_[COM_id].Jac;
 
-                red_.link_[COM_id].x_desired = red_.link_[Left_Foot].xpos;
-                red_.link_[COM_id].x_desired(2) = tc.height + red_.link_[Left_Foot].xpos(2);
                 red_.link_[COM_id].rot_desired = Matrix3d::Identity();
 
                 red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time);
-                f_star = wc_.getfstar6d(COM_id);
+                f_star = wc_.getfstar6d(red_, COM_id);
 
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
             }
             else if (tc.mode == 3) //COM to Left foot, then switch double support to single support while holding com rotation.
             {
                 if (control_time_ < tc.command_time + tc.traj_time)
                 {
-                    wc_.set_contact(1, 1);
+                    wc_.set_contact(red_, 1, 1);
                 }
                 else
                 {
-                    wc_.set_contact(1, 0);
+                    wc_.set_contact(red_, 1, 0);
                 }
 
-                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                torque_grav = wc_.gravity_compensation_torque(red_, dc.fixedgravity);
                 task_number = 6;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
                 f_star.setZero(task_number);
@@ -422,40 +444,50 @@ void RedController::dynamicsThreadLow()
 
                 red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time);
                 red_.link_[COM_id].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, false);
-                f_star = wc_.getfstar6d(COM_id);
+                f_star = wc_.getfstar6d(red_, COM_id);
 
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
             }
             else if (tc.mode == 4) //left foot controller
             {
-                wc_.set_contact(1, 0);
-                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                //if(red_.contact_part[0].)
+                int task_link;
+                if (red_.ee_[0].contact)
+                {
+                    wc_.set_contact(red_, 1, 0);
+                    task_link = Right_Foot;
+                }
+                else if (red_.ee_[1].contact)
+                {
+                    wc_.set_contact(red_, 0, 1);
+                    task_link = Left_Foot;
+                }
+
+                torque_grav = wc_.gravity_compensation_torque(red_, dc.fixedgravity);
                 task_number = 12;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
                 f_star.setZero(task_number);
-
                 J_task.block(0, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[COM_id].Jac;
-                J_task.block(6, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[Right_Foot].Jac;
 
+                J_task.block(6, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[task_link].Jac;
                 red_.link_[COM_id].x_desired = red_.link_[COM_id].x_init;
                 red_.link_[COM_id].rot_desired = Matrix3d::Identity();
 
-                red_.link_[Right_Foot].x_desired(0) = tc.ratio;
-                red_.link_[Right_Foot].x_desired(1) = red_.link_[Right_Foot].x_init(1);
-                red_.link_[Right_Foot].x_desired(2) = tc.height;
-
-                red_.link_[Right_Foot].rot_desired = Matrix3d::Identity();
+                red_.link_[task_link].x_desired(0) = red_.link_[task_link].x_init(0) + tc.ratio;
+                red_.link_[task_link].x_desired(1) = red_.link_[task_link].x_init(1);
+                red_.link_[task_link].x_desired(2) = red_.link_[task_link].x_init(2) + tc.height;
+                red_.link_[task_link].rot_desired = Matrix3d::Identity();
 
                 red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time);
                 red_.link_[COM_id].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, false);
 
-                red_.link_[Right_Foot].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time);
-                red_.link_[Right_Foot].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, false);
+                red_.link_[task_link].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time);
+                red_.link_[task_link].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, false);
 
-                f_star.segment(0, 6) = wc_.getfstar6d(COM_id);
-                f_star.segment(6, 6) = wc_.getfstar6d(Right_Foot);
+                f_star.segment(0, 6) = wc_.getfstar6d(red_, COM_id);
+                f_star.segment(6, 6) = wc_.getfstar6d(red_, task_link);
 
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
                 //red_.link_[Right_Foot].x_desired = tc.
             }
             else if (tc.mode == 5)
@@ -464,23 +496,23 @@ void RedController::dynamicsThreadLow()
                 if (red_.ee_[0].contact && red_.ee_[1].contact)
                 {
                     red_.ContactForce = red_.ContactForce_FT;
-                    red_.ZMP_ft = wc_.GetZMPpos();
+                    red_.ZMP_ft = wc_.GetZMPpos(red_);
                 }
                 else if (red_.ee_[0].contact)
                 {
                     red_.ContactForce = red_.ContactForce_FT.segment(0, 6);
-                    red_.ZMP_ft = wc_.GetZMPpos();
+                    red_.ZMP_ft = wc_.GetZMPpos(red_);
                 }
                 else if (red_.ee_[1].contact)
                 {
                     red_.ContactForce = red_.ContactForce_FT.segment(6, 6);
-                    red_.ZMP_ft = wc_.GetZMPpos();
+                    red_.ZMP_ft = wc_.GetZMPpos(red_);
                 }
 
                 red_.ZMP_error = red_.ZMP_desired - red_.ZMP_ft;
 
-                wc_.set_contact(1, 1);
-                torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+                wc_.set_contact(red_, 1, 1);
+                torque_grav = wc_.gravity_compensation_torque(red_, dc.fixedgravity);
                 task_number = 6;
                 J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
                 f_star.setZero(task_number);
@@ -498,7 +530,9 @@ void RedController::dynamicsThreadLow()
 
                 bool transition;
                 double t = 1.0;
-                double tc = sqrt((red_.com_.pos(2) - (red_.link_[Right_Foot].xpos(2) + red_.link_[Left_Foot].xpos(2)) * 0.5) / 9.81);
+                static double com_height = red_.com_.pos(2) - (red_.link_[Right_Foot].xpos(2) + red_.link_[Left_Foot].xpos(2)) * 0.5;
+
+                double tc = sqrt(com_height / 9.81);
                 static double st;
                 double tf = 1.0;
                 static int left_c = 1;
@@ -508,11 +542,14 @@ void RedController::dynamicsThreadLow()
                 static int step = 0;
                 static double tn;
 
-                double d_t = 1.3;
-                double t_gain = 0;
+                double d_t = 1.0;
+                double t_gain = 0.05;
+                double freeze_tick = 10;
 
-                int transition_step = 200;
-                int transition_step2 = 4;
+                int transition_step = 100;
+                int transition_step2 = 200;
+
+                double f_star_y;
 
                 if (l_dis < r_dis)
                 {
@@ -523,7 +560,10 @@ void RedController::dynamicsThreadLow()
                         st = control_time_;
                     }
                     if (step > transition_step2)
+                    {
                         red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh((tf - tn) / tc) + tc * red_.link_[COM_id].v(1) * sinh((tf - tn) / tc)) / (cosh((tf - tn) / tc) - 1);
+                        std::cout << "red_.ZMP_desired : " << red_.ZMP_desired(1) << std::endl;
+                    }
 
                     if (right_c == 1)
                     {
@@ -537,7 +577,9 @@ void RedController::dynamicsThreadLow()
                             std::cout << "transition!" << std::endl;
                         }
                         if (step > transition_step)
+                        {
                             red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc)) / (cosh(tf / tc) - 1);
+                        }
 
                         right_c = 0;
                         red_.ZMP_error(1) = 0.0;
@@ -547,12 +589,20 @@ void RedController::dynamicsThreadLow()
                         step++;
                         if ((step > 3) && (tn > d_t))
                         {
-                            //red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc) - 0.0) / (cosh(tf / tc) - 1);
-                            //red_.ZMP_mod = red_.ZMP_desired * (tn - d_t) * t_gain;
+                            //std::cout<< (red_.link_[COM_id].xpos(1) * cosh(tn / tc) + tc * red_.link_[COM_id].v(1) * sinh(tn / tc) - 0.0) / (cosh(tn / tc) - 1) - (red_.link_[COM_id].xpos(1) * cosh(d_t / tc) + tc * red_.link_[COM_id].v(1) * sinh(d_t / tc) - 0.0) / (cosh(d_t / tc) - 1)<<std::endl;
+                            //red_.ZMP_mod(1) = (red_.link_[COM_id].xpos(1) * cosh(d_t / tc) + tc * red_.link_[COM_id].v(1) * sinh(d_t / tc) - 0.0) / (cosh(d_t / tc) - 1) - (red_.link_[COM_id].xpos(1) * cosh(tn / tc) + tc * red_.link_[COM_id].v(1) * sinh(tn / tc) - 0.0) / (cosh(tn / tc) - 1);
+                            red_.ZMP_mod = red_.ZMP_desired * (tn - d_t) * t_gain;
+                            red_.ZMP_desired(1) = red_.ZMP_desired(1) + red_.ZMP_mod(1);
+                            red_.ZMP_command(1) = red_.ZMP_desired(1);
+                            std::cout << "lc add : " << red_.ZMP_mod(1) << std::endl;
+                        }
+                        else
+                        {
+                            red_.ZMP_mod(1) = 0;
                         }
                     }
 
-                    if (right_t < 50)
+                    if (right_t < freeze_tick)
                     {
                         red_.ZMP_error(1) = 0.0;
                         right_t++;
@@ -577,7 +627,10 @@ void RedController::dynamicsThreadLow()
                         st = control_time_;
                     }
                     if (step > transition_step2)
+                    {
                         red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh((tf - tn) / tc) + tc * red_.link_[COM_id].v(1) * sinh((tf - tn) / tc)) / (cosh((tf - tn) / tc) - 1);
+                        std::cout << "red_.ZMP_desired : " << red_.ZMP_desired(1) << std::endl;
+                    }
 
                     if (left_c == 1)
                     {
@@ -593,7 +646,7 @@ void RedController::dynamicsThreadLow()
 
                         if (step > transition_step)
                             red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc)) / (cosh(tf / tc) - 1);
-                        
+
                         left_c = 0;
                         red_.ZMP_error(1) = 0.0;
                         std::cout << step << " right close : " << tn << " des zmp : " << red_.ZMP_desired(1) << "com p : " << red_.link_[COM_id].xpos(1) << " com v : " << red_.link_[COM_id].v(1) << std::endl;
@@ -602,13 +655,22 @@ void RedController::dynamicsThreadLow()
                         step++;
                         if ((step > 3) && (tn > d_t))
                         {
+                            //std::cout<< (red_.link_[COM_id].xpos(1) * cosh(tn / tc) + tc * red_.link_[COM_id].v(1) * sinh(tn / tc) - 0.0) / (cosh(tn / tc) - 1) - (red_.link_[COM_id].xpos(1) * cosh(d_t / tc) + tc * red_.link_[COM_id].v(1) * sinh(d_t / tc) - 0.0) / (cosh(d_t / tc) - 1)<<std::endl;
+                            //red_.ZMP_mod(1) = (red_.link_[COM_id].xpos(1) * cosh(d_t / tc) + tc * red_.link_[COM_id].v(1) * sinh(d_t / tc) - 0.0) / (cosh(d_t / tc) - 1) - (red_.link_[COM_id].xpos(1) * cosh(tn / tc) + tc * red_.link_[COM_id].v(1) * sinh(tn / tc) - 0.0) / (cosh(tn / tc) - 1);
                             //red_.ZMP_desired(1) = (red_.link_[COM_id].xpos(1) * cosh(tf / tc) + tc * red_.link_[COM_id].v(1) * sinh(tf / tc) - 0.0) / (cosh(tf / tc) - 1);
-                            //red_.ZMP_mod = red_.ZMP_desired * (tn - d_t) * t_gain;
+                            red_.ZMP_mod = red_.ZMP_desired * (tn - d_t) * t_gain;
+                            std::cout << "rc add : " << red_.ZMP_mod(1) << std::endl;
+                            red_.ZMP_desired(1) = red_.ZMP_desired(1) + red_.ZMP_mod(1) * 6;
+                            red_.ZMP_command(1) = red_.ZMP_desired(1);
+                        }
+                        else
+                        {
+                            red_.ZMP_mod(1) = 0;
                         }
                         //tf = 2.0 - control_time_ + st;
                     }
 
-                    if (left_t < 50)
+                    if (left_t < freeze_tick)
                     {
                         red_.ZMP_error(1) = 0.0;
                         left_t++;
@@ -623,152 +685,67 @@ void RedController::dynamicsThreadLow()
                 }
                 red_.ZMP_desired(0) = red_.link_[COM_id].xpos(0);
 
-                wc_.set_zmp_control(red_.ZMP_desired.segment(0, 2), 1.0);
+                //wc_.set_zmp_control(red_, red_.ZMP_desired.segment(0, 2), 1.0);
 
-                f_star = wc_.getfstar6d(COM_id);
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                red_.ZMP_command = red_.ZMP_command + 0.05 * red_.ZMP_error; //+ rk_.ZMP_mod;
+                f_star_y = 9.81 / (red_.com_.pos(2) - red_.link_[Right_Foot].xpos(2) * 0.5 - red_.link_[Left_Foot].xpos(2) * 0.5) * (red_.com_.pos(1) - red_.ZMP_command(1));
+
+                f_star = wc_.getfstar6d(red_, COM_id);
+                f_star(1) = f_star_y;
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
+                VectorXd cf_pre = wc_.get_contact_force(red_, torque_task + torque_grav);
 
                 //red_.ZMP_desired.segment(0, 2);
                 red_.ZMP_desired(2) = 0.0;
             }
-            else if (tc.mode == 3)
+            else if (tc.mode == 6)
             {
                 static int loop_temp;
                 static int loop_;
-                static bool cgen_init = true;
-                static bool loop_cnged = false;
-                static bool walking_init = true;
+                static bool cgen_init;
+                static bool loop_cnged;
+                static bool walking_init;
+                static double foot_height;
+                static bool zmperror_reset;
 
+                double footstep_y_length = 0.1024;
                 //QP_switch = true;
                 red_.ee_[0].contact = true;
                 red_.ee_[1].contact = true;
 
                 //right_foot_contact_ = true;
                 //left_foot_contact_ = true;
+                double time_segment_origin = tc.traj_time;
+                static double time_segment = tc.traj_time;
+                static double loop_start_time;
+                static double loop_end_time;
 
-                double time_segment = 1.0;
-                double step_length = 0.0;
+                if (tc.task_init)
+                {
+                    std::cout << "Control init!!!!!!!!!!!!!!!" << std::endl;
+                    cgen_init = true;
+                    loop_cnged = false;
+                    walking_init = true;
+                    foot_height = (red_.link_[Right_Foot].xpos(2) + red_.link_[Left_Foot].xpos(2)) / 2.0;
+                    zmperror_reset = true;
+                    time_segment = tc.traj_time;
+                    loop_start_time = 0.0;
+                    loop_end_time = 0.0;
+                    tc.task_init = false;
+                }
+
+                double step_length = tc.ratio;
 
                 double task_time = control_time_ - tc.command_time;
-                Vector2d cp_current = red_.com_.CP;
-                double w_ = sqrt(9.81 / red_.com_.pos(2));
+
                 loop_temp = loop_;
                 loop_ = (int)(task_time / time_segment);
-
                 double loop_time = task_time - (double)loop_ * time_segment;
 
-                double b_ = exp(w_ * (time_segment - loop_time));
-
-                Vector2d desired_cp;
-                Vector2d right_cp, left_cp, cp_mod;
-                //cp_mod << -0.02, -0.00747;
-                //right_cp << -0.04, -0.095;
-                //left_cp << -0.04, 0.095;
-                cp_mod << -0.00, -0.00747;
-                right_cp << 0.03, -0.1;
-                left_cp << 0.03, 0.1;
-
-                if (loop_ - loop_temp)
-                {
-                    loop_cnged = true;
-                    cgen_init = true;
-                }
-                double st_temp;
-
-                if (loop_ % 2)
-                {
-                    st_temp = step_length;
-                    if (loop_ == 1)
-                        st_temp = step_length / 2.0;
-
-                    desired_cp = right_cp;
-                    desired_cp(0) = right_cp(0) + ((double)loop_) * st_temp;
-                }
-                else
-                {
-                    st_temp = step_length;
-                    if (loop_ == 1)
-                        st_temp = step_length / 2.0;
-                    desired_cp = left_cp;
-                    desired_cp(0) = left_cp(0) + ((double)loop_) * st_temp;
-                }
-
-                Vector2d zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * red_.com_.CP;
-
-                if (cgen_init)
-                {
-                    // std::cout << "loop : " << loop_ << " loop time : " << loop_time << std::endl;
-                    //cx_init = model_.com_.pos.segment(0, 2);
-                    //cv_init = model_.com_.vel.segment(0, 2);
-                    //std::cout << "desired cp   x : " << desired_cp(0) << "  y : " << desired_cp(1) << std::endl;
-                    //std::cout << "zmp gen   x : " << zmp(0) << "  y : " << zmp(1) << std::endl;
-                    //std::cout << "c CP" << std::endl;
-                    //std::cout << model_.com_.CP << std::endl;
-
-                    //zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * model_.com_.CP;
-                    //cgen_init = false;
-                }
-
-                if (zmp(1) > 0.11)
-                {
-                    zmp(1) = 0.11;
-                }
-                if (zmp(1) < -0.11)
-                {
-                    zmp(1) = -0.11;
-                }
-                if (loop_ > 0)
-                {
-                    if (red_.ee_[0].contact)
-                    {
-                        if (zmp(1) > red_.link_[Left_Foot].xpos(1) + 0.05)
-                        {
-                            zmp(1) = red_.link_[Left_Foot].xpos(1) + 0.05;
-                        }
-                        if (zmp(1) < red_.link_[Left_Foot].xpos(1) - 0.08)
-                        {
-                            zmp(1) = red_.link_[Left_Foot].xpos(1) - 0.08;
-                        }
-                    }
-                    else if (red_.ee_[1].contact)
-                    {
-                        if (zmp(1) > red_.link_[Right_Foot].xpos(1) + 0.08)
-                        {
-                            zmp(1) = red_.link_[Right_Foot].xpos(1) + 0.08;
-                        }
-                        if (zmp(1) < red_.link_[Right_Foot].xpos(1) - 0.05)
-                        {
-                            zmp(1) = red_.link_[Right_Foot].xpos(1) - 0.05;
-                        }
-                    }
-                }
-
-                // est_cp_ = b_ * (model_.com_.pos.segment(0, 2) + model_.com_.vel.segment(0, 2) / w_) + (1 - b_) * zmp;
-                // std::cout << "estimated_cp" << std::endl;
-                // std::cout << est_cp_ << std::endl;
-                wc_.set_zmp_control(zmp, 1.0);
-                //MatrixXd damping_matrix;
-                //damping_matrix.setIdentity(total_dof_, total_dof_);
-
-                // //torque_dc_.segment(0, 12) = q_dot_.segment(0, 12) * 2.0;
-                // std::cout << "zmp_des" << std::endl;
-                // std::cout << zmp << std::endl;
-                //std::cout << "zmp_cur" << std::endl;
-                //std::cout << model_.com_.ZMP << std::endl;
-                //std::cout << "Sensor ZMP" << std::endl;
-                //std::cout << body_zmp_ << std::endl;
-
-                //single support test at tc_
-                // single support , 0.1 ~ 0.9s foot up -> down just for 4cm?
-                // at loop_ = 0( first phase)
-                // at loop_ = 1, zmp at right foot.
-                // at each loop, 0~0.1 double support 0.1~ 0.9 singlesupport 0.9~1.0 double support
-
-                //
                 double lr_st, lr_mt, lr_et;
-                lr_st = time_segment / 10.0;
-                lr_mt = time_segment / 10.0 * 5.0;
-                lr_et = time_segment / 10.0 * 9.0;
+                lr_st = time_segment / 8.0;
+                lr_mt = time_segment / 8.0 * 4.0;
+                lr_et = time_segment / 8.0 * 7.0;
 
                 if ((double)loop_ > 0.1)
                 {
@@ -800,12 +777,15 @@ void RedController::dynamicsThreadLow()
                         }
                     }
                 }
+
                 //(model_.link_[model_.COM_id].x_init - zmp)*cosh(loop_time/time_segment)+time_segment * model_.link_[model_.COM_id]
                 task_desired.setZero();
-                task_desired(2) = tc.height;
+                task_desired(0) = red_.link_[COM_id].x_init(0);
+                task_desired(2) = tc.height + foot_height;
 
-                red_.link_[COM_id]
-                    .Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time, task_desired);
+                red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time, task_desired);
+
+                red_.ZMP_error = red_.ZMP_desired - red_.ZMP_ft;
 
                 // model_.link_[model_.COM_id].x_traj.segment(0, 2) = (cx_init - zmp) * cosh(loop_time * w_) + cv_init * sinh(loop_time * w_) / w_ + zmp;
 
@@ -824,13 +804,12 @@ void RedController::dynamicsThreadLow()
                     f_star.setZero(task_number);
                     J_task.block(0, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[COM_id].Jac;
 
-                    wc_.set_contact(1, 1);
-                    torque_grav = wc_.gravity_compensation_torque();
+                    wc_.set_contact(red_, 1, 1);
+                    torque_grav = wc_.gravity_compensation_torque(red_);
 
                     red_.link_[Pelvis].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
 
-                    f_star.segment(0, 3) = wc_.getfstar_tra(COM_id, kp_, kd_);
-                    f_star.segment(3, 3) = wc_.getfstar_rot(Pelvis, kpa_, kda_);
+                    f_star.segment(0, 6) = wc_.getfstar6d(red_, COM_id);
                 }
                 else if (red_.ee_[0].contact)
                 {
@@ -841,14 +820,378 @@ void RedController::dynamicsThreadLow()
                     }
                     task_number = 12;
 
-                    wc_.set_contact(1, 0);
+                    wc_.set_contact(red_, 1, 0);
                     J_task.setZero(task_number, total_dof_ + 6);
                     f_star.setZero(task_number);
 
                     J_task.block(0, 0, 6, total_dof_ + 6) = red_.link_[COM_id].Jac;
                     J_task.block(6, 0, 6, total_dof_ + 6) = red_.link_[Right_Foot].Jac;
 
-                    torque_grav = wc_.gravity_compensation_torque();
+                    torque_grav = wc_.gravity_compensation_torque(red_);
+
+                    red_.link_[Pelvis].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
+
+                    Vector3d lf_desired;
+                    lf_desired = red_.link_[Right_Foot].x_init;
+                    lf_desired(1) = -footstep_y_length;
+                    lf_desired(2) = lf_desired(2) + 0.04;
+
+                    red_.link_[Right_Foot].Set_Trajectory_from_quintic(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+
+                    Vector3d lf_init = lf_desired;
+
+                    lf_desired(2) = lf_desired(2) - 0.04;
+                    if (loop_time > lr_mt)
+                        red_.link_[Right_Foot].Set_Trajectory_from_quintic(control_time_, tc.command_time + (double)loop_ * time_segment + lr_mt, tc.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+
+                    Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_et - 0.04, red_.link_[Right_Foot].x_init(0), 0, 0, red_.link_[Left_Foot].xpos(0) + step_length, 0, 0);
+                    red_.link_[Right_Foot].x_traj(0) = quintic(0);
+                    red_.link_[Right_Foot].v_traj(0) = quintic(1);
+
+                    red_.link_[Right_Foot].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
+
+                    f_star.segment(0, 6) = wc_.getfstar6d(red_, COM_id);
+                    f_star.segment(6, 6) = wc_.getfstar6d(red_, Right_Foot);
+                }
+                else if (red_.ee_[1].contact) // rightfoot contact
+                {
+
+                    Vector3d lf_desired;
+                    if (walking_init)
+                    {
+                        red_.link_[Left_Foot].x_init = red_.link_[Left_Foot].xpos;
+                        walking_init = false;
+                    }
+                    task_number = 12;
+                    wc_.set_contact(red_, 0, 1);
+
+                    J_task.setZero(task_number, total_dof_ + 6);
+                    f_star.setZero(task_number);
+
+                    J_task.block(0, 0, 6, total_dof_ + 6) = red_.link_[COM_id].Jac;
+                    J_task.block(6, 0, 6, total_dof_ + 6) = red_.link_[Left_Foot].Jac;
+
+                    torque_grav = wc_.gravity_compensation_torque(red_);
+
+                    red_.link_[Pelvis].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
+                    //model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
+
+                    lf_desired = red_.link_[Left_Foot].x_init;
+
+                    lf_desired(1) = footstep_y_length;
+                    lf_desired(2) = lf_desired(2) + 0.04;
+
+                    red_.link_[Left_Foot].Set_Trajectory_from_quintic(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_mt, lf_desired);
+
+                    Vector3d lf_init = lf_desired;
+
+                    lf_desired(2) = lf_desired(2) - 0.04;
+                    if (loop_time > lr_mt)
+                        red_.link_[Left_Foot].Set_Trajectory_from_quintic(control_time_, tc.command_time + (double)loop_ * time_segment + lr_mt, tc.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
+
+                    Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_et - 0.04, red_.link_[Left_Foot].x_init(0), 0, 0, red_.link_[Right_Foot].xpos(0) + step_length, 0, 0);
+                    red_.link_[Left_Foot].x_traj(0) = quintic(0);
+                    red_.link_[Left_Foot].v_traj(0) = quintic(1);
+
+                    red_.link_[Left_Foot].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
+
+                    f_star.segment(0, 6) = wc_.getfstar6d(red_, COM_id);
+                    f_star.segment(6, 6) = wc_.getfstar6d(red_, Left_Foot);
+                }
+
+                Vector2d cp_current = red_.com_.CP;
+                double w_ = sqrt(9.81 / red_.com_.pos(2));
+                double b_ = exp(w_ * (time_segment - loop_time));
+
+                Vector2d desired_cp;
+                Vector2d right_cp, left_cp, cp_mod;
+                //cp_mod << -0.02, -0.00747;
+                //right_cp << -0.04, -0.095;
+                //left_cp << -0.04, 0.095;
+                cp_mod << -0.0, -0.00747;
+                right_cp << 0.02, -0.09;
+                left_cp << 0.02, 0.09;
+
+                if (loop_ - loop_temp)
+                {
+                    loop_cnged = true;
+                    cgen_init = true;
+                }
+                double st_temp;
+
+                if (loop_ % 2)
+                {
+                    st_temp = step_length;
+                    if (loop_ == 1)
+                        st_temp = step_length / 2.0;
+
+                    desired_cp = right_cp;
+                    desired_cp(0) = right_cp(0) + ((double)loop_) * st_temp + red_.link_[COM_id].x_init(0);
+                }
+                else
+                {
+                    st_temp = step_length;
+                    if (loop_ == 1)
+                        st_temp = step_length / 2.0;
+                    desired_cp = left_cp;
+                    desired_cp(0) = left_cp(0) + ((double)loop_) * st_temp + red_.link_[COM_id].x_init(0);
+                }
+
+                Vector2d zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * red_.com_.CP;
+
+                if (cgen_init)
+                {
+                    tc.command_time = tc.command_time + time_segment - time_segment_origin;
+                    time_segment = time_segment_origin;
+                    std::cout << "###############################################" << std::endl;
+                    std::cout << "loop : " << loop_ << " loop time : " << loop_time << std::endl;
+                    //cx_init = model_.com_.pos.segment(0, 2);
+                    //cv_init = model_.com_.vel.segment(0, 2);
+                    std::cout << "desired cp   x : " << desired_cp(0) << "  y : " << desired_cp(1) << std::endl;
+                    std::cout << "zmp gen   x : " << zmp(0) << "  y : " << zmp(1) << std::endl;
+                    zmperror_reset = true;
+                    //std::cout << "c CP" << std::endl;
+                    //std::cout << model_.com_.CP << std::endl;
+
+                    //zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * model_.com_.CP;
+                    //cgen_init = false;
+                }
+
+                /*
+                if (zmp(1) > 0.11)
+                {
+                    zmp(1) = 0.11;
+                }
+                if (zmp(1) < -0.11)
+                {
+                    zmp(1) = -0.11;
+                }*/
+
+                double y_margin, x_margin;
+                double over_ratio;
+                y_margin = 0.04;
+                x_margin = 0.11;
+
+                if (loop_ > 0)
+                {
+                    if (loop_ % 2)
+                    {
+                        if (zmp(1) > (red_.link_[Left_Foot].xpos_contact(1) + y_margin))
+                        {
+                            //std::cout << "ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                            zmp(1) = red_.link_[Left_Foot].xpos_contact(1) + y_margin;
+
+                            //std::cout << loop_ << "Left ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+                        if (zmp(1) < (red_.link_[Left_Foot].xpos_contact(1) - y_margin))
+                        {
+                            //std::cout << "ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                            zmp(1) = red_.link_[Left_Foot].xpos_contact(1) - y_margin;
+                            //std::cout << loop_ << "Left ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+
+                        if (zmp(0) < (red_.link_[Left_Foot].xpos_contact(0) - x_margin))
+                        {
+                            zmp(0) = (red_.link_[Left_Foot].xpos_contact(0) - x_margin);
+                        }
+                        if (zmp(0) > (red_.link_[Left_Foot].xpos_contact(0) + x_margin))
+                        {
+                            zmp(0) = (red_.link_[Left_Foot].xpos_contact(0) + x_margin);
+                        }
+                    }
+                    else
+                    {
+                        if (zmp(1) > (red_.link_[Right_Foot].xpos_contact(1) + y_margin))
+                        {
+                            zmp(1) = red_.link_[Right_Foot].xpos_contact(1) + y_margin;
+                            //std::cout << loop_ << "Right ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+                        if (zmp(1) < (red_.link_[Right_Foot].xpos_contact(1) - y_margin))
+                        {
+                            zmp(1) = red_.link_[Right_Foot].xpos_contact(1) - y_margin;
+                            //std::cout << loop_ << "Right ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+
+                        if (zmp(0) < (red_.link_[Right_Foot].xpos_contact(0) - x_margin))
+                        {
+                            zmp(0) = (red_.link_[Right_Foot].xpos_contact(0) - x_margin);
+                        }
+                        if (zmp(0) > (red_.link_[Right_Foot].xpos_contact(0) + x_margin))
+                        {
+                            zmp(0) = (red_.link_[Right_Foot].xpos_contact(0) + x_margin);
+                        }
+                    }
+                }
+
+                double extend_t = 1 / w_ * log((desired_cp(1) - zmp(1)) / (cp_current(1) - zmp(1))) - time_segment + loop_time;
+                if (extend_t > 0.0001)
+                {
+                    std::cout << extend_t << std::endl;
+                    time_segment = time_segment + extend_t;
+                }
+                // est_cp_ = b_ * (model_.com_.pos.segment(0, 2) + model_.com_.vel.segment(0, 2) / w_) + (1 - b_) * zmp;
+                // std::cout << "estimated_cp" << std::endl;
+                // std::cout << est_cp_ << std::endl;
+                if (cgen_init)
+                {
+                    std::cout << "1 ZMP : " << zmp(1) << std::endl;
+                    cgen_init = false;
+                }
+
+                red_.ZMP_desired(0) = zmp(0);
+                red_.ZMP_desired(1) = zmp(1);
+
+                wc_.set_zmp_control(red_, zmp, 1.0);
+                //wc_.set_zmp_feedback_control(red_, zmperror_reset);
+                //MatrixXd damping_matrix;
+                //damping_matrix.setIdentity(total_dof_, total_dof_);
+
+                // //torque_dc_.segment(0, 12) = q_dot_.segment(0, 12) * 2.0;
+                // std::cout << "zmp_des" << std::endl;
+                // std::cout << zmp << std::endl;
+                //std::cout << "zmp_cur" << std::endl;
+                //std::cout << model_.com_.ZMP << std::endl;
+                //std::cout << "Sensor ZMP" << std::endl;
+                //std::cout << body_zmp_ << std::endl;
+
+                //single support test at tc_
+                // single support , 0.1 ~ 0.9s foot up -> down just for 4cm?
+                // at loop_ = 0( first phase)
+                // at loop_ = 1, zmp at right foot.
+                // at each loop, 0~0.1 double support 0.1~ 0.9 singlesupport 0.9~1.0 double support
+                //
+
+                red_.ZMP_ft = wc_.GetZMPpos_fromFT(red_);
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
+            }
+            else if (tc.mode == 7)
+            {
+                static int loop_temp;
+                static int loop_;
+                static bool cgen_init;
+                static bool loop_cnged;
+                static bool walking_init;
+                static double foot_height;
+
+                static bool zmperror_reset;
+
+                //QP_switch = true;
+                red_.ee_[0].contact = true;
+                red_.ee_[1].contact = true;
+
+                //right_foot_contact_ = true;
+                //left_foot_contact_ = true;
+                double time_segment_origin = tc.traj_time;
+                static double time_segment;
+                static double loop_start_time;
+                static double loop_end_time;
+
+                if (tc.task_init)
+                {
+                    cgen_init = true;
+                    loop_cnged = false;
+                    walking_init = true;
+                    foot_height = (red_.link_[Right_Foot].xpos(2) + red_.link_[Left_Foot].xpos(2)) / 2.0;
+                    zmperror_reset = true;
+                    time_segment = tc.traj_time;
+                    loop_start_time = 0.0;
+                    loop_end_time = 0.0;
+                    tc.task_init = false;
+                }
+
+                double step_length = tc.ratio;
+                double task_time = control_time_ - tc.command_time;
+
+                loop_temp = loop_;
+                loop_ = (int)(task_time / time_segment);
+                double loop_time = task_time - (double)loop_ * time_segment;
+
+                double lr_st, lr_mt, lr_et;
+                lr_st = time_segment / 8.0;
+                lr_mt = time_segment / 8.0 * 4.0;
+                lr_et = time_segment / 8.0 * 7.0;
+
+                if ((double)loop_ > 0.1)
+                {
+                    if (loop_ % 2)
+                    {
+                        if ((loop_time < lr_et))
+                        {
+
+                            red_.ee_[1].contact = false;
+                            red_.ee_[0].contact = true;
+                        }
+                        else
+                        {
+                            red_.ee_[1].contact = true;
+                            red_.ee_[0].contact = true;
+                        }
+                    }
+                    else
+                    {
+                        if ((loop_time < lr_et))
+                        {
+                            red_.ee_[1].contact = true;
+                            red_.ee_[0].contact = false;
+                        }
+                        else
+                        {
+                            red_.ee_[1].contact = true;
+                            red_.ee_[0].contact = true;
+                        }
+                    }
+                }
+
+                //(model_.link_[model_.COM_id].x_init - zmp)*cosh(loop_time/time_segment)+time_segment * model_.link_[model_.COM_id]
+                task_desired.setZero();
+                task_desired(0) = red_.link_[COM_id].x_init(0);
+                task_desired(2) = tc.height + foot_height;
+
+                red_.link_[COM_id].Set_Trajectory_from_quintic(control_time_, tc.command_time, tc.command_time + tc.traj_time, task_desired);
+
+                red_.ZMP_error = red_.ZMP_desired - red_.ZMP_ft;
+
+                // model_.link_[model_.COM_id].x_traj.segment(0, 2) = (cx_init - zmp) * cosh(loop_time * w_) + cv_init * sinh(loop_time * w_) / w_ + zmp;
+
+                // model_.link_[model_.COM_id].v_traj.segment(0, 2) = (cx_init - zmp) * w_ * sinh(loop_time * w_) + cv_init * cosh(loop_time * w_);
+
+                // std::cout << " xtraj : " << std::endl;
+                //std::cout << model_.link_[model_.COM_id].x_traj.segment(0, 2) << std::endl;
+                //std::cout << "vtrah : " << std::endl;
+                //std::cout << model_.link_[model_.COM_id].v_traj.segment(0, 2) << std::endl;
+
+                if (red_.ee_[1].contact && red_.ee_[0].contact)
+                {
+                    walking_init = true;
+                    task_number = 6;
+                    J_task.setZero(task_number, MODEL_DOF_VIRTUAL);
+                    f_star.setZero(task_number);
+                    J_task.block(0, 0, 6, MODEL_DOF_VIRTUAL) = red_.link_[COM_id].Jac;
+
+                    wc_.set_contact(red_, 1, 1);
+                    torque_grav = wc_.gravity_compensation_torque(red_);
+
+                    red_.link_[Pelvis].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
+
+                    f_star.segment(0, 6) = wc_.getfstar6d(red_, COM_id);
+                }
+                else if (red_.ee_[0].contact)
+                {
+                    if (walking_init)
+                    {
+                        red_.link_[Right_Foot].x_init = red_.link_[Right_Foot].xpos;
+                        walking_init = false;
+                    }
+                    task_number = 12;
+
+                    wc_.set_contact(red_, 1, 0);
+                    J_task.setZero(task_number, total_dof_ + 6);
+                    f_star.setZero(task_number);
+
+                    J_task.block(0, 0, 6, total_dof_ + 6) = red_.link_[COM_id].Jac;
+                    J_task.block(6, 0, 6, total_dof_ + 6) = red_.link_[Right_Foot].Jac;
+
+                    torque_grav = wc_.gravity_compensation_torque(red_);
 
                     red_.link_[Pelvis].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
 
@@ -865,18 +1208,14 @@ void RedController::dynamicsThreadLow()
                     if (loop_time > lr_mt)
                         red_.link_[Right_Foot].Set_Trajectory_from_quintic(control_time_, tc.command_time + (double)loop_ * time_segment + lr_mt, tc.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
 
-                    Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_et - 0.05, red_.link_[Right_Foot].x_init(0), 0, 0, red_.link_[Left_Foot].xpos(0) + step_length, 0, 0);
+                    Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_et - 0.04, red_.link_[Right_Foot].x_init(0), 0, 0, red_.link_[Left_Foot].xpos(0) + step_length, 0, 0);
                     red_.link_[Right_Foot].x_traj(0) = quintic(0);
                     red_.link_[Right_Foot].v_traj(0) = quintic(1);
 
                     red_.link_[Right_Foot].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
 
-                    f_star.segment(0, 3) = wc_.getfstar_tra(COM_id, kp_, kd_);
-                    f_star.segment(3, 3) = wc_.getfstar_rot(Pelvis, kpa_, kda_);
-                    f_star.segment(6, 3) = wc_.getfstar_tra(Right_Foot, kp_, kd_);
-
-                    f_star.segment(9, 3) = wc_.getfstar_rot(Right_Foot, kpa_, kda_);
-                    f_star(9) = 0;
+                    f_star.segment(0, 6) = wc_.getfstar6d(red_, COM_id);
+                    f_star.segment(6, 6) = wc_.getfstar6d(red_, Right_Foot);
                 }
                 else if (red_.ee_[1].contact) // rightfoot contact
                 {
@@ -888,7 +1227,7 @@ void RedController::dynamicsThreadLow()
                         walking_init = false;
                     }
                     task_number = 12;
-                    wc_.set_contact(0, 1);
+                    wc_.set_contact(red_, 0, 1);
 
                     J_task.setZero(task_number, total_dof_ + 6);
                     f_star.setZero(task_number);
@@ -896,7 +1235,7 @@ void RedController::dynamicsThreadLow()
                     J_task.block(0, 0, 6, total_dof_ + 6) = red_.link_[COM_id].Jac;
                     J_task.block(6, 0, 6, total_dof_ + 6) = red_.link_[Left_Foot].Jac;
 
-                    torque_grav = wc_.gravity_compensation_torque();
+                    torque_grav = wc_.gravity_compensation_torque(red_);
 
                     red_.link_[Pelvis].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
                     //model_.Link_Set_Trajectory_rotation(model_.Upper_Body, control_time_, tc_.taskcommand_.command_time, tc_.taskcommand_.command_time + tc_.taskcommand_.traj_time, Eigen::Matrix3d::Identity(), false);
@@ -914,30 +1253,239 @@ void RedController::dynamicsThreadLow()
                     if (loop_time > lr_mt)
                         red_.link_[Left_Foot].Set_Trajectory_from_quintic(control_time_, tc.command_time + (double)loop_ * time_segment + lr_mt, tc.command_time + (double)loop_ * time_segment + lr_et, lf_init, lf_desired);
 
-                    Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_et - 0.05, red_.link_[Left_Foot].x_init(0), 0, 0, red_.link_[Right_Foot].xpos(0) + step_length, 0, 0);
+                    Eigen::Vector3d quintic = DyrosMath::QuinticSpline(control_time_, tc.command_time + (double)loop_ * time_segment + lr_st, tc.command_time + (double)loop_ * time_segment + lr_et - 0.04, red_.link_[Left_Foot].x_init(0), 0, 0, red_.link_[Right_Foot].xpos(0) + step_length, 0, 0);
                     red_.link_[Left_Foot].x_traj(0) = quintic(0);
                     red_.link_[Left_Foot].v_traj(0) = quintic(1);
 
                     red_.link_[Left_Foot].Set_Trajectory_rotation(control_time_, tc.command_time, tc.command_time + tc.traj_time, Eigen::Matrix3d::Identity(), false);
 
-                    f_star.segment(0, 3) = wc_.getfstar_tra(COM_id, kp_, kd_);
-                    f_star.segment(3, 3) = wc_.getfstar_rot(Pelvis, kpa_, kda_);
-                    f_star.segment(6, 3) = wc_.getfstar_tra(Left_Foot, kp_, kd_);
-
-                    f_star.segment(9, 3) = wc_.getfstar_rot(Left_Foot, kpa_, kda_);
-                    f_star(9) = 0;
+                    f_star.segment(0, 6) = wc_.getfstar6d(red_, COM_id);
+                    f_star.segment(6, 6) = wc_.getfstar6d(red_, Left_Foot);
                 }
 
-                torque_task = wc_.task_control_torque(J_task, f_star);
+                Vector2d cp_current = red_.com_.CP;
+                double w_ = sqrt(9.81 / red_.com_.pos(2));
+                double b_ = exp(w_ * (time_segment - loop_time));
+
+                Vector2d desired_cp;
+                Vector2d right_cp, left_cp, cp_mod;
+                //cp_mod << -0.02, -0.00747;
+                //right_cp << -0.04, -0.095;
+                //left_cp << -0.04, 0.095;
+                cp_mod << -0.0, -0.00747;
+                right_cp << 0.02, -0.09;
+                left_cp << 0.02, 0.09;
+
+                if (loop_ - loop_temp)
+                {
+                    loop_cnged = true;
+                    cgen_init = true;
+                }
+                double st_temp;
+
+                if (loop_ % 2)
+                {
+                    st_temp = step_length;
+                    if (loop_ == 1)
+                        st_temp = step_length / 2.0;
+
+                    desired_cp = right_cp;
+                    desired_cp(0) = right_cp(0) + ((double)loop_) * st_temp + red_.link_[COM_id].x_init(0);
+                }
+                else
+                {
+                    st_temp = step_length;
+                    if (loop_ == 1)
+                        st_temp = step_length / 2.0;
+                    desired_cp = left_cp;
+                    desired_cp(0) = left_cp(0) + ((double)loop_) * st_temp + red_.link_[COM_id].x_init(0);
+                }
+
+                Vector2d zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * red_.com_.CP;
+
+                if (cgen_init)
+                {
+                    tc.command_time = tc.command_time + time_segment - time_segment_origin;
+                    time_segment = time_segment_origin;
+                    std::cout << "###############################################" << std::endl;
+                    std::cout << "loop : " << loop_ << " loop time : " << loop_time << std::endl;
+                    //cx_init = model_.com_.pos.segment(0, 2);
+                    //cv_init = model_.com_.vel.segment(0, 2);
+                    std::cout << "desired cp   x : " << desired_cp(0) << "  y : " << desired_cp(1) << std::endl;
+                    std::cout << "zmp gen   x : " << zmp(0) << "  y : " << zmp(1) << std::endl;
+                    zmperror_reset = true;
+                    //std::cout << "c CP" << std::endl;
+                    //std::cout << model_.com_.CP << std::endl;
+
+                    //zmp = 1 / (1 - b_) * desired_cp - b_ / (1 - b_) * model_.com_.CP;
+                    //cgen_init = false;
+                }
+
+                /*
+                if (zmp(1) > 0.11)
+                {
+                    zmp(1) = 0.11;
+                }
+                if (zmp(1) < -0.11)
+                {
+                    zmp(1) = -0.11;
+                }*/
+
+                double y_margin, x_margin;
+                double over_ratio;
+                y_margin = 0.04;
+                x_margin = 0.11;
+
+                if (loop_ > 0)
+                {
+                    if (loop_ % 2)
+                    {
+                        if (zmp(1) > (red_.link_[Left_Foot].xpos_contact(1) + y_margin))
+                        {
+                            //std::cout << "ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                            zmp(1) = red_.link_[Left_Foot].xpos_contact(1) + y_margin;
+
+                            //std::cout << loop_ << "Left ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+                        if (zmp(1) < (red_.link_[Left_Foot].xpos_contact(1) - y_margin))
+                        {
+                            //std::cout << "ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                            zmp(1) = red_.link_[Left_Foot].xpos_contact(1) - y_margin;
+                            //std::cout << loop_ << "Left ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+
+                        if (zmp(0) < (red_.link_[Left_Foot].xpos_contact(0) - x_margin))
+                        {
+                            zmp(0) = (red_.link_[Left_Foot].xpos_contact(0) - x_margin);
+                        }
+                        if (zmp(0) > (red_.link_[Left_Foot].xpos_contact(0) + x_margin))
+                        {
+                            zmp(0) = (red_.link_[Left_Foot].xpos_contact(0) + x_margin);
+                        }
+                    }
+                    else
+                    {
+                        if (zmp(1) > (red_.link_[Right_Foot].xpos_contact(1) + y_margin))
+                        {
+                            zmp(1) = red_.link_[Right_Foot].xpos_contact(1) + y_margin;
+                            //std::cout << loop_ << "Right ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+                        if (zmp(1) < (red_.link_[Right_Foot].xpos_contact(1) - y_margin))
+                        {
+                            zmp(1) = red_.link_[Right_Foot].xpos_contact(1) - y_margin;
+                            //std::cout << loop_ << "Right ZMP regulate active : " << red_.link_[Left_Foot].xpos_contact(1) << "\t zmp y : " << zmp(1) << std::endl;
+                        }
+
+                        if (zmp(0) < (red_.link_[Right_Foot].xpos_contact(0) - x_margin))
+                        {
+                            zmp(0) = (red_.link_[Right_Foot].xpos_contact(0) - x_margin);
+                        }
+                        if (zmp(0) > (red_.link_[Right_Foot].xpos_contact(0) + x_margin))
+                        {
+                            zmp(0) = (red_.link_[Right_Foot].xpos_contact(0) + x_margin);
+                        }
+                    }
+                }
+
+                double extend_t = 1 / w_ * log((desired_cp(1) - zmp(1)) / (cp_current(1) - zmp(1))) - time_segment + loop_time;
+                //if (extend_t > 0.0001)
+                //{
+                //    std::cout << extend_t << std::endl;
+                //    time_segment = time_segment + extend_t;
+                //}
+                // est_cp_ = b_ * (model_.com_.pos.segment(0, 2) + model_.com_.vel.segment(0, 2) / w_) + (1 - b_) * zmp;
+                // std::cout << "estimated_cp" << std::endl;
+                // std::cout << est_cp_ << std::endl;
+                if (cgen_init)
+                {
+                    std::cout << "1 ZMP : " << zmp(1) << std::endl;
+                    cgen_init = false;
+                }
+
+                //wc_.set_zmp_control(red_, zmp, 1.0);
+                wc_.set_zmp_feedback_control(red_, zmp, zmperror_reset);
+                //MatrixXd damping_matrix;
+                //damping_matrix.setIdentity(total_dof_, total_dof_);
+
+                // //torque_dc_.segment(0, 12) = q_dot_.segment(0, 12) * 2.0;
+                // std::cout << "zmp_des" << std::endl;
+                // std::cout << zmp << std::endl;
+                //std::cout << "zmp_cur" << std::endl;
+                //std::cout << model_.com_.ZMP << std::endl;
+                //std::cout << "Sensor ZMP" << std::endl;
+                //std::cout << body_zmp_ << std::endl;
+
+                //single support test at tc_
+                // single support , 0.1 ~ 0.9s foot up -> down just for 4cm?
+                // at loop_ = 0( first phase)
+                // at loop_ = 1, zmp at right foot.
+                // at each loop, 0~0.1 double support 0.1~ 0.9 singlesupport 0.9~1.0 double support
+                //
+                torque_task = wc_.task_control_torque(red_, J_task, f_star);
             }
-            else if (tc.mode == 4)
+            else if (tc.mode == 7)
             {
+                //left is plus !
+                static int phase = 0; //first phase -> left foot contact!
+                static bool phase_init = true;
+                static bool phase_end = false;
+
+                red_.ee_[LEFT].contact = true;
+                red_.ee_[RIGHT].contact = true;
+
+                double step_legth = 0.0;
+                double step_time = tc.traj_time;
+
+                int last_phase = 10;
+
+                static double phase_start_time;
+                static double phase_end_time;
+
+                static Vector2d cp_desired;
+                Vector2d cp_current = red_.com_.CP;
+
+                if (phase_init)
+                {
+                    phase_start_time = control_time_;
+                    phase_end_time = control_time_ + step_time;
+
+                    //init all link in init
+                    red_.link_[Left_Foot].Set_initpos();
+                    red_.link_[Right_Foot].Set_initpos();
+                    red_.link_[COM_id].Set_initpos();
+
+                    phase_init = false;
+                }
+
+                //double support phase : start&end
+                //single support phase : left&right foot swing.
+
+                if (phase == 0)
+                {
+                }
+                else if (phase == last_phase)
+                {
+                }
+                else
+                {
+                }
+
+                if (control_time_ >= phase_end_time) //phase ending condition!
+                {
+                    phase_end = true;
+                }
+
+                if (phase_end) //phase end!
+                {
+                    phase_end = false;
+                    phase_init = true;
+                }
             }
         }
         else
         {
-            wc_.set_contact(1, 1);
-            torque_grav = wc_.gravity_compensation_torque(dc.fixedgravity);
+            wc_.set_contact(red_, 1, 1);
+            torque_grav = wc_.gravity_compensation_torque(red_, dc.fixedgravity);
         }
 
         TorqueDesiredLocal = torque_grav + torque_task;
@@ -961,11 +1509,11 @@ void RedController::dynamicsThreadLow()
 
         if (cr_mode == 0)
         {
-            TorqueContact = wc_.contact_force_redistribution_torque(red_.yaw_radian, TorqueDesiredLocal, fc_redis, fc_ratio);
+            TorqueContact = wc_.contact_force_redistribution_torque(red_, TorqueDesiredLocal, fc_redis, fc_ratio);
         }
         else if (cr_mode == 1)
         {
-            TorqueContact = wc_.contact_torque_calc_from_QP(TorqueDesiredLocal);
+            TorqueContact = wc_.contact_torque_calc_from_QP(red_, TorqueDesiredLocal);
         }
 
         //acceleration_estimated = (A_matrix_inverse * N_C * Slc_k_T * (TorqueDesiredLocal - torque_grav)).segment(6, MODEL_DOF);
@@ -990,8 +1538,8 @@ void RedController::dynamicsThreadLow()
         //wc_.get_contact_force(TorqueDesiredLocal);
         //red_.ZMP_local = wc_.GetZMPpos();
 
-        wc_.get_contact_force(torque_desired);
-        red_.ZMP = wc_.GetZMPpos();
+        red_.ContactForce = wc_.get_contact_force(red_, torque_desired);
+        red_.ZMP = wc_.GetZMPpos(red_);
 
         //red_.ZMP_eqn_calc(0) = (red_.link_[COM_id].x_traj(0) * 9.8 - red_.com_.pos(2) * red_.link_[COM_id].a_traj(0)) / 9.8;
         red_.ZMP_eqn_calc(0) = (red_.link_[COM_id].x_traj(1) * 9.81 - (red_.com_.pos(2) - red_.link_[Right_Foot].xpos(2) * 0.5 - red_.link_[Left_Foot].xpos(2) * 0.5) * red_.link_[COM_id].a_traj(1)) / 9.81;
@@ -1114,11 +1662,16 @@ void RedController::getState()
         red_.link_[i].Jac_COM_p = dc.link_[i].Jac_COM_p;
         red_.link_[i].Jac_COM_r = dc.link_[i].Jac_COM_r;
         red_.link_[i].COM_position = dc.link_[i].COM_position;
-        red_.link_[i].xpos_contact = dc.link_[i].xpos_contact;
+        //red_.link_[i].xpos_contact = dc.link_[i].xpos_contact;
         red_.link_[i].v = dc.link_[i].v;
         red_.link_[i].w = dc.link_[i].w;
     }
+
     red_.yaw_radian = dc.yaw_radian;
+    red_.roll = dc.roll;
+    red_.pitch = dc.pitch;
+    red_.yaw = dc.yaw;
+
     red_.A_ = dc.A_;
     red_.com_ = dc.com_;
     mtx_dc.unlock();

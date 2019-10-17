@@ -443,6 +443,7 @@ void MujocoInterface::sensorStateCallback(const mujoco_ros_msgs::SensorStateCons
 
 void MujocoInterface::simCommandCallback(const std_msgs::StringConstPtr &msg)
 {
+    
 
     std::string buf;
     buf = msg->data;

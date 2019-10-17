@@ -81,6 +81,8 @@ class DyrosRedGuiPlugin(Plugin):
         # self._widget.slowmotion_button.pressed.connect(self.slowmotion_button)
         # self._widget.reset_button.pressed.connect(self.reset_button)
 
+        self._widget.comboBox.currentIndexChanged.connect(self.comboBox_select)
+
         # torque on/off buttons
         self._widget.torqueon_button.pressed.connect(self.torqueon_button)
         self._widget.emergencyoff_button.pressed.connect(self.emergencyoff_button)
@@ -316,6 +318,21 @@ class DyrosRedGuiPlugin(Plugin):
         idx = self._widget.comboBox.currentIndex()
         com_command_msg.mode = idx
         self._publisher2.publish(com_command_msg)
+
+    def comboBox_select(self):
+        idx = self._widget.comboBox.currentIndex()
+        if idx == 6:
+            self._widget.label_4.setText('Step length')
+            self._widget.label_21.setText('Step number')
+            self._widget.label_5.setText('Step time')
+        elif idx == 7:
+            self._widget.label_4.setText('Step length')
+            self._widget.label_21.setText('Step number')
+            self._widget.label_5.setText('Step time')
+        else:
+            self._widget.label_4.setText('COM pos')
+            self._widget.label_21.setText('angle')
+            self._widget.label_5.setText('Traj Time')
 
     def torqueon_button(self):
         self.send_msg("torqueon")
