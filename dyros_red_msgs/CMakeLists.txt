@@ -18,6 +18,8 @@ add_message_files(
   WalkingCommand.msg
   ComCommand.msg
   Dynamicsinfo.msg
+  GainCommand.msg
+  MotorInfo.msg
 )
 
 

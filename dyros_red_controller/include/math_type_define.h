@@ -6,7 +6,8 @@
 
 #include <Eigen/Dense>
 //#include <Eigen/SVD>
-
+#include <iostream>
+#include "dyros_red_controller/robotsettings.h"
 #define GRAVITY 9.80665
 #define MAX_DOF 50U
 #define RAD2DEG 1 / DEG2RAD
@@ -25,9 +26,9 @@ EIGEN_MAKE_TYPEDEFS(rScalar, d, 5, 5)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 6, 6)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 7, 7)
 EIGEN_MAKE_TYPEDEFS(rScalar, d, 8, 8)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 12, 12)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 28, 28)
-EIGEN_MAKE_TYPEDEFS(rScalar, d, 30, 30)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF, MODEL_DOF)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL)
+//EIGEN_MAKE_TYPEDEFS(rScalar, d, MODEL_DOF_QVIRTUAL, MODEL_DOF_QVIRTUAL)
 
 // typedef Transform<rScalar, 3, Eigen::Isometry> HTransform;  // typedef Transform< double, 3, Isometry > 	Eigen::Isometry3d
 
@@ -40,6 +41,20 @@ typedef Matrix<rScalar, 8, 4> Matrix8x4d;
 typedef Matrix<rScalar, -1, 1, 0, MAX_DOF, 1> VectorJXd;
 typedef Matrix<rScalar, -1, 1, 0, 12, 1> VectorLXd; //Leg IK
 typedef Matrix<rScalar, -1, -1, 0, MAX_DOF, MAX_DOF> MatrixJXd;
+
+typedef Matrix<rScalar, MODEL_DOF_VIRTUAL, MODEL_DOF_VIRTUAL> MatrixVVd;
+
+typedef Matrix<rScalar, 12, 1> Vector12d;
+
+typedef Matrix<rScalar, MODEL_DOF, 1> VectorQd;
+typedef Matrix<rScalar, MODEL_DOF_VIRTUAL, 1> VectorVQd;
+typedef Matrix<rScalar, MODEL_DOF_QVIRTUAL, 1> VectorQVQd;
+
+typedef Matrix<rScalar, 6, MODEL_DOF_VIRTUAL> Matrix6Vd;
+typedef Matrix<rScalar, 3, MODEL_DOF_VIRTUAL> Matrix3Vd;
+
+typedef Matrix<rScalar, 6, MODEL_DOF> Matrix6Qd;
+typedef Matrix<rScalar, 3, MODEL_DOF> Matrix3Qd;
 
 //Complex
 typedef Matrix<std::complex<double>, 8, 4> Matrix8x4cd;
@@ -521,5 +536,33 @@ static Eigen::Vector3d QuinticSpline(
   return result;
 }
 
+static double minmax_cut(double val, double min_, double max_)
+{
+  if (val < min_)
+    return min_;
+  else if (val > max_)
+    return max_;
+  else
+    return val;
+}
+
+static double check_border(double x, double y, double x0, double x1, double y0, double y1, double sign)
+{
+  return -sign * ((y1 - y0) * (x - x0) + (x1 - x0) * (y0 - y));
+}
+static inline double lowPassFilter(double input, double prev, double ts, double tau)
+{
+  return (tau * prev + ts * input) / (tau + ts);
+}
+template <int N>
+static Eigen::Matrix<double, N, 1> lowPassFilter(Eigen::Matrix<double, N, 1> input, Eigen::Matrix<double, N, 1> prev, double ts, double tau)
+{
+  Eigen::Matrix<double, N, 1> res;
+  for (int i = 0; i < N; i++)
+  {
+    res(i) = lowPassFilter(input(i), prev(i), ts, tau);
+  }
+  return res;
+}
 } // namespace DyrosMath
 #endif
