@@ -214,6 +214,7 @@ public:
   int nIter;
   CQuadraticProgram QP_test;
   CQuadraticProgram QP_mpc;
+  CQuadraticProgram QP_torque;
   VectorXd result_temp;
 
 private:

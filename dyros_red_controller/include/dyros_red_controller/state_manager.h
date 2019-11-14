@@ -56,6 +56,7 @@ public:
   Eigen::VectorVQd q_ddot_virtual_;
   Eigen::VectorQd torque_;
   Eigen::VectorQd torque_desired;
+  Eigen::VectorVQd tau_nonlinear_;
 
   double roll, pitch, yaw;
   double yaw_radian;
@@ -71,7 +72,7 @@ public:
   Link link_[LINK_NUMBER + 1];
   Com com_;
 
-  Eigen::Vector6d RF_FT, LF_FT;
+  Eigen::Vector6d RF_FT, LF_FT, LH_FT, RH_FT;
 
   //Communication Subscriber!
 
@@ -82,6 +83,7 @@ public:
   ros::Publisher motor_info_pub;
   ros::Publisher motor_acc_dif_info_pub;
   ros::Publisher point_pub;
+  ros::Publisher point_pub2;
 
   ros::Publisher ft_viz_pub;
   visualization_msgs::MarkerArray ft_viz_msg;

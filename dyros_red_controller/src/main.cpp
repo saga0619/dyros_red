@@ -112,6 +112,18 @@ int main(int argc, char **argv)
         thread[2] = std::thread(&RedController::dynamicsThreadLow, &rc);
         thread[3] = std::thread(&RedController::tuiThread, &rc);
 
+        sched_param sch;
+        int policy;
+        for (int i = 0; i < 4; i++)
+        {
+            pthread_getschedparam(thread[i].native_handle(), &policy, &sch);
+            sch.sched_priority = 49;
+            if (pthread_setschedparam(thread[i].native_handle(), SCHED_FIFO, &sch))
+            {
+                std::cout << "Failed to setschedparam: " << std::strerror(errno) << std::endl;
+            }
+        }
+
         for (int i = 0; i < 3; i++)
         {
             thread[i].join();
@@ -149,7 +161,9 @@ int main(int argc, char **argv)
         DynamicsManager dym(dc);
         RedController rc(dc, stm, dym);
         thread[0] = std::thread(&StateManager::testThread, &stm);
+
         thread[1] = std::thread(&DynamicsManager::testThread, &dym);
+
         thread[2] = std::thread(&RedController::tuiThread, &rc);
 
         for (int i = 0; i < 3; i++)

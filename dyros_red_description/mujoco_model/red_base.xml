@@ -1,36 +1,21 @@
-<mujoco model="dyros_red_description">
-    <compiler angle="radian" meshdir="../meshes/"/>
-    <size njmax="500" nconmax="100" />
-
+<mujoco>
     <default>
-
-        <joint damping="4.0" frictionloss="1.0"/>
-
+        <joint damping="2.0" frictionloss="0.01"/>
         <motor ctrllimited="true" ctrlrange="-300 300"/>
-
         <default class="viz">
             <geom contype="0" conaffinity="0" group="1" type="mesh" rgba=".6 .6 .7 1"/>
         </default>
-
-
         <!--Since group 2 is collision geom, rendering of group 2 geom is disabled by default in mujoco, but enabling is possible by press '2' on keyboard -->
         <default class="cls">
             <geom group="2" rgba="0.79216 0.81961 0.93333 0.5"/>
         </default>
-
         <default class="cls_f">
             <geom group="2" rgba="0.79216 0.81961 0.93333 0.1" friction="1 0.005 0.0001"/>
         </default>
-
         <default class="FTsensor">
             <site type="cylinder" size="0.005 0.005" group="4" rgba=".1 .1 .9 1"/>
         </default>
-
-
     </default>
-
-    <option timestep='0.0005' iterations="100" tolerance="1e-11" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="75" noslip_tolerance="1e-9"/>
-
     <visual>
         <quality shadowsize="2048" offsamples="16"/>
         <map stiffness="10" znear="0.05"/>
@@ -70,8 +55,6 @@
         <mesh name="neck" file="neck.STL" />
         <mesh name="head" file="head.STL" />
         <mesh name="hand" file="wrist2joint.STL" scale="0.001 0.001 0.001"/>
-
-
         <!--texture type="skybox" builtin="gradient" width="128" height="128" rgb1="1 1 1" rgb2="0 0 0"/-->
         <texture type="skybox" builtin="gradient" width="128" height="128" rgb1="0.4 0.6 0.8" rgb2="0 0 0"/>
         <texture name="texgeom" type="cube" builtin="flat" mark="cross" width="128" height="128" rgb1="0.6 0.6 0.6" rgb2="0.6 0.6 0.6" markrgb="1 1 1"/>
@@ -81,7 +64,6 @@
         <material name='MatPlane2' reflectance='0.3' />
     </asset>
 
-
     <worldbody>
         <geom name="ground" type="plane" pos="0 0 0" size="10 10 .05" rgba="0.7 0.6 0.5 1" material="MatPlane2" group="3"/>
 
@@ -89,11 +71,11 @@
 
         <!--geom name="box" type="box" size="0.5 0.5 0.5" pos="-1.5 0 0.5"/-->
         <!--geom name="box2" type="box" size="0.2 0.2 0.5" pos="-1.5 0 1.2"/-->
-        <geom name="wall1" type="box" size="1 0.1 1" pos="-3 3.8 1"/>
+        <!--geom name="wall1" type="box" size="1 0.1 1" pos="-3 3.8 1"/>
         <geom name="wall2" type="box" size="1 0.1 1" pos="-3 2.2 1"/>
 
         <geom name="wall3" type="box" size="1 0.1 0.068" pos="-3 -3.35 0.8"/>
-        <geom name="wall4" type="box" size="1 0.1 0.068" pos="-3 -2.65 0.8"/>
+        <geom name="wall4" type="box" size="1 0.1 0.068" pos="-3 -2.65 0.8"/-->
         <light directional="true" diffuse=".8 .8 .8" pos="0 0 10" dir="0 0 -10"/>
         <light directional="true" diffuse=".5 .5 .5" pos="10 0 0" dir="-10 0 0"/>
         <!--light mode='targetbodycom' target='base_link' directional='false' diffuse='.8 .8 .8' specular='0.8 0.8 0.8' pos='0 0 10.0' dir='0 0 -1'/-->
@@ -357,33 +339,25 @@
                 </body>
             </body>
         </body>
-
-
     </worldbody>
-
     <actuator>
-
         <motor name="R_HipRoll_Motor" joint="R_HipRoll_Joint"/>
         <motor name="R_HipCenter_Motor" joint="R_HipCenter_Joint"/>
         <motor name="R_Thigh_Motor" joint="R_Thigh_Joint"/>
         <motor name="R_Knee_Motor" joint="R_Knee_Joint"/>
         <motor name="R_AnkleCenter_Motor" joint="R_AnkleCenter_Joint"/>
         <motor name="R_AnkleRoll_Motor" joint="R_AnkleRoll_Joint"/>
-
         <motor name="L_HipRoll_Motor" joint="L_HipRoll_Joint"/>
         <motor name="L_HipCenter_Motor" joint="L_HipCenter_Joint"/>
         <motor name="L_Thigh_Motor" joint="L_Thigh_Joint"/>
         <motor name="L_Knee_Motor" joint="L_Knee_Joint"/>
         <motor name="L_AnkleCenter_Motor" joint="L_AnkleCenter_Joint"/>
         <motor name="L_AnkleRoll_Motor" joint="L_AnkleRoll_Joint"/>
-
         <motor name="Waist1_Motor" joint="Waist1_Joint"/>
         <motor name="Waist2_Motor" joint="Waist2_Joint"/>
         <motor name="Upperbody_Motor" joint="Upperbody_Joint"/>
         <!--motor name="Neck_Motor" joint="Neck_Joint"/-->
         <!--motor name="Head_Motor" joint="Head_Joint"/-->
-
-
         <motor name="R_Shoulder1_Motor" joint="R_Shoulder1_Joint"/>
         <motor name="R_Shoulder2_Motor" joint="R_Shoulder2_Joint"/>
         <motor name="R_Shoulder3_Motor" joint="R_Shoulder3_Joint"/>
@@ -392,7 +366,6 @@
         <motor name="R_Forearm_Motor" joint="R_Forearm_Joint"/>
         <motor name="R_Wrist1_Motor" joint="R_Wrist1_Joint"/>
         <motor name="R_Wrist2_Motor" joint="R_Wrist2_Joint"/>
-
         <motor name="L_Shoulder1_Motor" joint="L_Shoulder1_Joint"/>
         <motor name="L_Shoulder2_Motor" joint="L_Shoulder2_Joint"/>
         <motor name="L_Shoulder3_Motor" joint="L_Shoulder3_Joint"/>
@@ -401,8 +374,6 @@
         <motor name="L_Forearm_Motor" joint="L_Forearm_Joint"/>
         <motor name="L_Wrist1_Motor" joint="L_Wrist1_Joint"/>
         <motor name="L_Wrist2_Motor" joint="L_Wrist2_Joint"/>
-
-
     </actuator>
 
     <sensor>
@@ -410,72 +381,15 @@
         <torque name="LH_Torque_sensor" site="LH_FT"/>
         <force name="RH_Force_sensor" site="RH_FT"/>
         <torque name="RH_Torque_sensor" site="RH_FT"/>
-
         <force name="LF_Force_sensor" site="LF_FT"/>
         <torque name="LF_Torque_sensor" site="LF_FT"/>
         <force name="RF_Force_sensor" site="RF_FT"/>
         <torque name="RF_Torque_sensor" site="RF_FT"/>
-
         <accelerometer name="Acc_Pelvis_IMU" site="Pelvis_IMU"/>
         <gyro name="Gyro_Pelvis_IMU" site="Pelvis_IMU"/>
         <magnetometer name="Magnet_Pelvis_IMU" site="Pelvis_IMU"/>
-
         <framequat name="Pelvis_quat" objtype="site" objname="Pelvis_IMU"/>
         <framelinvel name="Pelvis_linear_vel" objtype="site" objname="Pelvis_IMU"/>
         <frameangvel name="Pelvis_angular_vel" objtype="site" objname="Pelvis_IMU"/>
-
     </sensor>
-
-    <keyframe>
-        <!--Initial Position Setting -->
-        <key name="front" time="0" qpos ="0 0 0.92683 1 0 0 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 0 
-								-0.3 -0.3 -1.5 1.27 1 0 1 0 
-								0.3 0.3 1.5 -1.27 -1 0 -1 0"/>
-
-        <key name="pos2" time="0" qpos ="0 0 0.92611 0 0 0 1 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 0 
-								-0.3 -0.3 -1.5 1.27 1 0 1 0 
-								0.3 0.3 1.5 -1.27 -1 0 -1 0"/>
-
-        <key time="0" qpos ="0 0 0.92611 0.9659 0 0 -0.2588 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 0 
-								-0.3 -0.3 -1.5 1.27 1 0 1 0 
-								0.3 0.3 1.5 -1.27 -1 0 -1 0"/>
-
-        <key time="0" qpos ="0 1 0.92611 1 0 0 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 0 
-								-0.3 0 -1.5 -1.87 -0.7 0 -1 0 
-								0.3 0 1.5 1.87 0.7 0 1 0"/>
-
-        <key time="0" qpos ="-3 -3 0.92683 1 0 0 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 0 
-								0 -0.7 -1.57 -1.57 -1.57 0 0.87 0 
-								0 0.7 1.57 1.57 1.57 0 -0.87 0"/>
-
-        <key time="0" qpos ="-3 -3 0.92683 1 0 0 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 -0.24 0.6 -0.36 0 
-								0 0 0 
-								0 -0.8 -1.57 1.57 2.0 0 -1.2 0 
-								0 0.8 1.57 -1.57 -2.0 0 1.2 0"/>
-
-        <key time="0" qpos ="-3 3 0.92611 1 0 0 0 
-								0 -0.8 -0.4 0.8 -0.4 -0.8 
-								0 0.8 -0.4 0.8 -0.4 0.8 
-								0 0 0 
-								0 1.5708 0.87 0.0 2.44 0.0 -1.57 0
-								0 -1.5708 -0.87 0.0 -2.44 0.0 1.57 0"/>
-
-    </keyframe>
 </mujoco>

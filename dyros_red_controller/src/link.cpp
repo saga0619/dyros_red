@@ -30,6 +30,7 @@ void Link::pos_Update(RigidBodyDynamics::Model &model_, Eigen::VectorQVQd &q_vir
     xpos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, id, Eigen::Vector3d::Zero(), false);
     xipos = RigidBodyDynamics::CalcBodyToBaseCoordinates(model_, q_virtual_, id, COM_position, false);
     Rotm = (RigidBodyDynamics::CalcBodyWorldOrientation(model_, q_virtual_, id, false)).transpose();
+
     mtx_rbdl.unlock();
     // COM_position =
     // RigidBodyDynamics::CalcBaseToBodyCoordinates(model_,q_virtual_,link_[i])
@@ -197,7 +198,7 @@ void Link::Set_Trajectory_rotation(double current_time, double start_time, doubl
 
     r_traj = rot_init * rmat;
 
-    double dtime = 0.0001;
+    double dtime = 0.001;
     double c_a_dtime = DyrosMath::cubic(current_time + dtime, start_time, end_time, 0.0, angle, 0.0, 0.0);
 
     Eigen::Vector3d ea = r_traj.eulerAngles(0, 1, 2);

@@ -209,9 +209,9 @@ VectorXd CQuadraticProgram::SolveQPoases(const int &num_max_iter)
     }
     int_t nWSR = num_max_iter;
 
-    _options.printLevel = PL_NONE;
-    //_options.setToMPC();
-    //_options.printLevel = PL_DEBUG_ITER;
+    //_options.printLevel = PL_NONE;
+    _options.setToMPC();
+    _options.printLevel = PL_LOW;
     _QPprob.setOptions(_options);
 
     returnValue m_status;
@@ -256,8 +256,12 @@ VectorXd CQuadraticProgram::SolveQPoases(const int &num_max_iter)
     }
 
     real_t Xopt_realt[_num_var];
-    _QPprob.getPrimalSolution(Xopt_realt);
+    returnValue scs = _QPprob.getPrimalSolution(Xopt_realt);
 
+    if (scs != SUCCESSFUL_RETURN)
+    {
+        std::cout << "QP SOLVE FAILED"<<std::endl;
+    }
     VectorXd Xopt(_num_var);
     for (int i = 0; i < _num_var; i++)
     {

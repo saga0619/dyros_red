@@ -77,7 +77,10 @@ public:
 
   void pubfromcontroller();
   ros::Publisher point_pub;
+  ros::Publisher point_pub2;
   geometry_msgs::PolygonStamped pointpub_msg;
+  geometry_msgs::PolygonStamped pointpub2_msg;
+
 private:
   void getState();
   void initialize();
@@ -123,4 +126,5 @@ private:
   Eigen::MatrixVVd A_;
   Eigen::MatrixVVd A_inv_;
   Com com_;
+  int cr_mode;
 };

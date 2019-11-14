@@ -14,6 +14,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     motor_acc_dif_info_pub = dc.nh.advertise<dyros_red_msgs::MotorInfo>("/dyros_red/accdifinfo", 1);
     tgainPublisher = dc.nh.advertise<std_msgs::Float32>("/dyros_red/torquegain", 100);
     point_pub = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point", 100);
+    point_pub2 = dc.nh.advertise<geometry_msgs::PolygonStamped>("/dyros_red/point2", 100);
     ft_viz_pub = dc.nh.advertise<visualization_msgs::MarkerArray>("/dyros_Red/ft_viz", 0);
     ft_viz_msg.markers.resize(4);
 
@@ -52,7 +53,7 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
     gravity_(2) = GRAVITY;
 
     initialize();
-    bool verbose = false; //set verbose true for State Manager initialization info
+    bool verbose = true; //set verbose true for State Manager initialization info
 
     std::string desc_package_path = ros::package::getPath("dyros_red_description");
     std::string urdf_path = desc_package_path + "/robots/dyros_red_robot.urdf";
@@ -110,6 +111,11 @@ StateManager::StateManager(DataContainer &dc_global) : dc(dc_global)
         link_[Right_Foot].sensor_point << 0.0, 0.0, -0.1098;
         link_[Left_Foot].contact_point = lf_c;
         link_[Left_Foot].sensor_point << 0.0, 0.0, -0.1098;
+
+        link_[Right_Hand].contact_point << 0, 0.092, 0.0;
+        link_[Right_Hand].sensor_point << 0.0, 0.0, 0.0;
+        link_[Left_Hand].contact_point << 0, 0.092, 0.0;
+        link_[Left_Hand].sensor_point << 0.0, 0.0, 0.0;
 
         joint_state_msg.name.resize(MODEL_DOF);
         for (int i = 0; i < MODEL_DOF; i++)
@@ -410,6 +416,7 @@ void StateManager::storeState()
     dc.q_dot_virtual_ = q_dot_virtual_;
     dc.q_virtual_ = q_virtual_;
     dc.q_ddot_virtual_ = q_ddot_virtual_;
+    dc.tau_nonlinear_ = tau_nonlinear_;
 
     dc.yaw_radian = yaw;
     dc.yaw = yaw;
@@ -421,6 +428,17 @@ void StateManager::storeState()
 
     dc.red_.ContactForce_FT.segment(0, 6) = LF_FT;
     dc.red_.ContactForce_FT.segment(6, 6) = RF_FT;
+
+    Eigen::Matrix6d Rotm;
+    Rotm.setZero();
+    Rotm.block(0, 0, 3, 3) = dc.red_.link_[Right_Hand].Rotm;
+    Rotm.block(3, 3, 3, 3) = dc.red_.link_[Right_Hand].Rotm;
+
+    dc.red_.RH_FT = Rotm * RH_FT;
+
+    Rotm.block(0, 0, 3, 3) = dc.red_.link_[Left_Hand].Rotm;
+    Rotm.block(3, 3, 3, 3) = dc.red_.link_[Left_Hand].Rotm;
+    dc.red_.LH_FT = Rotm * LH_FT;
 
     dc.red_.com_ = com_;
 
@@ -441,7 +459,7 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     mtx_rbdl.lock();
     RigidBodyDynamics::UpdateKinematicsCustom(model_, &q_virtual, &q_dot_virtual, &q_ddot_virtual);
     RigidBodyDynamics::CompositeRigidBodyAlgorithm(model_, q_virtual_, A_temp_, false);
-    Eigen::VectorXd tau_coriolis;
+    //Eigen::VectorXd tau_coriolis;
     //RigidBodyDynamics::NonlinearEffects(model_,q_virtual_,q_dot_virtual_,tau_coriolis);
     mtx_rbdl.unlock();
 
@@ -484,6 +502,7 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
 
     //CS.AddContactConstraint(link_[Right_Foot].id,)
 
+    ROS_INFO_ONCE("TOTAL MASS : %f", com_mass);
     com_.mass = com_mass;
     com_.pos = com_pos;
 
@@ -567,6 +586,9 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
 
     link_[COM_id].Jac.block(0, 0, 2, MODEL_DOF + 6) = jacobian_com.block(0, 0, 2, MODEL_DOF + 6);
     link_[COM_id].Jac.block(2, 0, 4, MODEL_DOF + 6) = link_[Pelvis].Jac.block(2, 0, 4, MODEL_DOF + 6);
+
+    link_[COM_id].Jac_COM_p = jacobian_com;
+
     link_[COM_id].xpos = com_.pos;
     link_[COM_id].xpos(2) = link_[Pelvis].xpos(2);
     link_[COM_id].Rotm = link_[Pelvis].Rotm;
@@ -575,6 +597,11 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     {
         link_[i].vw_Update(q_dot_virtual_);
     }
+
+    RigidBodyDynamics::Math::VectorNd tau_;
+    tau_.resize(model_.qdot_size);
+    RigidBodyDynamics::NonlinearEffects(model_, q_virtual_, q_dot_virtual_, tau_);
+    tau_nonlinear_ = tau_;
 
     //contactJacUpdate
     //link_[Right_Foot].Set_Contact(model_, q_virtual_, link_[Right_Foot].contact_point);

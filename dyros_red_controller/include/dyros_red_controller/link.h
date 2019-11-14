@@ -18,6 +18,7 @@ struct Com
   Eigen::Vector3d angular_momentum;
   Eigen::Vector2d ZMP;
   Eigen::Vector2d CP;
+  Eigen::MatrixXd Jac;
 };
 
 class Link
@@ -107,6 +108,9 @@ public:
   //rotational velocity of body
   Eigen::Vector3d w;
 
+  //fstar of current link
+  Eigen::Vector6d fstar;
+
   Eigen::Matrix6Vd Jac_point;
   Eigen::Matrix6Vd Jac;
   Eigen::Matrix6Vd Jac_COM;
@@ -152,6 +156,8 @@ public:
   Eigen::Vector3d cp_;
   Eigen::Vector3d xpos;
   Eigen::Vector3d sensor_xpos;
+  double cs_x_length;
+  double cs_y_length;
   bool contact = false;
 };
 
@@ -183,6 +189,7 @@ public:
 
   Eigen::VectorXd ContactForce;
   Eigen::Vector12d ContactForce_FT;
+  Eigen::Vector6d LH_FT, RH_FT;
   Eigen::Vector3d ZMP;
   Eigen::Vector3d ZMP_local;
   Eigen::Vector3d ZMP_desired;
@@ -205,6 +212,7 @@ public:
 
   int contact_index;
   int contact_part[4];
+  int ee_idx[4];
 
   double control_time_; // updated by control_base
   double d_time_;
