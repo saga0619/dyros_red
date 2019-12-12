@@ -15,6 +15,7 @@
 #include <sensor_msgs/Imu.h>
 #include <ncurses.h>
 #include "dyros_red_controller/link.h"
+#include <fstream>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //robot definition variables here
@@ -156,6 +157,8 @@ public:
 
   int elmo_cnt;
 
+  std::ofstream f_out;
+
   //Gui Command
   std::string command;
 
@@ -185,6 +188,7 @@ public:
   bool customGain = false;
   bool fixedgravity = false;
   bool torqueredis = false;
+  bool qp2nd = false;
 
   bool spalarm = false; // support polygon alarm bool
   bool semode = false;  // state estimation running or not.

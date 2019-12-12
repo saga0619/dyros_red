@@ -366,6 +366,7 @@ void StateManager::testThread()
             break;
         }
         ThreadCount++;
+
     }
 }
 void StateManager::connect()
@@ -475,7 +476,6 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     {
         link_[i].pos_Update(model_, q_virtual_);
     }
-
     Eigen::Vector3d zero;
     zero.setZero();
     dc.check = true;
@@ -506,6 +506,7 @@ void StateManager::updateKinematics(const Eigen::VectorXd &q_virtual, const Eige
     com_.mass = com_mass;
     com_.pos = com_pos;
 
+    //RigidBodyDynamics::Utils::
     /*
     if (com_pos(1) < link_[Right_Foot].xpos(1))
     {
@@ -804,5 +805,17 @@ void StateManager::CommandCallback(const std_msgs::StringConstPtr &msg)
             std::cout << "State Estimation mode on" << std::endl;
         }
         dc.semode = !dc.semode;
+    }
+    else if (msg->data == "qp2nd")
+    {
+        if (dc.qp2nd)
+        {
+            std::cout << "qp2nd mode off" << std::endl;
+        }
+        else
+        {
+            std::cout << "qp2nd mode on" << std::endl;
+        }
+        dc.qp2nd = !dc.qp2nd;
     }
 }

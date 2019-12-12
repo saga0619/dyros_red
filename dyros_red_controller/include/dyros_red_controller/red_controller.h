@@ -73,7 +73,7 @@ public:
   void TaskCommandCallback(const dyros_red_msgs::TaskCommandConstPtr &msg);
   void ContinuityChecker(double data);
   void ZMPmonitor();
-
+  std::ofstream out;
 
   void pubfromcontroller();
   ros::Publisher point_pub;

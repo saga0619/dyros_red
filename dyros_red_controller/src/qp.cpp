@@ -211,6 +211,9 @@ VectorXd CQuadraticProgram::SolveQPoases(const int &num_max_iter)
 
     //_options.printLevel = PL_NONE;
     _options.setToMPC();
+
+    _options.boundTolerance = 1E-6;
+    _options.boundRelaxation = 1E-6;
     _options.printLevel = PL_LOW;
     _QPprob.setOptions(_options);
 
@@ -260,7 +263,23 @@ VectorXd CQuadraticProgram::SolveQPoases(const int &num_max_iter)
 
     if (scs != SUCCESSFUL_RETURN)
     {
-        std::cout << "QP SOLVE FAILED"<<std::endl;
+        std::cout << "QP SOLVE FAILED" << std::endl;
+        PrintMinProb();
+
+        int size_H_ = _H.cols();
+        VectorXcd _H_eigen = _H.eigenvalues();
+
+        for (int i = 0; i < size_H_; i++)
+        {
+            if (_H_eigen(i).real() < 0)
+            {
+                std::cout << "eigenvalue is negative " << std::endl;
+            }
+            if (_H_eigen(i).imag() != 0)
+            {
+                std::cout << "imaginary exist" << std::endl;
+            }
+        }
     }
     VectorXd Xopt(_num_var);
     for (int i = 0; i < _num_var; i++)

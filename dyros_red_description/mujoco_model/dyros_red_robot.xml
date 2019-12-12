@@ -4,7 +4,7 @@
 
     <default>
 
-        <joint damping="4.0" frictionloss="1.0"/>
+        <joint damping="3" frictionloss="0.1"/>
 
         <motor ctrllimited="true" ctrlrange="-300 300"/>
 
@@ -141,12 +141,12 @@
                                 <geom size="0.05225 0.03 0.0475" pos="-0.0045 0 0" type="box" class="cls" />
                                 <body name="R_AnkleRoll_Link" pos="0 0 0">
                                     <inertial pos="-0.00802 0 -0.08535" quat="0.999815 -0.000353889 0.0192239 9.30274e-05" mass="3.464" diaginertia="0.07616 0.07616 0.07616" />
-                                    <joint name="R_AnkleRoll_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-3.14 3.14" />
+                                    <joint name="R_AnkleRoll_Joint" pos="0 0 0" axis="1 0 0" damping="20" limited="true" range="-3.14 3.14" />
                                     <geom class="viz" rgba="0.85938 0.07813 0.23438 1" mesh="AnkleRoll_R_Link" />
                                     <geom size="0.045 0.03125" pos="-0.08875 0 0" quat="0.707107 0 -0.707107 0" type="cylinder" class="cls" />
-                                    <body name="R_Foot_Plate" pos="0 0 -0.1233">
+                                    <body name="R_Foot_Plate" pos="0.0317  0 -0.1233">
                                         <inertial pos="0.0 0.0 0.0" quat="0.0 0.0 0 1" mass="0.0001" diaginertia="0.0001 0.0001 0.0001" />
-                                        <geom size="0.13 0.05 0.0135" pos="0.0317 0 0" type="box" class="cls_f"/>
+                                        <geom size="0.13 0.05 0.0135" pos="0 0 0" type="box" class="cls_f"/>
                                         <site class="FTsensor" name="RF_FT" pos="0 0 0.0135"/>
                                     </body>
                                 </body>
@@ -186,12 +186,12 @@
                                 <geom size="0.05225 0.03 0.0475" pos="-0.0045 0 0" type="box" class="cls" />
                                 <body name="L_AnkleRoll_Link" pos="0 0 0">
                                     <inertial pos="-0.00802 0 -0.08535" quat="0.999815 -0.000353889 0.0192239 9.30274e-05" mass="3.464" diaginertia="0.07616 0.07616 0.07616" />
-                                    <joint name="L_AnkleRoll_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-3.14 3.14" />
+                                    <joint name="L_AnkleRoll_Joint" pos="0 0 0" axis="1 0 0" damping="20" limited="true" range="-3.14 3.14" />
                                     <geom class="viz" rgba="0.85938 0.07813 0.23438 1" mesh="AnkleRoll_L_Link" />
                                     <geom size="0.045 0.03125" pos="-0.08875 0 0" quat="0.707107 0 -0.707107 0" type="cylinder" class="cls" />
-                                    <body name="L_Foot_Plate" pos="0 0 -0.1233">
+                                    <body name="L_Foot_Plate" pos="0.0317 0 -0.1233">
                                         <inertial pos="0.0 0.0 0.0" quat="0.0 0.0 0 1" mass="0.0001" diaginertia="0.0001 0.0001 0.0001" />
-                                        <geom size="0.13 0.05 0.0135" pos="0.0317 0 0" type="box" class="cls_f"/>
+                                        <geom size="0.13 0.05 0.0135" pos="0 0 0" type="box" class="cls_f"/>
                                         <site class="FTsensor" name="LF_FT" pos="0 0 0.0135"/>
                                     </body>
                                 </body>

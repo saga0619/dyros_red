@@ -104,6 +104,7 @@ class DyrosRedGuiPlugin(Plugin):
         torqueon = False
 
         self._widget.torqueredis.pressed.connect(self.torqueredis_button)
+        self._widget.qp2nd.pressed.connect(self.qp2nd)
 
         # command tab buttons
 
@@ -372,6 +373,9 @@ class DyrosRedGuiPlugin(Plugin):
 
     def torqueredis_button(self):
         self.send_msg("torqueredis")
+
+    def qp2nd(self):
+        self.send_msg("qp2nd")
 
     def tune_command_button(self):
         cnt1 = self._widget.tn1.text()

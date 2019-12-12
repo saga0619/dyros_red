@@ -60,6 +60,21 @@ public:
   // set realtime trajectory of link from quintic spline.
   void Set_Trajectory_from_quintic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_init, Eigen::Vector3d pos_desired);
 
+  // set realtime trajectory of link from quintic spline.
+  void Set_Trajectory_from_quintic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_init, Eigen::Vector3d vel_init, Eigen::Vector3d pos_desired, Eigen::Vector3d vel_desired);
+
+  // set realtime trajectory of link from cubic spline.
+  void Set_Trajectory_from_cubic(double current_time, double start_time, double end_time);
+
+  // set realtime trajectory of link from cubic spline.
+  void Set_Trajectory_from_cubic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_desired);
+
+  // set realtime trajectory of link from cubic spline.
+  void Set_Trajectory_from_cubic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_init, Eigen::Vector3d pos_desired);
+
+  // set realtime trajectory of link from cubic spline.
+  void Set_Trajectory_from_cubic(double current_time, double start_time, double end_time, Eigen::Vector3d pos_init, Eigen::Vector3d vel_init, Eigen::Vector3d pos_desired, Eigen::Vector3d vel_desired);
+
   // set realtime trajectory of rotation of link
   void Set_Trajectory_rotation(double current_time, double start_time, double end_time, bool local_);
 
@@ -156,6 +171,7 @@ public:
   Eigen::Vector3d cp_;
   Eigen::Vector3d xpos;
   Eigen::Vector3d sensor_xpos;
+  Eigen::Matrix3d rotm;
   double cs_x_length;
   double cs_y_length;
   bool contact = false;
